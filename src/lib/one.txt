@@ -1,0 +1,116 @@
+
+# Weekly Work Report (January 2026)
+
+## Week 1
+
+### Day 1 – 06-01-2026 (Tuesday)
+
+* Studied the basics of React.js.
+* Learned about repository management and how to maintain project data locally.
+* Understood basic React concepts and commonly used libraries.
+* Explored best practices for organizing and managing project files.
+
+### Day 2 – 07-01-2026 (Wednesday)
+
+* With the help of Zeel and Sagar Sir, studied the fundamentals of DLP (Data Loss Prevention).
+* Learned what DLP is and how it is used to prevent data leakage.
+* Conducted research throughout the day to understand different DLP techniques and tools.
+
+### Day 3 – 08-01-2026 (Thursday)
+
+* Studied website design inspiration using Pinterest.com.
+* Learned about different website sections and layouts.
+* Analyzed how to structure a complete main website and maintain it properly.
+
+### Day 4 – 09-01-2026 (Friday)
+
+* Set up the DLP project environment.
+* Worked on installation and configuration of required tools and integrations.
+
+**Weekend (10-01-2026 & 11-01-2026):**
+
+* Weekly review and self-learning.
+
+---
+
+## Week 2
+
+### Day 1 – 12-01-2026 (Monday)
+
+* Sagar Bhai shared the basic UI of the company website:
+  [https://www.cybersecurityumbrella.com/](https://www.cybersecurityumbrella.com/)
+* Reviewed the existing website structure and UI.
+* Created a short study and improvement plan from my side.
+* Shared suggested UI and improvement ideas with my mentor.
+
+### Day 2 – 13-01-2026 (Tuesday)
+
+* Set up the company website on my local machine.
+* Solved URL and environment issues using AI tools and debugging.
+* Integrated Google Sheets with TypeScript for form data handling.
+* Created a basic response system where website form data is directly stored in Google Sheets.
+
+### Day 3 & 4 – 14-01-2026 & 15-01-2026 (Wednesday & Thursday)
+
+* Leave.
+
+### Day 5 – 16-01-2026 (Friday)
+
+* Changed the main project focus to an Email Awareness Platform.
+* Created basic documentation explaining how to use the platform.
+* Prepared a short report and documentation in Google Docs.
+
+**Weekend (17-01-2026 & 18-01-2026):**
+
+* Weekly review and planning.
+
+---
+
+## Week 3
+
+### Day 1 – 19-01-2026 (Monday)
+
+* Created a basic home page UI using Lovable.
+* Designed a basic UI framework including layout, fonts, and color combinations.
+* Selected appropriate text styles and color themes for the platform.
+
+### Day 2 – 20-01-2026 (Tuesday)
+
+* Created the dashboard home page UI.
+* Set up the development machine for React.
+* Integrated and tested the home page functionality.
+
+### Day 3 – 21-01-2026 (Wednesday)
+
+* Team lead provided React code for dashboard features.
+* Integrated the shared dashboard code with my home page.
+* Combined both modules to ensure smooth functionality.
+
+### Day 4 – 22-01-2026 (Thursday)
+
+* Created Login, Sign Up, and OTP verification UI pages.
+* Integrated authentication UI into the main project.
+* Ensured all pages were working properly.
+
+### Day 5 – 23-01-2026 (Friday)
+
+* Migrated the entire React project to Next.js for professional setup.
+* Updated UI as required after migration.
+* Fixed errors related to routing, configuration, and build setup.
+
+**Weekend (24-01-2026 & 25-01-2026):**
+
+* Testing, review, and self-learning.
+
+---
+
+## Week 4
+
+### Day 1 – 26-01-2026 (Monday)
+
+* Created table forms for data display.
+* Set up pgAdmin for backend database management.
+* Developed backend APIs to connect with the frontend.
+* Integrated frontend with backend APIs.
+* Debugged and fixed multiple errors to ensure smooth communication between frontend and backend.
+* Error Regarding to backend server was not working 

@@ -1,0 +1,289 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* =========================
+   DESIGN TOKENS
+========================= */
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 0 0% 0%;
+
+        --card: 0 0% 100%;
+        --card-foreground: 0 0% 0%;
+
+        --popover: 0 0% 100%;
+        --popover-foreground: 0 0% 0%;
+
+        --primary: 0 0% 0%;
+        --primary-foreground: 0 0% 100%;
+
+        --secondary: 0 0% 96%;
+        --secondary-foreground: 0 0% 10%;
+
+        --muted: 0 0% 96%;
+        --muted-foreground: 0 0% 45%;
+
+        --accent: 0 0% 96%;
+        --accent-foreground: 0 0% 0%;
+
+        --destructive: 0 0% 30%;
+        --destructive-foreground: 0 0% 100%;
+
+        --success: 142 76% 36%;
+        --warning: 38 92% 50%;
+        --danger: 0 84% 60%;
+
+        --border: 0 0% 90%;
+        --input: 0 0% 90%;
+        --ring: 0 0% 0%;
+
+        --radius: 0.5rem;
+
+        --card-shadow: 0 1px 3px hsl(0 0% 0% / 0.04);
+        --card-shadow-hover: 0 4px 6px hsl(0 0% 0% / 0.08);
+
+        /* Sidebar */
+        --sidebar-background: 0 0% 98%;
+        --sidebar-foreground: 0 0% 20%;
+        --sidebar-primary: 0 0% 10%;
+        --sidebar-accent: 0 0% 95%;
+        --sidebar-border: 0 0% 91%;
+        --sidebar-muted: 0 0% 60%;
+    }
+
+    .dark {
+        --background: 0 0% 5%;
+        --foreground: 0 0% 98%;
+
+        --card: 0 0% 8%;
+        --card-foreground: 0 0% 98%;
+
+        --secondary: 0 0% 15%;
+        --muted: 0 0% 15%;
+        --accent: 0 0% 15%;
+
+        --border: 0 0% 18%;
+        --input: 0 0% 18%;
+        --ring: 0 0% 100%;
+
+        --sidebar-background: 0 0% 8%;
+        --sidebar-foreground: 0 0% 95%;
+        --sidebar-accent: 0 0% 15%;
+        --sidebar-border: 0 0% 15%;
+        --sidebar-muted: 0 0% 65%;
+    }
+}
+
+/* =========================
+   GLOBAL BASE
+========================= */
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        @apply bg-background text-foreground antialiased;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+
+    .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+    }
+}
+
+/* =========================
+   COMPONENTS
+========================= */
+@layer components {
+    .section-container {
+        @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+    }
+
+    .section-padding {
+        @apply py-20 md:py-28;
+    }
+
+    .card-elevated {
+        @apply bg-card rounded-lg border shadow transition-shadow;
+        box-shadow: var(--card-shadow);
+    }
+
+    .card-elevated:hover {
+        box-shadow: var(--card-shadow-hover);
+    }
+
+    .stat-card {
+        @apply bg-card border p-6 transition-colors;
+    }
+
+    .stat-card:hover {
+        background-color: hsl(var(--secondary));
+    }
+
+    /* Tables */
+    .data-table {
+        @apply w-full text-sm;
+    }
+
+    .data-table th {
+        @apply text-left font-medium uppercase text-xs tracking-wider py-3 px-4 border-b;
+        color: hsl(var(--muted-foreground));
+    }
+
+    .data-table td {
+        @apply py-4 px-4 border-b;
+    }
+
+    .data-table tr:hover {
+        background-color: hsl(var(--secondary));
+    }
+
+    /* Status */
+    .status-badge {
+        @apply inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full;
+    }
+
+    .status-active {
+        background-color: hsl(var(--foreground));
+        color: hsl(var(--background));
+    }
+
+    .status-inactive {
+        background-color: hsl(var(--muted));
+        color: hsl(var(--muted-foreground));
+    }
+
+    .status-pending {
+        border: 1px solid hsl(var(--border));
+    }
+
+    /* Risk */
+    .risk-low {
+        color: hsl(var(--muted-foreground));
+    }
+
+    .risk-medium {
+        font-weight: 500;
+    }
+
+    .risk-high {
+        font-weight: 700;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+
+    /* Sidebar */
+    .nav-item {
+        @apply flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors;
+        color: hsl(var(--sidebar-muted));
+    }
+
+    .nav-item:hover {
+        color: hsl(var(--sidebar-foreground));
+        background-color: hsl(var(--sidebar-accent));
+    }
+
+    .nav-item.active {
+        color: hsl(var(--sidebar-foreground));
+        background-color: hsl(var(--sidebar-accent));
+    }
+
+    /* Modules */
+    .module-header {
+        @apply flex items-center justify-between pb-6 border-b mb-6;
+    }
+
+    .module-title {
+        @apply text-2xl font-semibold tracking-tight;
+    }
+
+    .kpi-value {
+        @apply text-3xl font-semibold tracking-tight font-mono;
+    }
+
+    .kpi-label {
+        @apply text-sm mt-1;
+        color: hsl(var(--muted-foreground));
+    }
+
+    .kpi-trend {
+        @apply text-xs font-mono mt-2;
+    }
+}
+
+/* =========================
+   UTILITIES & ANIMATIONS
+========================= */
+@layer utilities {
+    .animate-fade-up {
+        animation: fadeUp 0.6s ease-out forwards;
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.5s ease-out forwards;
+    }
+
+    .animate-scale-in {
+        animation: scaleIn 0.4s ease-out forwards;
+    }
+
+    .stagger-1 {
+        animation-delay: 0.1s;
+    }
+
+    .stagger-2 {
+        animation-delay: 0.2s;
+    }
+
+    .stagger-3 {
+        animation-delay: 0.3s;
+    }
+
+    .stagger-4 {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+}
