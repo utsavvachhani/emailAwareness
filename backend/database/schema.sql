@@ -1,71 +1,136 @@
--- CyberShield Guard Backend Database Schema
--- PostgreSQL Database Setup
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- CyberShield Guard — Multi-Role Platform Schema (Split Tables)
+-- ═══════════════════════════════════════════════════════════════════════════════
 
--- Drop existing tables to ensure fresh schema (Warning: deletes data)
-DROP TABLE IF EXISTS refresh_tokens CASCADE;
-DROP TABLE IF EXISTS profiles CASCADE;
-DROP TABLE IF EXISTS otps CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
--- Create users table
+-- ─── NORMAL USERS ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE,
-    mobile VARCHAR(20) UNIQUE,
+    id            SERIAL PRIMARY KEY,
+    first_name    VARCHAR(100) NOT NULL,
+    last_name     VARCHAR(100) NOT NULL,
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    mobile        VARCHAR(20),
     password_hash VARCHAR(255) NOT NULL,
-    role VARCHAR(50) DEFAULT 'user',
-    is_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP
+    role          VARCHAR(20)  NOT NULL DEFAULT 'user',
+    is_verified   BOOLEAN      NOT NULL DEFAULT FALSE,
+    status        VARCHAR(20)  NOT NULL DEFAULT 'active',
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login    TIMESTAMP
 );
 
-
--- Create index on email and mobile for faster lookups
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_mobile ON users(mobile);
-
--- Create otps table for managing one-time passwords
-CREATE TABLE IF NOT EXISTS otps (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    otp VARCHAR(10) NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    is_used BOOLEAN DEFAULT FALSE,
-    verified_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+-- ─── ADMINS ───────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS admins (
+    id            SERIAL PRIMARY KEY,
+    first_name    VARCHAR(100) NOT NULL,
+    last_name     VARCHAR(100) NOT NULL,
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    mobile        VARCHAR(20),
+    password_hash VARCHAR(255) NOT NULL,
+    role          VARCHAR(20)  NOT NULL DEFAULT 'admin',
+    is_verified   BOOLEAN      NOT NULL DEFAULT FALSE,
+    status        VARCHAR(20)  NOT NULL DEFAULT 'pending',
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login    TIMESTAMP
 );
 
--- Create profiles table
+-- ─── SUPERADMINS ──────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS superadmins (
+    id            SERIAL PRIMARY KEY,
+    first_name    VARCHAR(100) NOT NULL,
+    last_name     VARCHAR(100) NOT NULL,
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    mobile        VARCHAR(20),
+    password_hash VARCHAR(255) NOT NULL,
+    role          VARCHAR(20)  NOT NULL DEFAULT 'superadmin',
+    is_verified   BOOLEAN      NOT NULL DEFAULT TRUE,
+    status        VARCHAR(20)  NOT NULL DEFAULT 'active',
+    created_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login    TIMESTAMP
+);
+
+-- ─── INDEXES ─────────────────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS idx_users_email        ON users(email);
+CREATE INDEX IF NOT EXISTS idx_admins_email       ON admins(email);
+CREATE INDEX IF NOT EXISTS idx_superadmins_email  ON superadmins(email);
+
+-- ─── PROFILES ────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS profiles (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    photo TEXT,
-    bio TEXT,
-    address TEXT,
-    date_of_birth DATE,
-    designation VARCHAR(255),
+    id           SERIAL  PRIMARY KEY,
+    user_id      INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    admin_id     INTEGER UNIQUE REFERENCES admins(id) ON DELETE CASCADE,
+    superadmin_id INTEGER UNIQUE REFERENCES superadmins(id) ON DELETE CASCADE,
+    photo        TEXT,
+    bio          TEXT,
+    designation  VARCHAR(255),
     organization VARCHAR(255) DEFAULT 'CyberShield Guard',
-    updated_history JSONB DEFAULT '[]'::jsonb,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_only_one_owner CHECK (
+        (user_id IS NOT NULL)::int + (admin_id IS NOT NULL)::int + (superadmin_id IS NOT NULL)::int = 1
+    )
 );
 
--- Create sessions table for managing user sessions (Refresh Tokens)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS admin_id INTEGER UNIQUE REFERENCES admins(id) ON DELETE CASCADE;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS superadmin_id INTEGER UNIQUE REFERENCES superadmins(id) ON DELETE CASCADE;
+
+-- ─── OTPs ────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS otps (
+    id            SERIAL PRIMARY KEY,
+    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    admin_id      INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+    superadmin_id INTEGER REFERENCES superadmins(id) ON DELETE CASCADE,
+    otp           VARCHAR(10) NOT NULL,
+    expires_at    TIMESTAMP   NOT NULL,
+    is_used       BOOLEAN     NOT NULL DEFAULT FALSE,
+    verified_at   TIMESTAMP,
+    created_at    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_otp_owner CHECK (
+        (user_id IS NOT NULL)::int + (admin_id IS NOT NULL)::int + (superadmin_id IS NOT NULL)::int = 1
+    )
+);
+
+ALTER TABLE otps ADD COLUMN IF NOT EXISTS admin_id INTEGER REFERENCES admins(id) ON DELETE CASCADE;
+ALTER TABLE otps ADD COLUMN IF NOT EXISTS superadmin_id INTEGER REFERENCES superadmins(id) ON DELETE CASCADE;
+
+-- ─── REFRESH TOKENS ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    token TEXT NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id            SERIAL PRIMARY KEY,
+    user_id       INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    admin_id      INTEGER REFERENCES admins(id) ON DELETE CASCADE,
+    superadmin_id INTEGER REFERENCES superadmins(id) ON DELETE CASCADE,
+    token         TEXT    NOT NULL,
+    expires_at    TIMESTAMP NOT NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT check_token_owner CHECK (
+        (user_id IS NOT NULL)::int + (admin_id IS NOT NULL)::int + (superadmin_id IS NOT NULL)::int = 1
+    )
 );
 
--- Create index on token
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS admin_id INTEGER REFERENCES admins(id) ON DELETE CASCADE;
+ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS superadmin_id INTEGER REFERENCES superadmins(id) ON DELETE CASCADE;
+
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
 
--- Create function to update updated_at timestamp
+-- ─── LOGIN AUDIT ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS login_audit (
+    id            SERIAL PRIMARY KEY,
+    user_id       INTEGER,
+    admin_id      INTEGER,
+    superadmin_id INTEGER,
+    email         VARCHAR(255) NOT NULL,
+    role          VARCHAR(20),
+    ip_address    VARCHAR(50),
+    user_agent    TEXT,
+    logged_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE login_audit ADD COLUMN IF NOT EXISTS admin_id INTEGER;
+ALTER TABLE login_audit ADD COLUMN IF NOT EXISTS superadmin_id INTEGER;
+
+
+-- ─── AUTO-UPDATE updated_at TRIGGER ──────────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -74,12 +139,23 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- Create triggers to automatically update updated_at
-DROP TRIGGER IF EXISTS update_users_updated_at ON users;
-CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+DROP TRIGGER IF EXISTS update_users_updated_at    ON users;
+CREATE TRIGGER update_users_updated_at
+    BEFORE UPDATE ON users
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_admins_updated_at   ON admins;
+CREATE TRIGGER update_admins_updated_at
+    BEFORE UPDATE ON admins
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_superadmins_updated_at ON superadmins;
+CREATE TRIGGER update_superadmins_updated_at
+    BEFORE UPDATE ON superadmins
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 DROP TRIGGER IF EXISTS update_profiles_updated_at ON profiles;
-CREATE TRIGGER update_profiles_updated_at BEFORE UPDATE ON profiles
+CREATE TRIGGER update_profiles_updated_at
+    BEFORE UPDATE ON profiles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 

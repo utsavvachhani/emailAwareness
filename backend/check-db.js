@@ -1,17 +1,19 @@
 import pool from "./src/config/database.js";
 
-async function checkUsers() {
+async function check() {
   try {
-    const result = await pool.query(
-      "SELECT id, email, first_name, last_name, is_verified FROM users",
-    );
-    console.log("Current Users in DB:");
-    console.table(result.rows);
-    process.exit(0);
+    const res = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+    `);
+    console.log("Tables in database:");
+    res.rows.forEach(r => console.log(`- ${r.table_name}`));
   } catch (err) {
-    console.error(err);
-    process.exit(1);
+    console.error("Error checking tables:", err);
+  } finally {
+    process.exit(0);
   }
 }
 
-checkUsers();
+check();

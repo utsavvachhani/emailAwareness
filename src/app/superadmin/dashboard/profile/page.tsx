@@ -61,7 +61,7 @@ export default function ProfilePage() {
         setIsSaving(true);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/profile/update`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -78,7 +78,17 @@ export default function ProfilePage() {
 
             // Update local Redux state
             dispatch(setCredentials({
-                user: { ...userInfo, ...formData },
+                user: {
+                    id: userInfo!.id,
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    email: formData.email,
+                    mobile: formData.mobile,
+                    role: formData.role,
+                    bio: formData.bio,
+                    designation: formData.designation,
+                    organization: formData.organization,
+                },
                 token: token!
             }));
 

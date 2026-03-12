@@ -63,7 +63,7 @@ Write-Host ""
 Write-Host "Running database schema..." -ForegroundColor Yellow
 
 # Run schema file
-$schemaPath = Join-Path $PSScriptRoot "database\schema.sql"
+$schemaPath = Join-Path $PSScriptRoot "backend\database\schema.sql"
 if (Test-Path $schemaPath) {
     psql -U $pgUser -h $pgHost -p $pgPort -d $dbName -f $schemaPath
     

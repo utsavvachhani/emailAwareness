@@ -8,6 +8,19 @@ const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "access-secret";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "refresh-secret";
 const SALT_ROUNDS = 10;
 
+// Cookie options
+export const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+};
+
+export const ACCESS_COOKIE_OPTIONS = {
+  ...COOKIE_OPTIONS,
+  maxAge: 15 * 60 * 1000, // 15 mins
+};
+
 // Hash password
 export const hashPassword = async (password) => {
   return await bcrypt.hash(password, SALT_ROUNDS);
@@ -48,6 +61,26 @@ export const verifyRefreshToken = (token) => {
   } catch (error) {
     return null;
   }
+};
+
+// Send auth cookies
+export const sendAuthCookies = (res, accessToken, refreshToken) => {
+  res.cookie("accessToken", accessToken, ACCESS_COOKIE_OPTIONS);
+  res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+};
+
+// Clear auth cookies
+export const clearAuthCookies = (res) => {
+  res.clearCookie("accessToken", ACCESS_COOKIE_OPTIONS);
+  res.clearCookie("refreshToken", COOKIE_OPTIONS);
+};
+
+// Unified token issuer
+export const issueTokens = (res, user) => {
+  const accessToken = generateAccessToken(user.id, user.email, user.role);
+  const refreshToken = generateRefreshToken(user.id);
+  sendAuthCookies(res, accessToken, refreshToken);
+  return { accessToken, refreshToken };
 };
 
 // Generate OTP (6-digit code)
