@@ -5,9 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Shield, Lock, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useAppDispatch } from "@/lib/redux/hooks";
+import { setCredentials } from "@/lib/redux/authSlice";
 
 const SignInPage = () => {
     const router = useRouter();
+    const dispatch = useAppDispatch();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -15,7 +18,7 @@ const SignInPage = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        router.prefetch("/superadmin/otp");
+        router.prefetch("/superadmin/dashboard");
     }, [router]);
 
     const isFormValid = email && password && !isLoading;
@@ -27,15 +30,11 @@ const SignInPage = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/signin`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email,
-                    password,
-                }),
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, password }),
             });
 
             const data = await response.json();
@@ -44,17 +43,16 @@ const SignInPage = () => {
                 throw new Error(data.message || 'Signin failed');
             }
 
-            // Store user data in sessionStorage for OTP verification
-            sessionStorage.setItem('pendingUser', JSON.stringify({
-                email: data.user.email,
-                firstName: data.user.firstName,
-                lastName: data.user.lastName,
+            // Save credentials to Redux and localStorage
+            dispatch(setCredentials({
+                user: data.user,
+                token: data.token || data.accessToken
             }));
 
-            toast.success(data.message || "OTP sent to your email!");
+            toast.success(data.message || "Login successful!");
 
-            // Navigate to OTP page
-            router.push("/superadmin/otp");
+            // Navigate direct to dashboard
+            router.push("/superadmin/dashboard");
 
         } catch (err: any) {
             toast.error(err.message || 'An error occurred during signin');
@@ -208,13 +206,10 @@ const SignInPage = () => {
                                 </div>
                             </div>
 
-                            {/* Sign Up Link */}
-                            <Link
-                                href="/superadmin/signup"
-                                className="block w-full py-3 text-center rounded-xl border border-white/20 text-white font-medium hover:bg-white/5 transition-all duration-300"
-                            >
-                                Create New Account
-                            </Link>
+                            {/* Info: no self-signup for superadmin */}
+                            <div className="block w-full py-3 text-center rounded-xl border border-white/10 text-white/30 text-sm cursor-default select-none">
+                                🔒 Superadmin access is pre-configured only
+                            </div>
 
                             {/* Back to Home */}
                             <div className="mt-6 text-center">

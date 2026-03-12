@@ -1,452 +1,313 @@
-# CyberShield Guard - Separate Backend & Frontend Setup
+# 🛡️ CyberShield Guard — Email Awareness Training Platform
+
+A full-stack multi-role cybersecurity email awareness training platform built with **Next.js** (frontend) and **Node.js / Express / PostgreSQL** (backend).
+
+---
 
 ## 🏗️ Architecture Overview
 
-This project uses a **separate backend and frontend architecture**:
-
-- **Backend**: Node.js + Express.js REST API (Port 5000)
-- **Frontend**: Next.js 15 React Application (Port 3000)
-- **Database**: PostgreSQL
-
 ```
-┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
-│                 │         │                 │         │                 │
-│  Next.js        │────────▶│  Express.js     │────────▶│  PostgreSQL     │
-│  Frontend       │  HTTP   │  Backend API    │  SQL    │  Database       │
-│  (Port 3000)    │◀────────│  (Port 5000)    │◀────────│  (Port 5432)    │
-│                 │         │                 │         │                 │
-└─────────────────┘         └─────────────────┘         └─────────────────┘
-```
-
-## 📋 Prerequisites
-
-- **Node.js** v18+
-- **PostgreSQL** v12+
-- **npm** or **bun**
-
-## 🚀 Quick Start Guide
-
-### Step 1: Install PostgreSQL
-
-#### Windows:
-
-1. Download from: https://www.postgresql.org/download/windows/
-2. Install and remember your password
-3. Default port: 5432
-
-### Step 2: Create Database
-
-```bash
-# Connect to PostgreSQL
-psql -U postgres
-
-# Create database
-CREATE DATABASE cybershield_db;
-
-# Exit
-\q
-```
-
-### Step 3: Run Database Schema
-
-```bash
-# Navigate to project root
-cd c:\utsav\cybersecurity\cybershield-guard-main
-
-# Run schema
-psql -U postgres -d cybershield_db -f database/schema.sql
-```
-
-### Step 4: Setup Backend
-
-```bash
-# Navigate to backend folder
-cd backend
-
-# Install dependencies
-npm install
-
-# Configure environment
-# Edit backend/.env and update:
-# - DATABASE_URL with your PostgreSQL password
-# - JWT_SECRET with a strong random string
-
-# Start backend server
-npm run dev
-```
-
-Backend will run on: **http://localhost:5000**
-
-### Step 5: Setup Frontend
-
-```bash
-# Navigate to project root (open new terminal)
-cd c:\utsav\cybersecurity\cybershield-guard-main
-
-# Install dependencies (if not already done)
-npm install
-
-# Frontend .env.local is already configured to point to backend
-
-# Start frontend server
-npm run dev
-```
-
-Frontend will run on: **http://localhost:3000**
-
-## 📁 Project Structure
-
-```
-cybershield-guard-main/
-├── backend/                      # Separate Backend Server
+emailAwareness/
+├── backend/                  # Node.js + Express API (Port 5000)
+│   ├── database/
+│   │   └── schema.sql        # PostgreSQL schema + migrations
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── database.js      # PostgreSQL connection
+│   │   │   ├── database.js   # PostgreSQL connection pool
+│   │   │   └── initDb.js     # DB init + superadmin seeding
 │   │   ├── controllers/
-│   │   │   └── authController.js # Auth logic
+│   │   │   ├── auth.controller.js        # Login / signup / OTP
+│   │   │   └── superadmin.controller.js  # Admin approvals / audit
 │   │   ├── middleware/
-│   │   │   └── auth.js          # JWT middleware
+│   │   │   └── auth.middleware.js  # JWT auth + role guards
 │   │   ├── routes/
-│   │   │   └── authRoutes.js    # API routes
+│   │   │   ├── auth.routes.js        # /api/auth/*
+│   │   │   └── superadmin.routes.js  # /api/superadmin/*
 │   │   ├── utils/
-│   │   │   └── auth.js          # Auth utilities
-│   │   └── server.js            # Express server
-│   ├── .env                     # Backend config
+│   │   │   ├── auth.js    # JWT + bcrypt helpers
+│   │   │   └── email.js   # Nodemailer templates
+│   │   └── server.js      # Express app entry point
+│   ├── .env               # Backend environment variables
 │   └── package.json
 │
-├── src/                         # Frontend (Next.js)
+├── src/                      # Next.js frontend (Port 3000)
 │   ├── app/
-│   │   └── superadmin/
-│   │       ├── signin/          # Login page
-│   │       ├── signup/          # Registration page
-│   │       └── otp/             # OTP verification
-│   └── ...
+│   │   ├── superadmin/
+│   │   │   ├── signin/page.tsx        # Superadmin login
+│   │   │   └── dashboard/
+│   │   │       ├── page.tsx           # Superadmin dashboard
+│   │   │       ├── admins/page.tsx    # ✅ Admin approval panel
+│   │   │       └── ... (other pages)
+│   │   ├── admin/
+│   │   │   ├── signin/page.tsx        # Admin login
+│   │   │   ├── signup/page.tsx        # Admin registration
+│   │   │   ├── otp/page.tsx           # Email OTP verification
+│   │   │   └── dashboard/page.tsx     # Admin dashboard
+│   │   └── user/
+│   │       ├── signin/page.tsx        # User login
+│   │       ├── signup/page.tsx        # User registration
+│   │       ├── otp/page.tsx           # Email OTP verification
+│   │       └── dashboard/page.tsx     # User dashboard
+│   ├── components/layout/Sidebar.tsx  # Superadmin sidebar nav
+│   └── lib/redux/                     # State management
 │
-├── database/
-│   └── schema.sql               # Database schema
-│
-├── .env.local                   # Frontend config
-└── package.json                 # Frontend dependencies
+├── .env.local            # Frontend environment variables
+└── README.md             # This file
 ```
 
-## 🔌 API Endpoints
+---
 
-### Base URL: `http://localhost:5000/api`
+## 👥 Roles & Access Flow
 
-#### 1. Health Check
+### 🔴 Superadmin
+| Feature | Detail |
+|---------|--------|
+| **Created** | Pre-seeded in database — **no UI signup** |
+| **Login** | `/superadmin/signin` → direct access to dashboard |
+| **OTP** | Not required |
+| **Email Alert** | 🔔 Every login sends an alert email to monitoring addresses |
+| **Capabilities** | Approve/reject admin accounts, view all users, login audit log |
 
+**Credentials (pre-seeded):**
 ```
-GET /health
-```
-
-#### 2. Sign Up
-
-```
-POST /api/auth/signup
-
-Body:
-{
-  "firstName": "John",
-  "lastName": "Doe",
-  "email": "john@example.com",
-  "password": "SecurePass@123"
-}
-
-Response:
-{
-  "success": true,
-  "message": "Account created successfully",
-  "user": {...},
-  "developmentOTP": "123456"
-}
+Email:    superadmin@cybershieldguard.com
+Password: SuperAdmin@123
 ```
 
-#### 3. Login
+---
 
+### 🟡 Admin
+| Feature | Detail |
+|---------|--------|
+| **Created** | Self-registration via `/admin/signup` |
+| **Verification** | Email OTP verification required |
+| **Approval** | **Must be approved by superadmin** before login works |
+| **Login** | `/admin/signin` → direct to dashboard (after approval) |
+| **Email** | Gets notified when approved or rejected |
+
+**Flow:**
 ```
-POST /api/auth/login
-
-Body:
-{
-  "email": "john@example.com",
-  "password": "SecurePass@123"
-}
-
-Response:
-{
-  "success": true,
-  "message": "Login successful",
-  "user": {...},
-  "requiresOTP": true,
-  "developmentOTP": "123456"
-}
+Signup → Email OTP Verify → Pending Approval → Superadmin Approves → Login OK
 ```
 
-#### 4. Verify OTP
+---
 
+### 🟢 User
+| Feature | Detail |
+|---------|--------|
+| **Created** | Self-registration via `/user/signup` |
+| **Verification** | Email OTP verification required |
+| **Login** | `/user/signin` → direct to dashboard (immediately after OTP verify) |
+| **Capabilities** | Training modules, quizzes, security score |
+
+**Flow:**
 ```
-POST /api/auth/verify-otp
-
-Body:
-{
-  "email": "john@example.com",
-  "otp": "123456"
-}
-
-Response:
-{
-  "success": true,
-  "message": "OTP verified successfully",
-  "user": {...},
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-}
+Signup → Email OTP Verify → Automatically Logged In → Dashboard
 ```
 
-#### 5. Get Current User (Protected)
+---
 
-```
-GET /api/auth/me
+## 🚀 Quick Start
 
-Headers:
-Authorization: Bearer <token>
+### Prerequisites
+- Node.js 18+
+- PostgreSQL 14+
+- Gmail account (for email sending)
 
-Response:
-{
-  "success": true,
-  "user": {...}
-}
-```
+### 1. Database Setup
 
-#### 6. Logout (Protected)
+```powershell
+# Option A: Use the automated setup script
+.\setup-database.ps1
 
-```
-POST /api/auth/logout
-
-Headers:
-Authorization: Bearer <token>
-
-Response:
-{
-  "success": true,
-  "message": "Logged out successfully"
-}
+# Option B: Manual
+psql -U postgres -c "CREATE DATABASE emailawareness;"
 ```
 
-## ⚙️ Configuration Files
+### 2. Backend Setup
 
-### Backend (.env)
+```bash
+cd backend
+npm install
+# Copy and configure environment variables
+cp .env.example .env
+# Edit .env with your values, then:
+npm run dev
+```
 
+The server will:
+1. Connect to PostgreSQL
+2. Run the schema (migrate existing tables safely)
+3. Seed/sync the superadmin account
+4. Start on port 5000
+
+### 3. Frontend Setup
+
+```bash
+# In the root directory
+npm install
+npm run dev
+```
+
+Frontend starts on **http://localhost:3000**
+
+---
+
+## ⚙️ Environment Variables
+
+### `backend/.env`
 ```env
+# Database
+DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/emailawareness
+
+# JWT Secrets (use strong random values in production)
+JWT_ACCESS_SECRET=your-access-secret-here
+JWT_REFRESH_SECRET=your-refresh-secret-here
+
+# Email (Gmail with App Password)
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+
+# Server
 PORT=5000
 NODE_ENV=development
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/cybershield_db
-JWT_SECRET=your-super-secret-jwt-key
 FRONTEND_URL=http://localhost:3000
+
+# Rate Limiting
 RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_MAX_REQUESTS=200
 ```
 
-### Frontend (.env.local)
-
+### `.env.local` (frontend root)
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
 
-## 🧪 Testing the Application
+---
 
-### 1. Start Both Servers
+## 📡 API Endpoints
 
-**Terminal 1 - Backend:**
+### Authentication — `/api/auth`
 
-```bash
-cd backend
-npm run dev
-```
+| Method | Endpoint | Role | Description |
+|--------|----------|------|-------------|
+| `POST` | `/auth/superadmin/signin` | Superadmin | Login (sends alert email) |
+| `POST` | `/auth/admin/signup` | Admin | Register + sends OTP |
+| `POST` | `/auth/user/signup` | User | Register + sends OTP |
+| `POST` | `/auth/signin` | Admin/User | Login (checks approval for admin) |
+| `POST` | `/auth/verify-otp` | All | Verify email OTP |
+| `POST` | `/auth/resend-otp` | All | Resend verification OTP |
+| `POST` | `/auth/forgot-password` | All | Send password reset OTP |
+| `POST` | `/auth/reset-password` | All | Reset password with OTP |
+| `POST` | `/auth/logout` | Authenticated | Clear session |
+| `POST` | `/auth/refresh-token` | Authenticated | Rotate access token |
+| `GET` | `/auth/profile` | Authenticated | Get own profile |
+| `PUT` | `/auth/profile/update` | Authenticated | Update own profile |
+| `GET` | `/auth/me` | Authenticated | Get current user info |
 
-**Terminal 2 - Frontend:**
+### Superadmin — `/api/superadmin` *(requires superadmin role)*
 
-```bash
-npm run dev
-```
-
-### 2. Test Sign Up Flow
-
-1. Visit: http://localhost:3000/superadmin/signup
-2. Fill in the form
-3. Check terminal for OTP code
-4. Enter OTP on verification page
-5. You'll be redirected to dashboard
-
-### 3. Test Sign In Flow
-
-1. Visit: http://localhost:3000/superadmin/signin
-2. Use demo credentials:
-   - Email: `superadmin@cybersecurity.com`
-   - Password: `SuperAdmin@123`
-3. Check terminal for OTP
-4. Enter OTP
-5. Access dashboard
-
-## 🔐 Security Features
-
-✅ **Password Hashing**: bcrypt with 10 salt rounds
-✅ **JWT Authentication**: 7-day token expiration
-✅ **Two-Factor Authentication**: OTP verification
-✅ **Rate Limiting**: 100 requests per 15 minutes
-✅ **CORS Protection**: Configured for frontend URL
-✅ **Helmet.js**: Security headers
-✅ **Input Validation**: Email and password strength checks
-✅ **SQL Injection Protection**: Parameterized queries
-
-## 🛠️ Development Scripts
-
-### Backend
-
-```bash
-npm run dev      # Start with nodemon (auto-reload)
-npm start        # Start production server
-```
-
-### Frontend
-
-```bash
-npm run dev      # Start Next.js dev server
-npm run build    # Build for production
-npm start        # Start production server
-```
-
-## 📊 Database Schema
-
-### Users Table
-
-```sql
-- id (SERIAL PRIMARY KEY)
-- first_name (VARCHAR)
-- last_name (VARCHAR)
-- email (VARCHAR UNIQUE)
-- password_hash (VARCHAR)
-- role (VARCHAR)
-- is_verified (BOOLEAN)
-- otp_code (VARCHAR)
-- otp_expires_at (TIMESTAMP)
-- created_at (TIMESTAMP)
-- updated_at (TIMESTAMP)
-- last_login (TIMESTAMP)
-```
-
-### Sessions Table
-
-```sql
-- id (SERIAL PRIMARY KEY)
-- user_id (INTEGER FK)
-- token (VARCHAR)
-- expires_at (TIMESTAMP)
-- created_at (TIMESTAMP)
-```
-
-## 🐛 Troubleshooting
-
-### Backend Won't Start
-
-- Check if PostgreSQL is running
-- Verify DATABASE_URL in backend/.env
-- Ensure port 5000 is not in use
-
-### Frontend Can't Connect to Backend
-
-- Verify backend is running on port 5000
-- Check NEXT_PUBLIC_API_URL in .env.local
-- Check browser console for CORS errors
-
-### Database Connection Error
-
-- Verify PostgreSQL credentials
-- Check if database exists
-- Ensure PostgreSQL service is running
-
-### OTP Not Showing
-
-- Check backend terminal console
-- OTP is logged in development mode
-- Check sessionStorage in browser DevTools
-
-## 🚀 Production Deployment
-
-### Backend Deployment
-
-1. Set NODE_ENV=production
-2. Use strong JWT_SECRET
-3. Enable database SSL
-4. Configure email service for OTP
-5. Set up proper logging
-6. Use process manager (PM2)
-
-### Frontend Deployment
-
-1. Update NEXT_PUBLIC_API_URL to production backend URL
-2. Build: `npm run build`
-3. Deploy to Vercel/Netlify/etc.
-
-### Database
-
-1. Use managed PostgreSQL (AWS RDS, Heroku, etc.)
-2. Enable SSL connections
-3. Set up backups
-4. Configure connection pooling
-
-## 📝 Environment Variables Summary
-
-| Variable              | Location | Description                  |
-| --------------------- | -------- | ---------------------------- |
-| `PORT`                | Backend  | Server port (5000)           |
-| `DATABASE_URL`        | Backend  | PostgreSQL connection string |
-| `JWT_SECRET`          | Backend  | Secret for JWT signing       |
-| `FRONTEND_URL`        | Backend  | Frontend URL for CORS        |
-| `NEXT_PUBLIC_API_URL` | Frontend | Backend API URL              |
-
-## 🎯 Key Features
-
-✅ Separate backend and frontend
-✅ RESTful API architecture
-✅ JWT-based authentication
-✅ Two-factor authentication (OTP)
-✅ PostgreSQL database
-✅ Password strength validation
-✅ Rate limiting
-✅ CORS protection
-✅ Secure session management
-✅ Beautiful responsive UI
-
-## 📚 Tech Stack
-
-**Backend:**
-
-- Node.js
-- Express.js
-- PostgreSQL (pg)
-- bcryptjs
-- jsonwebtoken
-- helmet
-- cors
-- express-rate-limit
-
-**Frontend:**
-
-- Next.js 15
-- React 19
-- TypeScript
-- Tailwind CSS
-- Lucide React Icons
-
-## 🤝 Support
-
-For issues:
-
-1. Check both backend and frontend terminals
-2. Verify all environment variables
-3. Ensure PostgreSQL is running
-4. Check browser console and Network tab
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/superadmin/admins/pending` | List pending admin requests |
+| `GET` | `/superadmin/admins` | List all admins (any status) |
+| `POST` | `/superadmin/admins/:id/approve` | Approve an admin |
+| `POST` | `/superadmin/admins/:id/reject` | Reject an admin |
+| `GET` | `/superadmin/users` | List all users |
+| `GET` | `/superadmin/audit` | View login audit log |
 
 ---
 
-**Happy Coding! 🚀**
+## 📧 Email Notifications
+
+| Trigger | Recipients | Description |
+|---------|-----------|-------------|
+| Superadmin login | `utsavvachhani.it22@scet.ac.in`, `uvachhani03@gmail.com` | Login alert with time + IP |
+| Admin registers | Same monitoring emails | New admin awaiting approval |
+| Admin approved | Admin's email | Account activated |
+| Admin rejected | Admin's email | Application declined |
+| Admin/User signup | User's own email | 6-digit OTP, valid 10 mins |
+| Password reset | User's own email | 6-digit OTP, valid 10 mins |
+
+---
+
+## 🔐 Security Features
+
+- **JWT Access Tokens** — 15-minute lifespan stored in httpOnly cookie
+- **JWT Refresh Tokens** — 7-day lifespan, stored in DB + httpOnly cookie
+- **bcrypt Password Hashing** — 10 salt rounds
+- **OTP Expiry** — 10 minutes, single-use
+- **Rate Limiting** — 200 requests / 15 minutes per IP
+- **Role Guards** — `requireRole()` middleware blocks unauthorized access
+- **Approval Guard** — `requireApproved()` blocks pending/rejected admins
+- **Login Audit Trail** — All superadmin logins recorded with IP + user-agent
+- **CORS** — Locked to `FRONTEND_URL` only
+
+---
+
+## 🛠️ Tech Stack
+
+### Backend
+| Package | Use |
+|---------|-----|
+| `express` | HTTP server & routing |
+| `pg` | PostgreSQL client |
+| `bcryptjs` | Password hashing |
+| `jsonwebtoken` | JWT access & refresh tokens |
+| `nodemailer` | Email transporter |
+| `cookie-parser` | httpOnly cookie handling |
+| `helmet` | Security headers |
+| `morgan` | Request logging |
+| `express-rate-limit` | Rate limiting |
+| `dotenv` | Environment variables |
+
+### Frontend
+| Package | Use |
+|---------|-----|
+| `next` 15 | React framework + App Router |
+| `@reduxjs/toolkit` | State management |
+| `sonner` | Toast notifications |
+| `lucide-react` | Icons |
+| `tailwindcss` | Utility-first CSS |
+
+---
+
+## 🗺️ Frontend Routes
+
+| Route | Role | Description |
+|-------|------|-------------|
+| `/` | Public | Landing page |
+| `/superadmin/signin` | Public | Superadmin login |
+| `/superadmin/dashboard` | 🔴 Superadmin | Main dashboard |
+| `/superadmin/dashboard/admins` | 🔴 Superadmin | Admin approval panel |
+| `/admin/signup` | Public | Admin registration |
+| `/admin/otp` | Public | Admin email verification |
+| `/admin/signin` | Public | Admin login |
+| `/admin/dashboard` | 🟡 Admin | Admin dashboard |
+| `/user/signup` | Public | User registration |
+| `/user/otp` | Public | User email verification |
+| `/user/signin` | Public | User login |
+| `/user/dashboard` | 🟢 User | Training dashboard |
+
+---
+
+## 🐛 Troubleshooting
+
+### `column "status" does not exist`
+The database was created before the new schema. The schema now runs `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` migrations automatically. Simply restart the backend server.
+
+### Email not sending
+1. Ensure `EMAIL_USER` and `EMAIL_PASS` are set in `backend/.env`
+2. Use a **Gmail App Password** (not your regular password): [Create App Password](https://myaccount.google.com/apppasswords)
+3. Enable 2-Factor Authentication on the Gmail account first
+
+### Cannot connect to database
+1. Ensure PostgreSQL is running: `pg_ctl status` or check Services
+2. Verify `DATABASE_URL` in `backend/.env` has correct host, port, user, password, and database name
+3. Check the database exists: `psql -U postgres -l`
+
+---
+
+## 📜 License
+
+MIT — Built for cybersecurity education purposes.

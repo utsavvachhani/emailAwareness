@@ -32,7 +32,7 @@ echo ========================================
 echo.
 echo Next steps:
 echo 1. Make sure PostgreSQL is installed and running
-echo 2. Run database setup: psql -U postgres -d cybershield_db -f database/schema.sql
+echo 2. Run database setup: psql -U postgres -d cybershield_db -f backend/database/schema.sql
 echo 3. Update backend/.env with your PostgreSQL password
 echo.
 echo To start the application:
