@@ -13,6 +13,7 @@ import {
   deleteUser,
   deleteAdmin
 } from "../controllers/superadmin.controller.js";
+import { getAllCompanies, deleteCompany } from "../controllers/company.controller.js";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -37,5 +38,9 @@ router.delete("/users/:id",   authMiddleware, requireRole('superadmin'), deleteU
 router.delete("/admins/:id",  authMiddleware, requireRole('superadmin'), deleteAdmin);
 
 router.get("/audit",          authMiddleware, requireRole('superadmin'), getLoginAudit);
+
+// Company routes (superadmin)
+router.get("/companies",         authMiddleware, requireRole('superadmin'), getAllCompanies);
+router.delete("/companies/:id",  authMiddleware, requireRole('superadmin'), deleteCompany);
 
 export default router;
