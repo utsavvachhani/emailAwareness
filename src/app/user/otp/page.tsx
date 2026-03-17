@@ -7,6 +7,7 @@ import { UserCircle, ArrowRight, RefreshCw, Clock, Loader2 } from "lucide-react"
 import { toast } from "sonner";
 import { useAppDispatch } from "@/lib/redux/hooks";
 import { setCredentials } from "@/lib/redux/authSlice";
+import { verifyUserOtp, resendUserOtp } from "@/actions/auth";
 
 export default function UserOTPPage() {
     const router = useRouter();
@@ -53,21 +54,13 @@ export default function UserOTPPage() {
         if (s.length !== 6) { toast.error("Enter all 6 digits"); return; }
         setIsLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/verify-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({ email: userEmail, otp: s }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Verification failed");
+            const { data, error } = await verifyUserOtp({ email: userEmail, otp: s });
 
-            if (data.accessToken) {
-                dispatch(setCredentials({ user: data.user, token: data.accessToken }));
-                sessionStorage.removeItem("pendingVerification");
-                toast.success("Email verified! Welcome aboard!");
-                router.push("/user/dashboard");
-            }
+            if (error) throw new Error(error.message || "Verification failed");
+
+            sessionStorage.removeItem("pendingVerification");
+            toast.success("Email verified successfully! You can now login.");
+            router.push("/user/signin");
         } catch (err: any) {
             toast.error(err.message || "Invalid OTP");
             setIsLoading(false);
@@ -78,12 +71,8 @@ export default function UserOTPPage() {
     const handleResend = useCallback(async () => {
         setIsLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/resend-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: userEmail }),
-            });
-            if (!res.ok) throw new Error("Failed to resend");
+            const { error } = await resendUserOtp({ email: userEmail });
+            if (error) throw new Error("Failed to resend");
             setTimeLeft(600); setOtp(["", "", "", "", "", ""]);
             toast.success("New OTP sent!");
         } catch (err: any) {

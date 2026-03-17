@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User, ArrowRight, Loader2, Phone } from "lucide-react";
+import { signupUser } from "@/actions/auth";
 import { toast } from "sonner";
 
 export default function UserSignUpPage() {
@@ -23,13 +24,9 @@ export default function UserSignUpPage() {
 
         setIsLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/signup`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ firstName: form.firstName, lastName: form.lastName, email: form.email, mobile: form.mobile || undefined, password: form.password }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Signup failed");
+            const { data, error } = await signupUser({ firstName: form.firstName, lastName: form.lastName, email: form.email, mobile: form.mobile || undefined, password: form.password });
+
+            if (error) throw new Error(error.message || "Signup failed");
 
             sessionStorage.setItem("pendingVerification", JSON.stringify({ email: form.email, role: "user" }));
             toast.success("Account created! Check your email for the OTP.");

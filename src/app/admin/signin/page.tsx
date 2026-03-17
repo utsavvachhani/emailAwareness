@@ -7,6 +7,7 @@ import { Mail, Shield, Lock, Eye, EyeOff, ArrowRight, Loader2, User } from "luci
 import { toast } from "sonner";
 import { useAppDispatch } from "@/lib/redux/hooks";
 import { setCredentials } from "@/lib/redux/authSlice";
+import { signinAdmin } from "@/actions/auth";
 
 const AdminSignInPage = () => {
     const router = useRouter();
@@ -28,28 +29,21 @@ const AdminSignInPage = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/signin`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({ email, password }),
-            });
+            const { data, error } = await signinAdmin({ email, password });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (data.pendingApproval) {
+            if (error) {
+                if (error.pendingApproval) {
                     toast.info("Your account is pending superadmin approval. You'll be notified by email.");
                     setIsLoading(false);
                     return;
                 }
-                if (data.needsVerification) {
+                if (error.needsVerification) {
                     sessionStorage.setItem("pendingVerification", JSON.stringify({ email }));
                     toast.warning("Please verify your email first.");
                     router.push("/admin/otp");
                     return;
                 }
-                throw new Error(data.message || "Login failed");
+                throw new Error(error.message || "Login failed");
             }
 
             if (data.user?.role !== "admin") {

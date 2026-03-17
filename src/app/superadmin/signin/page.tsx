@@ -7,6 +7,7 @@ import { Mail, Shield, Lock, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-rea
 import { toast } from "sonner";
 import { useAppDispatch } from "@/lib/redux/hooks";
 import { setCredentials } from "@/lib/redux/authSlice";
+import { signinSuperadmin } from "@/actions/auth";
 
 const SignInPage = () => {
     const router = useRouter();
@@ -30,17 +31,10 @@ const SignInPage = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/signin`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ email, password }),
-            });
+            const { data, error } = await signinSuperadmin({ email, password });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Signin failed');
+            if (error) {
+                throw new Error(error.message || 'Signin failed');
             }
 
             // Save credentials to Redux and localStorage

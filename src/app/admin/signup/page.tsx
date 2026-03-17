@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Shield, Lock, Eye, EyeOff, User, ArrowRight, Loader2, Phone } from "lucide-react";
+import { signupAdmin } from "@/actions/auth";
 import { toast } from "sonner";
 
 const AdminSignUpPage = () => {
@@ -32,22 +33,16 @@ const AdminSignUpPage = () => {
 
         setIsLoading(true);
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/signup`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    firstName: form.firstName,
-                    lastName: form.lastName,
-                    email: form.email,
-                    mobile: form.mobile || undefined,
-                    password: form.password,
-                }),
+            const { data, error } = await signupAdmin({
+                firstName: form.firstName,
+                lastName: form.lastName,
+                email: form.email,
+                mobile: form.mobile || undefined,
+                password: form.password,
             });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || "Signup failed");
+            if (error) {
+                throw new Error(error.message || "Signup failed");
             }
 
             sessionStorage.setItem("pendingVerification", JSON.stringify({ email: form.email, role: "admin" }));

@@ -7,6 +7,7 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2, UserCircle } from "lucide
 import { toast } from "sonner";
 import { useAppDispatch } from "@/lib/redux/hooks";
 import { setCredentials } from "@/lib/redux/authSlice";
+import { signinUser } from "@/actions/auth";
 
 const UserSignInPage = () => {
     const router = useRouter();
@@ -26,23 +27,16 @@ const UserSignInPage = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/users/signin`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({ email, password }),
-            });
+            const { data, error } = await signinUser({ email, password });
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (data.needsVerification) {
+            if (error) {
+                if (error.needsVerification) {
                     sessionStorage.setItem("pendingVerification", JSON.stringify({ email }));
                     toast.warning("Please verify your email first.");
                     router.push("/user/otp");
                     return;
                 }
-                throw new Error(data.message || "Login failed");
+                throw new Error(error.message || "Login failed");
             }
 
             if (data.user?.role !== "user") {

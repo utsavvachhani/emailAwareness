@@ -17,7 +17,6 @@ const router = express.Router();
 
 // Public
 router.post("/signin", signin);
-router.post("/login", signin);
 router.post("/logout", logout);
 
 router.get("/me", authMiddleware, requireRole('superadmin'), (req, res) => {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Shield, ArrowRight, RefreshCw, Clock, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { verifyAdminOtp, resendAdminOtp } from "@/actions/auth";
 
 const AdminOTPPage = () => {
     const router = useRouter();
@@ -66,14 +67,9 @@ const AdminOTPPage = () => {
         setIsLoading(true);
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/verify-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: userEmail, otp: otpStr }),
-            });
-            const data = await res.json();
+            const { data, error } = await verifyAdminOtp({ email: userEmail, otp: otpStr });
 
-            if (!res.ok) throw new Error(data.message || "Verification failed");
+            if (error) throw new Error(error.message || "Verification failed");
 
             setVerified(true);
             sessionStorage.removeItem("pendingVerification");
@@ -88,12 +84,8 @@ const AdminOTPPage = () => {
     const handleResend = useCallback(async () => {
         setIsLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/resend-otp`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: userEmail }),
-            });
-            if (!res.ok) throw new Error("Failed to resend");
+            const { error } = await resendAdminOtp({ email: userEmail });
+            if (error) throw new Error("Failed to resend");
             setTimeLeft(600);
             setOtp(["", "", "", "", "", ""]);
             toast.success("New OTP sent!");
