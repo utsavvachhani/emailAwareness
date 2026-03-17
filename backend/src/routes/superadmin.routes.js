@@ -9,7 +9,9 @@ import {
   getAllUsers,
   getLoginAudit,
   getProfile,
-  updateProfile
+  updateProfile,
+  deleteUser,
+  deleteAdmin
 } from "../controllers/superadmin.controller.js";
 import { authMiddleware, requireRole } from "../middleware/auth.middleware.js";
 
@@ -31,6 +33,9 @@ router.patch("/admins/:id/approve", authMiddleware, requireRole('superadmin'), a
 router.patch("/admins/:id/reject",  authMiddleware, requireRole('superadmin'), rejectAdmin);
 
 router.get("/users/all",      authMiddleware, requireRole('superadmin'), getAllUsers);
+router.delete("/users/:id",   authMiddleware, requireRole('superadmin'), deleteUser);
+router.delete("/admins/:id",  authMiddleware, requireRole('superadmin'), deleteAdmin);
+
 router.get("/audit",          authMiddleware, requireRole('superadmin'), getLoginAudit);
 
 export default router;
