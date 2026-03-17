@@ -1,346 +1,205 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
-  Plus,
-  Search,
-  Filter,
-  MoreHorizontal,
-  Building2,
-  Download,
-  Upload,
-  Pencil,
-  Pause,
-  Trash2
+    Building2, Trash2, Loader2, RefreshCw, Mail, Phone,
+    Users, Globe, Hash, User,
 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { useAppSelector } from "@/lib/redux/hooks";
 
-const companies = [
-  {
-    id: 1,
-    name: "Acme Corporation",
-    industry: "Technology",
-    plan: "Enterprise",
-    employees: 450,
-    activeUsers: 423,
-    engagement: 87,
-    lastTraining: "Jan 17, 2026",
-    risk: "Low",
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "GlobalTech Industries",
-    industry: "Manufacturing",
-    plan: "Business",
-    employees: 230,
-    activeUsers: 198,
-    engagement: 62,
-    lastTraining: "Jan 14, 2026",
-    risk: "Medium",
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "SecureBank Ltd",
-    industry: "Finance",
-    plan: "Enterprise",
-    employees: 890,
-    activeUsers: 867,
-    engagement: 94,
-    lastTraining: "Jan 18, 2026",
-    risk: "Low",
-    status: "Active",
-  },
-  {
-    id: 4,
-    name: "HealthCare Plus",
-    industry: "Healthcare",
-    plan: "Business",
-    employees: 156,
-    activeUsers: 89,
-    engagement: 45,
-    lastTraining: "Jan 7, 2026",
-    risk: "High",
-    status: "Active",
-  },
-  {
-    id: 5,
-    name: "RetailMax",
-    industry: "Retail",
-    plan: "Starter",
-    employees: 78,
-    activeUsers: 71,
-    engagement: 71,
-    lastTraining: "Jan 16, 2026",
-    risk: "Low",
-    status: "Active",
-  },
-  {
-    id: 6,
-    name: "DataFlow Systems",
-    industry: "Technology",
-    plan: "Business",
-    employees: 320,
-    activeUsers: 289,
-    engagement: 78,
-    lastTraining: "Jan 15, 2026",
-    risk: "Low",
-    status: "Active",
-  },
-  {
-    id: 7,
-    name: "Metro Construction",
-    industry: "Construction",
-    plan: "Starter",
-    employees: 145,
-    activeUsers: 98,
-    engagement: 52,
-    lastTraining: "Jan 10, 2026",
-    risk: "Medium",
-    status: "Suspended",
-  },
-  {
-    id: 8,
-    name: "EduTech Academy",
-    industry: "Education",
-    plan: "Business",
-    employees: 89,
-    activeUsers: 82,
-    engagement: 91,
-    lastTraining: "Jan 17, 2026",
-    risk: "Low",
-    status: "Active",
-  },
-];
-
-function getRiskClass(risk: string) {
-  switch (risk) {
-    case "Low":
-      return "risk-low";
-    case "Medium":
-      return "risk-medium";
-    case "High":
-      return "risk-high";
-    default:
-      return "";
-  }
+interface Company {
+    id: number;
+    company_id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    num_employees: number;
+    industry?: string;
+    website?: string;
+    address?: string;
+    notes?: string;
+    adminFirstName?: string;
+    adminLastName?: string;
+    adminEmail?: string;
+    adminId?: number;
+    created_at: string;
 }
 
-export default function CompaniesPage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState("all");
-  const [selectedRisk, setSelectedRisk] = useState("all");
+export default function SuperadminCompaniesPage() {
+    const token = useAppSelector(s => s.auth.token);
+    const [companies, setCompanies] = useState<Company[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [processingId, setProcessingId] = useState<number | null>(null);
+    const [search, setSearch] = useState("");
 
-  const filteredCompanies = companies.filter((company) => {
-    const matchesSearch = company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      company.industry.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPlan = selectedPlan === "all" || company.plan === selectedPlan;
-    const matchesRisk = selectedRisk === "all" || company.risk === selectedRisk;
-    return matchesSearch && matchesPlan && matchesRisk;
-  });
+    const fetchCompanies = async () => {
+        setIsLoading(true);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/companies`, {
+                headers: { Authorization: `Bearer ${token}` },
+                credentials: "include",
+            });
+            const data = await res.json();
+            if (data.success) setCompanies(data.companies);
+        } catch { toast.error("Failed to load companies"); }
+        finally { setIsLoading(false); }
+    };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="module-header">
-        <div>
-          <h1 className="module-title">Company Management</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage all registered companies and their settings
-          </p>
-        </div>
-        <button className="inline-flex items-center gap-2 h-9 px-4 bg-foreground text-background text-sm font-medium rounded-md hover:bg-foreground/90 transition-colors">
-          <Plus className="h-4 w-4" />
-          Add Company
-        </button>
-      </div>
+    useEffect(() => { fetchCompanies(); }, [token]);
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search companies..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground focus:border-foreground transition-colors"
-          />
-        </div>
-        <select
-          value={selectedPlan}
-          onChange={(e) => setSelectedPlan(e.target.value)}
-          className="h-9 px-3 text-sm border border-input rounded-md bg-background"
-        >
-          <option value="all">All Plans</option>
-          <option value="Starter">Starter</option>
-          <option value="Business">Business</option>
-          <option value="Enterprise">Enterprise</option>
-        </select>
-        <select
-          value={selectedRisk}
-          onChange={(e) => setSelectedRisk(e.target.value)}
-          className="h-9 px-3 text-sm border border-input rounded-md bg-background"
-        >
-          <option value="all">All Risk Levels</option>
-          <option value="Low">Low Risk</option>
-          <option value="Medium">Medium Risk</option>
-          <option value="High">High Risk</option>
-        </select>
-        <button className="inline-flex items-center gap-2 h-9 px-4 border border-input text-sm rounded-md hover:bg-secondary transition-colors">
-          <Filter className="h-4 w-4" />
-          More Filters
-        </button>
-        <button className="inline-flex items-center gap-2 h-9 px-4 border border-input text-sm rounded-md hover:bg-secondary transition-colors">
-          <Download className="h-4 w-4" />
-          Export
-        </button>
-      </div>
+    const handleDelete = async (id: number) => {
+        if (!confirm("Permanently delete this company?")) return;
+        setProcessingId(id);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/companies/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+                credentials: "include",
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            toast.success("Company deleted");
+            fetchCompanies();
+        } catch (err: any) { toast.error(err.message || "Delete failed"); }
+        finally { setProcessingId(null); }
+    };
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4">
-        <div className="stat-card">
-          <p className="text-sm text-muted-foreground">Total Companies</p>
-          <p className="text-2xl font-semibold font-mono mt-1">{companies.length}</p>
-        </div>
-        <div className="stat-card">
-          <p className="text-sm text-muted-foreground">Active</p>
-          <p className="text-2xl font-semibold font-mono mt-1">
-            {companies.filter(c => c.status === "Active").length}
-          </p>
-        </div>
-        <div className="stat-card">
-          <p className="text-sm text-muted-foreground">High Risk</p>
-          <p className="text-2xl font-semibold font-mono mt-1">
-            {companies.filter(c => c.risk === "High").length}
-          </p>
-        </div>
-        <div className="stat-card">
-          <p className="text-sm text-muted-foreground">Total Employees</p>
-          <p className="text-2xl font-semibold font-mono mt-1">
-            {companies.reduce((sum, c) => sum + c.employees, 0).toLocaleString()}
-          </p>
-        </div>
-      </div>
+    const filtered = companies.filter(c =>
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
+        c.company_id.toLowerCase().includes(search.toLowerCase()) ||
+        (c.adminEmail || "").toLowerCase().includes(search.toLowerCase())
+    );
 
-      {/* Table */}
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Company</th>
-              <th>Industry</th>
-              <th>Plan</th>
-              <th>Employees</th>
-              <th>Active Users</th>
-              <th>Engagement</th>
-              <th>Last Training</th>
-              <th>Risk</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredCompanies.map((company) => (
-              <tr key={company.id}>
-                <td>
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded bg-secondary flex items-center justify-center">
-                      <Building2 className="h-4 w-4 text-muted-foreground" />
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="module-header">
+                <div>
+                    <h1 className="module-title">All Companies</h1>
+                    <p className="text-sm text-muted-foreground mt-1">View and manage all registered companies across all admins</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search companies..."
+                        className="h-9 text-sm rounded-lg border border-input bg-background px-3 outline-none focus:border-foreground transition-colors w-56"
+                    />
+                    <button onClick={fetchCompanies} disabled={isLoading}
+                        className="flex items-center gap-2 h-9 px-4 rounded-lg border border-border hover:bg-muted transition-colors text-sm">
+                        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: "Total Companies", value: companies.length, icon: Building2 },
+                    { label: "Total Employees", value: companies.reduce((s, c) => s + (c.num_employees || 0), 0).toLocaleString(), icon: Users },
+                    { label: "Industries", value: new Set(companies.map(c => c.industry).filter(Boolean)).size, icon: Hash },
+                    { label: "Admins Registered", value: new Set(companies.map(c => c.adminId).filter(Boolean)).size, icon: User },
+                ].map(stat => (
+                    <div key={stat.label} className="rounded-xl border border-border bg-card p-4">
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">{stat.label}</p>
+                            <stat.icon className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-2xl font-bold mt-2">{stat.value}</p>
                     </div>
-                    <span className="font-medium">{company.name}</span>
-                  </div>
-                </td>
-                <td className="text-muted-foreground">{company.industry}</td>
-                <td>
-                  <span className="status-badge status-active">{company.plan}</span>
-                </td>
-                <td className="font-mono">{company.employees}</td>
-                <td className="font-mono">{company.activeUsers}</td>
-                <td>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-foreground rounded-full"
-                        style={{ width: `${company.engagement}%` }}
-                      />
-                    </div>
-                    <span className="font-mono text-xs">{company.engagement}%</span>
-                  </div>
-                </td>
-                <td className="text-muted-foreground text-sm">{company.lastTraining}</td>
-                <td className={getRiskClass(company.risk)}>{company.risk}</td>
-                <td>
-                  <span className={`status-badge ${company.status === "Active" ? "status-active" : "status-inactive"
-                    }`}>
-                    {company.status}
-                  </span>
-                </td>
-                <td>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="p-1 hover:bg-secondary rounded transition-colors">
-                        <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem>
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Edit Company
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload Employees
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Download className="h-4 w-4 mr-2" />
-                        Export Data
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem>
-                        <Pause className="h-4 w-4 mr-2" />
-                        Suspend Company
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Company
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                ))}
+            </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          Showing {filteredCompanies.length} of {companies.length} companies
-        </p>
-        <div className="flex items-center gap-2">
-          <button className="h-8 px-3 text-sm border border-input rounded-md hover:bg-secondary transition-colors disabled:opacity-50" disabled>
-            Previous
-          </button>
-          <button className="h-8 w-8 text-sm border border-foreground bg-foreground text-background rounded-md">
-            1
-          </button>
-          <button className="h-8 w-8 text-sm border border-input rounded-md hover:bg-secondary transition-colors">
-            2
-          </button>
-          <button className="h-8 px-3 text-sm border border-input rounded-md hover:bg-secondary transition-colors">
-            Next
-          </button>
+            {/* Table */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                        <Building2 className="w-12 h-12 mb-3 opacity-30" />
+                        <p className="font-medium">{search ? "No companies match your search" : "No companies yet"}</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="border-b border-border bg-muted/30">
+                                <tr>
+                                    {["Company", "Company ID", "Email", "Phone", "Employees", "Admin Owner", "Registered", "Action"].map(h => (
+                                        <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {filtered.map(c => (
+                                    <tr key={c.id} className="hover:bg-muted/20 transition-colors">
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-xs font-bold text-purple-600">
+                                                    {c.name.slice(0, 2).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-sm">{c.name}</p>
+                                                    {c.industry && <p className="text-xs text-muted-foreground">{c.industry}</p>}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{c.company_id}</span>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                <Mail className="w-3.5 h-3.5" />
+                                                {c.email}
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                <Phone className="w-3.5 h-3.5" />
+                                                {c.phone || "—"}
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-1.5 text-sm">
+                                                <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                                {c.num_employees.toLocaleString()}
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-7 h-7 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xs font-semibold text-blue-600">
+                                                    {(c.adminFirstName?.[0] || "?")}{(c.adminLastName?.[0] || "")}
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-medium">{c.adminFirstName} {c.adminLastName}</p>
+                                                    <p className="text-[10px] text-muted-foreground">{c.adminEmail || "No admin"}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">
+                                            {new Date(c.created_at).toLocaleDateString("en-IN")}
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <button
+                                                onClick={() => handleDelete(c.id)}
+                                                disabled={processingId === c.id}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                            >
+                                                {processingId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }

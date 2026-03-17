@@ -10,6 +10,12 @@ import {
   getProfile,
   updateProfile
 } from "../controllers/admin.controller.js";
+import {
+  getMyCompanies,
+  createCompany,
+  updateCompany,
+  deleteMyCompany,
+} from "../controllers/company.controller.js";
 import { authMiddleware, requireRole, requireApproved } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -34,5 +40,11 @@ router.get("/me", authMiddleware, requireRole('admin'), (req, res) => {
 
 router.get("/profile", authMiddleware, requireRole('admin'), requireApproved, getProfile);
 router.put("/profile/update", authMiddleware, requireRole('admin'), requireApproved, updateProfile);
+
+// Company routes (admin)
+router.get("/companies",         authMiddleware, requireRole('admin'), requireApproved, getMyCompanies);
+router.post("/companies",        authMiddleware, requireRole('admin'), requireApproved, createCompany);
+router.put("/companies/:id",     authMiddleware, requireRole('admin'), requireApproved, updateCompany);
+router.delete("/companies/:id",  authMiddleware, requireRole('admin'), requireApproved, deleteMyCompany);
 
 export default router;

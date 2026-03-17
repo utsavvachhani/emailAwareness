@@ -159,3 +159,28 @@ CREATE TRIGGER update_profiles_updated_at
     BEFORE UPDATE ON profiles
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- ─── COMPANIES ────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS companies (
+    id                SERIAL PRIMARY KEY,
+    company_id        VARCHAR(50) UNIQUE NOT NULL,
+    name              VARCHAR(255) NOT NULL,
+    email             VARCHAR(255) NOT NULL,
+    phone             VARCHAR(30),
+    num_employees     INTEGER NOT NULL DEFAULT 0,
+    admin_id          INTEGER REFERENCES admins(id) ON DELETE SET NULL,
+    industry          VARCHAR(100),
+    website           VARCHAR(255),
+    address           TEXT,
+    notes             TEXT,
+    created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_companies_admin_id ON companies(admin_id);
+
+DROP TRIGGER IF EXISTS update_companies_updated_at ON companies;
+CREATE TRIGGER update_companies_updated_at
+    BEFORE UPDATE ON companies
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+

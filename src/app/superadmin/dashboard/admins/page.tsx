@@ -5,29 +5,33 @@ import { CheckCircle, XCircle, Clock, Loader2, User, Mail, RefreshCw, AlertTrian
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
 
-interface Admin {
+import { Trash2 } from "lucide-react";
+
+interface UserData {
     id: number;
     firstName: string;
     lastName: string;
     email: string;
     mobile?: string;
     status: string;
+    role?: string;
     is_verified: boolean;
     created_at: string;
 }
 
 export default function AdminApprovalsPage() {
     const token = useAppSelector(s => s.auth.token);
-    const [admins, setAdmins] = useState<Admin[]>([]);
-    const [allAdmins, setAllAdmins] = useState<Admin[]>([]);
+    const [admins, setAdmins] = useState<UserData[]>([]);
+    const [allAdmins, setAllAdmins] = useState<UserData[]>([]);
+    const [allUsers, setAllUsers] = useState<UserData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [processingId, setProcessingId] = useState<number | null>(null);
-    const [tab, setTab] = useState<"pending" | "all">("pending");
+    const [tab, setTab] = useState<"pending" | "all" | "users">("pending");
 
     const fetchAdmins = async () => {
         setIsLoading(true);
         try {
-            const [pendingRes, allRes] = await Promise.all([
+            const [pendingRes, allRes, usersRes] = await Promise.all([
                 fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/admins/pending`, {
                     headers: { Authorization: `Bearer ${token}` },
                     credentials: "include",
@@ -36,12 +40,20 @@ export default function AdminApprovalsPage() {
                     headers: { Authorization: `Bearer ${token}` },
                     credentials: "include",
                 }),
+                fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/users/all`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    credentials: "include",
+                }),
             ]);
-            const [pd, ad] = await Promise.all([pendingRes.json(), allRes.json()]);
+            const [pd, ad, ud] = await Promise.all([pendingRes.json(), allRes.json(), usersRes.json()]);
             if (pd.success) setAdmins(pd.admins);
             if (ad.success) setAllAdmins(ad.admins);
+            if (ud.success) {
+                const filteredUsers = ud.users.filter((u: any) => u.role === 'user');
+                setAllUsers(filteredUsers);
+            }
         } catch {
-            toast.error("Failed to load admin data");
+            toast.error("Failed to load data");
         } finally {
             setIsLoading(false);
         }
@@ -68,23 +80,43 @@ export default function AdminApprovalsPage() {
         }
     };
 
+    const handleDelete = async (id: number, type: "admin" | "user") => {
+        if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
+        setProcessingId(id);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/${type}s/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+                credentials: "include",
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            toast.success(`${type === "admin" ? "Admin" : "User"} deleted successfully!`);
+            fetchAdmins();
+        } catch (err: any) {
+            toast.error(err.message || "Delete failed");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     const StatusBadge = ({ status }: { status: string }) => {
         const styles: Record<string, string> = {
-            pending:  "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+            pending:  "bg-blue-500/10 text-blue-600 border-blue-500/20",
             active:   "bg-green-500/10 text-green-600 border-green-500/20",
             rejected: "bg-red-500/10 text-red-500 border-red-500/20",
         };
         return (
-            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full border ${styles[status] || ""}`}>
-                {status === "pending" && <Clock className="w-3 h-3" />}
-                {status === "active"  && <CheckCircle className="w-3 h-3" />}
-                {status === "rejected" && <XCircle className="w-3 h-3" />}
+            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${styles[status] || ""}`}>
+                {status === "pending" && <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
+                {status === "active"  && <span className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+                {status === "rejected" && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
                 {status.charAt(0).toUpperCase() + status.slice(1)}
             </span>
         );
     };
 
-    const displayList = tab === "pending" ? admins : allAdmins;
+    const displayList = tab === "pending" ? admins : tab === "all" ? allAdmins : allUsers;
 
     return (
         <div className="space-y-6">
@@ -109,13 +141,13 @@ export default function AdminApprovalsPage() {
 
             {/* Tabs */}
             <div className="flex gap-2 border-b border-border">
-                {(["pending", "all"] as const).map(t => (
+                {(["pending", "all", "users"] as const).map(t => (
                     <button
                         key={t}
                         onClick={() => setTab(t)}
                         className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
-                        {t === "pending" ? `Pending Approval (${admins.length})` : `All Admins (${allAdmins.length})`}
+                        {t === "pending" ? `Pending Approval (${admins.length})` : t === "all" ? `All Admins (${allAdmins.length})` : `All Users (${allUsers.length})`}
                     </button>
                 ))}
             </div>
@@ -135,7 +167,7 @@ export default function AdminApprovalsPage() {
                     <table className="w-full">
                         <thead className="border-b border-border bg-muted/30">
                             <tr>
-                                {["Name", "Email", "Mobile", "Status", "Registered", tab === "pending" ? "Action" : ""].map(h => (
+                                {["Name", "Email", "Mobile", "Status", "Registered", "Action"].map(h => (
                                     <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">{h}</th>
                                 ))}
                             </tr>
@@ -187,7 +219,30 @@ export default function AdminApprovalsPage() {
                                             </div>
                                         </td>
                                     )}
-                                    {tab !== "pending" && <td />}
+                                    {tab === "all" && (
+                                        <td className="px-5 py-4">
+                                            <button
+                                                onClick={() => handleDelete(admin.id, "admin")}
+                                                disabled={processingId === admin.id}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                            >
+                                                {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                Delete
+                                            </button>
+                                        </td>
+                                    )}
+                                    {tab === "users" && (
+                                        <td className="px-5 py-4">
+                                            <button
+                                                onClick={() => handleDelete(admin.id, "user")}
+                                                disabled={processingId === admin.id}
+                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                            >
+                                                {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                Delete
+                                            </button>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>

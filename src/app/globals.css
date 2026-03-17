@@ -219,7 +219,18 @@
     .kpi-trend {
         @apply text-xs font-mono mt-2;
     }
+
+    /* Forms */
+    .input-field {
+        @apply w-full h-9 rounded-md border border-input bg-background px-3 text-sm outline-none
+               placeholder:text-muted-foreground focus:border-foreground transition-colors;
+    }
+
+    textarea.input-field {
+        @apply h-auto py-2;
+    }
 }
+
 
 /* =========================
    UTILITIES & ANIMATIONS

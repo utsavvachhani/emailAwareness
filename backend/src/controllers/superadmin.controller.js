@@ -107,6 +107,25 @@ export const getAllUsers = async (req, res) => {
   } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
 };
 
+export const deleteUser = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: "User not found" });
+    return res.status(200).json({ success: true, message: "User deleted successfully" });
+  } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
+};
+
+export const deleteAdmin = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query("DELETE FROM admins WHERE id = $1 RETURNING id", [id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: "Admin not found" });
+    return res.status(200).json({ success: true, message: "Admin deleted successfully" });
+  } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
+};
+
+
 // ─── Management: Login Audit ────────────────────────────────────────────────────
 export const getLoginAudit = async (req, res) => {
   try {
