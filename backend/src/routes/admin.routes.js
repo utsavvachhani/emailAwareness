@@ -15,6 +15,15 @@ import {
   createCompany,
   updateCompany,
   deleteMyCompany,
+  getMyCompanyDetails,
+  getCompanyEmployees,
+  createEmployee,
+  getCompanyCourses,
+  getAllAvailableCourses,
+  assignCourseToCompany,
+  getCompanyStats,
+  getAdminGlobalStats,
+  getAdminEmployees,
 } from "../controllers/company.controller.js";
 import { authMiddleware, requireRole, requireApproved } from "../middleware/auth.middleware.js";
 
@@ -44,7 +53,22 @@ router.put("/profile/update", authMiddleware, requireRole('admin'), requireAppro
 // Company routes (admin)
 router.get("/companies",         authMiddleware, requireRole('admin'), requireApproved, getMyCompanies);
 router.post("/companies",        authMiddleware, requireRole('admin'), requireApproved, createCompany);
+router.get("/companies/:id",     authMiddleware, requireRole('admin'), requireApproved, getMyCompanyDetails);
 router.put("/companies/:id",     authMiddleware, requireRole('admin'), requireApproved, updateCompany);
 router.delete("/companies/:id",  authMiddleware, requireRole('admin'), requireApproved, deleteMyCompany);
+
+// Specific Company Management
+router.get("/companies/:id/employees", authMiddleware, requireRole('admin'), requireApproved, getCompanyEmployees);
+router.post("/companies/:id/employees", authMiddleware, requireRole('admin'), requireApproved, createEmployee);
+router.get("/companies/:id/courses",   authMiddleware, requireRole('admin'), requireApproved, getCompanyCourses);
+router.post("/companies/:id/courses",  authMiddleware, requireRole('admin'), requireApproved, assignCourseToCompany);
+router.get("/companies/:id/stats",     authMiddleware, requireRole('admin'), requireApproved, getCompanyStats);
+
+// Global Admin Management
+router.get("/stats",                   authMiddleware, requireRole('admin'), requireApproved, getAdminGlobalStats);
+router.get("/employees",               authMiddleware, requireRole('admin'), requireApproved, getAdminEmployees);
+
+// Shared
+router.get("/courses",                 authMiddleware, requireRole('admin'), requireApproved, getAllAvailableCourses);
 
 export default router;

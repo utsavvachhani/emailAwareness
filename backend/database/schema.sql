@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS companies (
     website           VARCHAR(255),
     address           TEXT,
     notes             TEXT,
+    status            VARCHAR(20) NOT NULL DEFAULT 'pending',
     created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
