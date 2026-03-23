@@ -132,7 +132,11 @@ export const sendAdminRegistrationAlert = async (adminName, adminEmail) => {
 };
 
 // ─── Admin Approval Result ─────────────────────────────────────────────────────
-export const sendAdminApprovalResult = async (adminEmail, adminName, approved) => {
+export const sendAdminApprovalResult = async (
+  adminEmail,
+  adminName,
+  approved,
+) => {
   return send({
     from: FROM,
     to: adminEmail,
@@ -164,7 +168,12 @@ export const sendAdminApprovalResult = async (adminEmail, adminName, approved) =
 };
 
 // ─── Company Created Notification ─────────────────────────────────────────────
-export const sendCompanyCreatedNotification = async (adminEmail, adminName, companyName, companyId) => {
+export const sendCompanyCreatedNotification = async (
+  adminEmail,
+  adminName,
+  companyName,
+  companyId,
+) => {
   return send({
     from: FROM,
     to: adminEmail,
@@ -181,7 +190,7 @@ export const sendCompanyCreatedNotification = async (adminEmail, adminName, comp
             <tr><td style="padding:6px 0;color:#6b7280;">Registered At:</td><td style="color:#111827;">${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</td></tr>
           </table>
         </div>
-        <p>If you need to add more companies, update your plan, or have any changes, please <strong>contact your Superadmin</strong> or <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/signin" style="color:#2563eb;">log in</a> if you face any access issues.</p>
+        <p>If you need to add more companies, update your plan, or have any changes, please <strong>contact your Superadmin</strong> or <a href="${process.env.FRONTEND_URL || "http://localhost:3000"}/admin/signin" style="color:#2563eb;">log in</a> if you face any access issues.</p>
         <div style="background:#fef3c7;border:1px solid #f59e0b;padding:12px 16px;border-radius:8px;margin:16px 0;">
           <p style="margin:0;color:#92400e;font-size:13px;">💡 <strong>Need changes?</strong> Contact your Superadmin for plan upgrades and additional company slots, or reset your password if you have any login issues.</p>
         </div>
@@ -191,4 +200,49 @@ export const sendCompanyCreatedNotification = async (adminEmail, adminName, comp
     `,
   });
 };
-
+// ─── Company Status Update Notification ──────────────────────────────────────
+export const sendCompanyStatusUpdate = async (
+  adminEmail,
+  adminName,
+  companyName,
+  status,
+) => {
+  const approved = status === "approved";
+  return send({
+    from: FROM,
+    // to: adminEmail,
+    to: [EMAIL_ADDRESS],
+    subject: approved
+      ? `✅ Entity Verified: "${companyName}" — CyberShield Guard`
+      : `⚠️ Entity Access Update: "${companyName}" — CyberShield Guard`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid ${approved ? "#16a34a" : "#dc2626"};border-radius:12px;background:#fff;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <h2 style="margin:0;color:${approved ? "#16a34a" : "#dc2626"};font-size:20px;">${approved ? "✅ Access Granted" : "⚠️ Verification Update"}</h2>
+        </div>
+        <p>Dear <strong>${adminName}</strong>,</p>
+        <p>Your entity registration for <strong>${companyName}</strong> has been <strong>${status}</strong> by the Superadmin.</p>
+        
+        ${
+          approved
+            ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:16px;border-radius:8px;margin:20px 0;">
+               <p style="margin:0;color:#166534;font-size:14px;">🚀 <strong>Ready for Deployment:</strong> You can now access the full dashboard for this entity, manage employees, and deploy training modules.</p>
+             </div>`
+            : `<div style="background:#fef2f2;border:1px solid #fecaca;padding:16px;border-radius:8px;margin:20px 0;">
+               <p style="margin:0;color:#b91c1c;font-size:14px;">🔒 <strong>Access Restricted:</strong> For detail regarding this update, please contact the Superadmin hub through your primary support channel.</p>
+             </div>`
+        }
+        
+        <div style="text-align:center;margin-top:24px;">
+          <a href="${process.env.FRONTEND_URL || "http://localhost:3000"}/admin/dashboard/companies" 
+             style="background:${approved ? "#2563eb" : "#4b5563"};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;font-size:14px;">
+             ${approved ? "Launch Dashboard" : "View Entities"}
+          </a>
+        </div>
+        
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">
+        <p style="font-size:12px;color:#9ca3af;text-align:center;">CyberShield Guard Entity Management Suite © 2025</p>
+      </div>
+    `,
+  });
+};

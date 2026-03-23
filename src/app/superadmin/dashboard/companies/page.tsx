@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
     Building2, Trash2, Loader2, RefreshCw, Mail, Phone,
-    Users, Globe, Hash, User,
+    Users, Globe, Hash, User, Shield, CheckCircle, XCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
@@ -24,6 +24,7 @@ interface Company {
     adminEmail?: string;
     adminId?: number;
     created_at: string;
+    status: 'pending' | 'approved' | 'rejected';
 }
 
 export default function SuperadminCompaniesPage() {
@@ -47,6 +48,26 @@ export default function SuperadminCompaniesPage() {
     };
 
     useEffect(() => { fetchCompanies(); }, [token]);
+
+    const handleStatusUpdate = async (id: number, status: 'approved' | 'rejected') => {
+        setProcessingId(id);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/companies/${id}/status`, {
+                method: "PATCH",
+                headers: { 
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}` 
+                },
+                body: JSON.stringify({ status }),
+                credentials: "include",
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message);
+            toast.success(`Company ${status}`);
+            fetchCompanies();
+        } catch (err: any) { toast.error(err.message || "Update failed"); }
+        finally { setProcessingId(null); }
+    };
 
     const handleDelete = async (id: number) => {
         if (!confirm("Permanently delete this company?")) return;
@@ -129,7 +150,7 @@ export default function SuperadminCompaniesPage() {
                         <table className="w-full">
                             <thead className="border-b border-border bg-muted/30">
                                 <tr>
-                                    {["Company", "Company ID", "Email", "Phone", "Employees", "Admin Owner", "Registered", "Action"].map(h => (
+                                    {["Company", "Company ID", "Email", "Phone", "Employees", "Admin Owner", "Status", "Registered", "Action"].map(h => (
                                         <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
@@ -170,28 +191,61 @@ export default function SuperadminCompaniesPage() {
                                             </div>
                                         </td>
                                         <td className="px-5 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-7 h-7 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xs font-semibold text-blue-600">
-                                                    {(c.adminFirstName?.[0] || "?")}{(c.adminLastName?.[0] || "")}
-                                                </div>
-                                                <div>
-                                                    <p className="text-xs font-medium">{c.adminFirstName} {c.adminLastName}</p>
-                                                    <p className="text-[10px] text-muted-foreground">{c.adminEmail || "No admin"}</p>
-                                                </div>
-                                            </div>
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter border ${
+                                                c.status === 'approved' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                                                c.status === 'rejected' ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                                                "bg-amber-500/10 text-amber-600 border-amber-500/20 animate-pulse"
+                                            }`}>
+                                                {c.status || 'pending'}
+                                            </span>
                                         </td>
                                         <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">
                                             {new Date(c.created_at).toLocaleDateString("en-IN")}
                                         </td>
                                         <td className="px-5 py-4">
-                                            <button
-                                                onClick={() => handleDelete(c.id)}
-                                                disabled={processingId === c.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                            >
-                                                {processingId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                                                Delete
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                {c.status === 'pending' ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(c.id, 'approved')}
+                                                            disabled={processingId === c.id}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20 transition-all text-xs font-medium disabled:opacity-50"
+                                                        >
+                                                            <CheckCircle className="w-3.5 h-3.5" />
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(c.id, 'rejected')}
+                                                            disabled={processingId === c.id}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-600 border border-orange-500/20 hover:bg-orange-500/20 transition-all text-xs font-medium disabled:opacity-50"
+                                                        >
+                                                            <XCircle className="w-3.5 h-3.5" />
+                                                            Reject
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleStatusUpdate(c.id, c.status === 'approved' ? 'rejected' : 'approved')}
+                                                        disabled={processingId === c.id}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-xs font-medium disabled:opacity-50 ${
+                                                            c.status === 'approved' 
+                                                            ? "bg-orange-500/10 text-orange-600 border-orange-500/20 hover:bg-orange-500/20"
+                                                            : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
+                                                        }`}
+                                                    >
+                                                        {c.status === 'approved' ? <XCircle className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                                        {c.status === 'approved' ? "Revoke" : "Re-Approve"}
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDelete(c.id)}
+                                                    disabled={processingId === c.id}
+                                                    className="p-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                                                    title="Permanently Delete"
+                                                >
+                                                    {processingId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

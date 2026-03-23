@@ -22,23 +22,21 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     const { userInfo } = useAppSelector(s => s.auth);
 
     const navItems = [
-        { label: "Dashboard",       href: id ? `/admin/dashboard/${id}` : "/admin/dashboard",               icon: LayoutDashboard },
-        { label: "Companies",       href: "/admin/dashboard/companies",                                     icon: Building2 },
-        { label: "Courses",         href: "/admin/dashboard/courses",                                       icon: BookOpen },
-        { label: "Profile",         href: "/admin/dashboard/profile",                                       icon: User },
-        { label: "Settings",        href: "/admin/dashboard/settings",                                      icon: Settings },
+        { label: "Dashboard", href: id ? `/admin/dashboard/${id}` : "/admin/dashboard", icon: LayoutDashboard },
+        { label: "Companies", href: "/admin/dashboard/companies", icon: Building2 },
+        { label: "Courses", href: "/admin/dashboard/courses", icon: BookOpen },
+        { label: "Profile", href: "/admin/dashboard/profile", icon: User },
+        { label: "Settings", href: "/admin/dashboard/settings", icon: Settings },
     ];
 
     const navItemsOnID = [
-        { label: "Dashboard",       href: id ? `/admin/dashboard/${id}` : "/admin/dashboard",               icon: LayoutDashboard },
-        { label: "Companies",       href: "/admin/dashboard/companies",                                     icon: Building2 },
-        { label: "Employees",       href: id ? `/admin/dashboard/${id}/employees` : "/admin/dashboard/employees", icon: Users },
-        { label: "Prices",          href: id ? `/admin/dashboard/${id}/pricing` : "/admin/dashboard/pricing",     icon: CreditCard },
-        { label: "Bills",           href: id ? `/admin/dashboard/${id}/bills` : "/admin/dashboard/bills",         icon: CreditCard },
-        { label: "Courses",         href: id ? `/admin/dashboard/${id}/training` : "/admin/dashboard/training",   icon: BookOpen },
-        { label: "Videos",          href: id ? `/admin/dashboard/${id}/videos` : "/admin/dashboard/videos",       icon: Video },
-        { label: "Profile",         href: "/admin/dashboard/profile",                                       icon: User },
-        { label: "Settings",        href: "/admin/dashboard/settings",                                      icon: Settings },
+        { label: "Dashboard", href: id ? `/admin/dashboard/${id}` : "/admin/dashboard", icon: LayoutDashboard },
+        { label: "Companies", href: "/admin/dashboard/companies", icon: Building2 },
+        { label: "Employees", href: id ? `/admin/dashboard/${id}/employees` : "/admin/dashboard/employees", icon: Users },
+        { label: "Bills", href: id ? `/admin/dashboard/${id}/bills` : "/admin/dashboard/bills", icon: CreditCard },
+        { label: "Courses", href: id ? `/admin/dashboard/${id}/training` : "/admin/dashboard/training", icon: BookOpen },
+        { label: "Profile", href: "/admin/dashboard/profile", icon: User },
+        { label: "Settings", href: "/admin/dashboard/settings", icon: Settings },
     ];
 
 
@@ -47,7 +45,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
             await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/logout`, {
                 method: "POST", credentials: "include",
             });
-        } catch (_) {}
+        } catch (_) { }
         dispatch(logout());
         toast.success("Signed out successfully");
         router.push("/");
@@ -95,18 +93,17 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                             <ul className="space-y-0.5">
                                 {currentNavItems.map(item => {
                                     const isDashboard = item.label === "Dashboard";
-                                    const isActive = isDashboard 
+                                    const isActive = isDashboard
                                         ? pathname === item.href
                                         : (pathname === item.href || (item.href !== "/admin/dashboard" && pathname.startsWith(item.href)));
                                     return (
                                         <li key={item.href}>
                                             <Link
                                                 href={item.href}
-                                                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${
-                                                    isActive
+                                                className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${isActive
                                                         ? "bg-blue-500 text-white font-medium"
                                                         : "text-white/60 hover:text-white hover:bg-white/8"
-                                                }`}
+                                                    }`}
                                             >
                                                 <item.icon className="h-4 w-4 shrink-0" />
                                                 {item.label}
@@ -159,20 +156,19 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                                 <nav className="hidden xl:flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50">
                                     {(id ? [
                                         { label: "Employees", href: `/admin/dashboard/${id}/employees` },
-                                        { label: "Bills",     href: `/admin/dashboard/${id}/bills` },
-                                        { label: "Training",  href: `/admin/dashboard/${id}/training` },
+                                        { label: "Bills", href: `/admin/dashboard/${id}/bills` },
+                                        { label: "Training", href: `/admin/dashboard/${id}/training` },
                                     ] : [
                                         { label: "Companies", href: "/admin/dashboard/companies" },
-                                        { label: "Courses",   href: "/admin/dashboard/courses" },
+                                        { label: "Courses", href: "/admin/dashboard/courses" },
                                     ]).map(link => (
                                         <Link
                                             key={link.href}
                                             href={link.href}
-                                            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                                pathname === link.href
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${pathname === link.href
                                                     ? "bg-white text-blue-600 shadow-sm"
                                                     : "text-muted-foreground hover:text-foreground hover:bg-white/50"
-                                            }`}
+                                                }`}
                                         >
                                             {link.label}
                                         </Link>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
     Building2, Plus, Pencil, Trash2, Loader2, RefreshCw,
-    X, Check, Mail, Phone, Users, Globe, Hash,
+    X, Check, Mail, Phone, Users, Globe, Hash, Shield, ChevronRight, Lock
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
@@ -21,6 +21,7 @@ interface Company {
     address?: string;
     notes?: string;
     created_at: string;
+    status: 'pending' | 'approved' | 'rejected';
 }
 
 const emptyForm = {
@@ -159,7 +160,7 @@ export default function AdminCompaniesPage() {
                         <table className="w-full">
                             <thead className="border-b border-border bg-muted/30">
                                 <tr>
-                                    {["Company", "Company ID", "Email", "Phone", "Employees", "Industry", "Registered", "Actions"].map(h => (
+                                    {["Company", "Company ID", "Email", "Phone", "Employees", "Industry", "Status", "Actions"].map(h => (
                                         <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
@@ -168,16 +169,32 @@ export default function AdminCompaniesPage() {
                                 {companies.map(c => (
                                     <tr
                                         key={c.id}
-                                        onClick={() => router.push(`/admin/dashboard/${c.company_id}`)}
-                                        className="hover:bg-muted/30 transition-colors cursor-pointer group/row"
+                                        onClick={() => {
+                                            if (c.status === 'approved') {
+                                                router.push(`/admin/dashboard/${c.company_id}`);
+                                            } else {
+                                                toast.error(`Access Restricted: This company is currently ${c.status.toUpperCase()}`);
+                                            }
+                                        }}
+                                        className={`transition-colors cursor-pointer group/row ${
+                                            c.status === 'approved' 
+                                            ? "hover:bg-blue-500/5 bg-transparent" 
+                                            : "opacity-60 bg-muted/10"
+                                        }`}
                                     >
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-600 group-hover/row:scale-110 transition-transform">
-                                                    {c.name.slice(0, 2).toUpperCase()}
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold transition-transform group-hover/row:scale-110 border ${
+                                                    c.status === 'approved'
+                                                    ? "bg-gradient-to-br from-blue-500/10 to-blue-600/10 border-blue-500/20 text-blue-600"
+                                                    : "bg-muted border-border text-muted-foreground"
+                                                }`}>
+                                                    {c.status === 'approved' ? c.name.slice(0, 2).toUpperCase() : <Lock className="w-4 h-4" />}
                                                 </div>
                                                 <div>
-                                                    <p className="font-semibold text-sm group-hover/row:text-blue-600 transition-colors">{c.name}</p>
+                                                    <p className={`font-semibold text-sm transition-colors ${c.status === 'approved' ? "group-hover/row:text-blue-600" : ""}`}>
+                                                        {c.name}
+                                                    </p>
                                                     {c.website && <span className="text-xs text-muted-foreground">{c.website.replace(/^https?:\/\//, "")}</span>}
                                                 </div>
                                             </div>
@@ -206,8 +223,14 @@ export default function AdminCompaniesPage() {
                                         <td className="px-5 py-4">
                                             <span className="text-xs bg-muted/30 px-2 py-1 rounded-md text-muted-foreground whitespace-nowrap">{c.industry || "—"}</span>
                                         </td>
-                                        <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">
-                                            {new Date(c.created_at).toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        <td className="px-5 py-4">
+                                            <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter border ${
+                                                c.status === 'approved' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                                                c.status === 'rejected' ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                                                "bg-amber-500/10 text-amber-600 border-amber-500/20 animate-pulse"
+                                            }`}>
+                                                {c.status || 'pending'}
+                                            </span>
                                         </td>
                                         <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex items-center gap-2">

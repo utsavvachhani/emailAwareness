@@ -1,5 +1,5 @@
 import pool from "../config/database.js";
-import { sendCompanyCreatedNotification } from "../utils/email.js";
+import { sendCompanyCreatedNotification, sendCompanyStatusUpdate } from "../utils/email.js";
 
 // ─── Helper: generate a unique company ID ─────────────────────────────────────
 const genCompanyId = () => {
@@ -147,16 +147,31 @@ export const updateCompanyStatus = async (req, res) => {
 
   try {
     const result = await pool.query(
-      "UPDATE companies SET status=$1 WHERE id=$2 RETURNING *",
+      `UPDATE companies SET status=$1 WHERE id=$2 
+       RETURNING *, (SELECT first_name || ' ' || last_name FROM admins WHERE id = companies.admin_id) as "adminName",
+       (SELECT email FROM admins WHERE id = companies.admin_id) as "adminEmail"`,
       [status, id]
     );
+
     if (result.rows.length === 0)
       return res.status(404).json({ success: false, message: "Company not found" });
+    
+    const company = result.rows[0];
+
+    // Send notification email to admin
+    if (company.adminEmail && status !== 'pending') {
+      sendCompanyStatusUpdate(
+        company.adminEmail,
+        company.adminName,
+        company.name,
+        status
+      ).catch(e => console.error("Email notify error:", e));
+    }
     
     return res.status(200).json({ 
       success: true, 
       message: `Company ${status}`, 
-      company: result.rows[0] 
+      company 
     });
   } catch (err) {
     console.error("updateCompanyStatus:", err);
