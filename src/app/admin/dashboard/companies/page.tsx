@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
+import { useRouter } from "next/navigation";
 
 interface Company {
     id: number;
@@ -28,6 +29,7 @@ const emptyForm = {
 };
 
 export default function AdminCompaniesPage() {
+    const router = useRouter();
     const token = useAppSelector(s => s.auth.token);
     const [companies, setCompanies] = useState<Company[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -164,20 +166,24 @@ export default function AdminCompaniesPage() {
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {companies.map(c => (
-                                    <tr key={c.id} className="hover:bg-muted/20 transition-colors">
+                                    <tr
+                                        key={c.id}
+                                        onClick={() => router.push(`/admin/dashboard/${c.company_id}`)}
+                                        className="hover:bg-muted/30 transition-colors cursor-pointer group/row"
+                                    >
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-600">
+                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-600 group-hover/row:scale-110 transition-transform">
                                                     {c.name.slice(0, 2).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-sm">{c.name}</p>
-                                                    {c.website && <a href={c.website} target="_blank" rel="noreferrer" className="text-xs text-muted-foreground hover:text-blue-500 transition-colors">{c.website}</a>}
+                                                    <p className="font-semibold text-sm group-hover/row:text-blue-600 transition-colors">{c.name}</p>
+                                                    {c.website && <span className="text-xs text-muted-foreground">{c.website.replace(/^https?:\/\//, "")}</span>}
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-5 py-4">
-                                            <span className="text-xs font-mono bg-muted px-2 py-1 rounded">{c.company_id}</span>
+                                            <span className="text-[11px] font-mono bg-muted/50 text-muted-foreground px-2 py-1 rounded-md border border-border/50 group-hover/row:bg-blue-500/5 group-hover/row:text-blue-600 transition-colors">{c.company_id}</span>
                                         </td>
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -194,23 +200,25 @@ export default function AdminCompaniesPage() {
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-1.5 text-sm">
                                                 <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                                                {c.num_employees.toLocaleString()}
+                                                <span className="font-medium">{c.num_employees.toLocaleString()}</span>
                                             </div>
                                         </td>
-                                        <td className="px-5 py-4 text-sm text-muted-foreground">{c.industry || "—"}</td>
-                                        <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">
-                                            {new Date(c.created_at).toLocaleDateString("en-IN")}
-                                        </td>
                                         <td className="px-5 py-4">
+                                            <span className="text-xs bg-muted/30 px-2 py-1 rounded-md text-muted-foreground whitespace-nowrap">{c.industry || "—"}</span>
+                                        </td>
+                                        <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">
+                                            {new Date(c.created_at).toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        </td>
+                                        <td className="px-5 py-4" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex items-center gap-2">
                                                 <button onClick={() => openEdit(c)}
-                                                    className="p-1.5 rounded-md hover:bg-blue-500/10 text-blue-600 transition-colors border border-transparent hover:border-blue-500/20">
-                                                    <Pencil className="w-3.5 h-3.5" />
+                                                    className="p-2 rounded-lg hover:bg-blue-500/10 text-blue-600 transition-all border border-transparent hover:border-blue-500/20 active:scale-95">
+                                                    <Pencil className="w-4 h-4" />
                                                 </button>
                                                 <button onClick={() => handleDelete(c.id)}
                                                     disabled={processingId === c.id}
-                                                    className="p-1.5 rounded-md hover:bg-red-500/10 text-red-500 transition-colors border border-transparent hover:border-red-500/20 disabled:opacity-50">
-                                                    {processingId === c.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                                    className="p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition-all border border-transparent hover:border-red-500/20 disabled:opacity-50 active:scale-95">
+                                                    {processingId === c.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                                                 </button>
                                             </div>
                                         </td>
