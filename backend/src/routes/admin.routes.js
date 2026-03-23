@@ -16,8 +16,6 @@ import {
   updateCompany,
   deleteMyCompany,
   getMyCompanyDetails,
-  getCompanyEmployees,
-  createEmployee,
   getCompanyCourses,
   getAllAvailableCourses,
   assignCourseToCompany,
@@ -25,6 +23,12 @@ import {
   getAdminGlobalStats,
   getAdminEmployees,
 } from "../controllers/company.controller.js";
+import { 
+  getEmployeesByCompany, 
+  createEmployee as createNewEmployee, 
+  updateEmployee, 
+  deleteEmployee 
+} from "../controllers/employees.controller.js";
 import { authMiddleware, requireRole, requireApproved } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -58,8 +62,10 @@ router.put("/companies/:id",     authMiddleware, requireRole('admin'), requireAp
 router.delete("/companies/:id",  authMiddleware, requireRole('admin'), requireApproved, deleteMyCompany);
 
 // Specific Company Management
-router.get("/companies/:id/employees", authMiddleware, requireRole('admin'), requireApproved, getCompanyEmployees);
-router.post("/companies/:id/employees", authMiddleware, requireRole('admin'), requireApproved, createEmployee);
+router.get("/companies/:id/employees", authMiddleware, requireRole('admin'), requireApproved, getEmployeesByCompany);
+router.post("/companies/:id/employees", authMiddleware, requireRole('admin'), requireApproved, createNewEmployee);
+router.put("/employees/:employeeId",    authMiddleware, requireRole('admin'), requireApproved, updateEmployee);
+router.delete("/employees/:employeeId", authMiddleware, requireRole('admin'), requireApproved, deleteEmployee);
 router.get("/companies/:id/courses",   authMiddleware, requireRole('admin'), requireApproved, getCompanyCourses);
 router.post("/companies/:id/courses",  authMiddleware, requireRole('admin'), requireApproved, assignCourseToCompany);
 router.get("/companies/:id/stats",     authMiddleware, requireRole('admin'), requireApproved, getCompanyStats);

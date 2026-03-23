@@ -184,4 +184,25 @@ CREATE TRIGGER update_companies_updated_at
     BEFORE UPDATE ON companies
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- ─── EMPLOYEES ─────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS employees (
+    id                SERIAL PRIMARY KEY,
+    first_name        VARCHAR(100) NOT NULL,
+    last_name         VARCHAR(100) NOT NULL,
+    email             VARCHAR(255) NOT NULL,
+    company_id        INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    designation       VARCHAR(100),
+    status            VARCHAR(20) NOT NULL DEFAULT 'active',
+    created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_employees_company_id ON employees(company_id);
+CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
+
+DROP TRIGGER IF EXISTS update_employees_updated_at ON employees;
+CREATE TRIGGER update_employees_updated_at
+    BEFORE UPDATE ON employees
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 

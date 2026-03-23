@@ -140,7 +140,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                 </aside>
 
                 {/* Main content */}
-                <div className="pl-64 flex-1 flex flex-col min-h-screen">
+                <div className="ml-64 flex-1 flex flex-col min-h-screen">
+
                     {/* Topbar */}
                     <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur">
                         <div className="flex h-full items-center justify-between px-6">
