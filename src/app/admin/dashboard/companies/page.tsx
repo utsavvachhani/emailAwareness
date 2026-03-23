@@ -261,11 +261,6 @@ export default function AdminCompaniesPage() {
                                         placeholder="+91 9876543210" className="input-field" />
                                 </div>
                                 <div>
-                                    <label className="text-xs font-medium text-muted-foreground mb-1.5 block">No. of Employees</label>
-                                    <input type="number" min={0} value={form.num_employees} onChange={e => setForm(f => ({ ...f, num_employees: Number(e.target.value) }))}
-                                        placeholder="100" className="input-field" />
-                                </div>
-                                <div>
                                     <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Industry</label>
                                     <input value={form.industry} onChange={e => setForm(f => ({ ...f, industry: e.target.value }))}
                                         placeholder="Technology" className="input-field" />

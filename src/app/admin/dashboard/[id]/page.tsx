@@ -1,272 +1,198 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import {
-    Building2, Users, BookOpen, BarChart3,
-    Mail, Phone, Globe, Calendar, CheckCircle2,
-    ArrowRight, ArrowUpRight, Shield, Activity,
-    ExternalLink, MapPin, Search, ChevronRight, Loader2,
-    Briefcase, Award, GraduationCap, Plus, MoreHorizontal
-} from "lucide-react";
-import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Link from "next/link";
+import {
+    Users, Mail, Eye, CheckCircle, AlertTriangle, TrendingUp,
+    Shield, Activity, ArrowUp, ArrowDown, MoreHorizontal
+} from "lucide-react";
 
-interface Company {
-    id: number;
-    company_id: string;
-    name: string;
-    email: string;
-    phone?: string;
-    num_employees: number;
-    industry?: string;
-    website?: string;
-    address?: string;
-    notes?: string;
-    created_at: string;
-    status: 'approved' | 'rejected' | 'pending';
-}
+const kpis = [
+    { title: "Total Employees", value: "248", change: "+12", period: "this month", trend: "up", icon: Users, color: "blue" },
+    { title: "Emails Sent", value: "1,842", change: "+124", period: "this week", trend: "up", icon: Mail, color: "purple" },
+    { title: "Open Rate", value: "71.4%", change: "+3.2%", period: "vs last week", trend: "up", icon: Eye, color: "green" },
+    { title: "Quiz Completion", value: "86.2%", change: "-0.8%", period: "vs last week", trend: "down", icon: CheckCircle, color: "yellow" },
+    { title: "High-Risk Users", value: "7", change: "-2", period: "vs last week", trend: "up", icon: AlertTriangle, color: "red" },
+    { title: "Avg Training Score", value: "82/100", change: "+5", period: "this month", trend: "up", icon: TrendingUp, color: "blue" },
+];
 
-export default function GenericCompanyDashboard({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
-    const token = useAppSelector(s => s.auth.token);
-    const [company, setCompany] = useState<Company | null>(null);
-    const [stats, setStats] = useState<any>(null);
-    const [employees, setEmployees] = useState<any[]>([]);
-    const [courses, setCourses] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+const colorMap: Record<string, string> = {
+    blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    purple: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+    green: "bg-green-500/10 text-green-500 border-green-500/20",
+    yellow: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    red: "bg-red-500/10 text-red-500 border-red-500/20",
+};
 
-    useEffect(() => {
-        if (token && id) {
-            fetchCompanyData();
-        }
-    }, [token, id]);
+const employees = [
+    { name: "Riya Patel", email: "riya@example.com", dept: "Engineering", score: 94, modules: "4/4", lastActive: "Today", risk: "low" },
+    { name: "Arjun Shah", email: "arjun@example.com", dept: "Sales", score: 72, modules: "3/4", lastActive: "Yesterday", risk: "medium" },
+    { name: "Meera Joshi", email: "meera@example.com", dept: "HR", score: 88, modules: "4/4", lastActive: "Today", risk: "low" },
+    { name: "Rahul Desai", email: "rahul@example.com", dept: "Finance", score: 41, modules: "1/4", lastActive: "5 days ago", risk: "high" },
+    { name: "Priya Modi", email: "priya@example.com", dept: "Marketing", score: 67, modules: "2/4", lastActive: "2 days ago", risk: "medium" },
+    { name: "Vivek Kumar", email: "vivek@example.com", dept: "IT", score: 98, modules: "4/4", lastActive: "Today", risk: "low" },
+];
 
-    const fetchCompanyData = async () => {
-        setIsLoading(true);
-        try {
-            const headers = { Authorization: `Bearer ${token}` };
-            const [compRes, statsRes, empRes, courseRes] = await Promise.all([
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/stats`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/employees`, { headers }),
-                fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/courses`, { headers })
-            ]);
+const simulations = [
+    { name: "Q1 Phishing Test", sent: 248, opened: 187, clicked: 43, date: "Mar 8, 2026", failRate: "17.3%" },
+    { name: "CEO Fraud Simulation", sent: 248, opened: 201, clicked: 28, date: "Feb 22, 2026", failRate: "11.3%" },
+    { name: "Invoice Scam Test", sent: 248, opened: 165, clicked: 61, date: "Feb 5, 2026", failRate: "24.6%" },
+    { name: "IT Support Pretexting", sent: 248, opened: 142, clicked: 19, date: "Jan 18, 2026", failRate: "7.7%" },
+];
 
-            const compData = await compRes.json();
-            const statsData = await statsRes.json();
-            const empData = await empRes.json();
-            const courseData = await courseRes.json();
-
-            if (compData.success) setCompany(compData.company);
-            if (statsData.success) setStats(statsData.stats);
-            if (empData.success) setEmployees(empData.employees.slice(0, 5));
-            if (courseData.success) setCourses(courseData.courses);
-        } catch {
-            toast.error("Failed to load entity details");
-        } finally {
-            setIsLoading(false);
-        }
+const riskBadge = (risk: string) => {
+    const map: Record<string, string> = {
+        low: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+        medium: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+        high: "bg-red-500/10 text-red-500 border-red-500/20",
     };
+    return <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${map[risk]}`}>{risk.charAt(0).toUpperCase() + risk.slice(1)}</span>;
+};
 
-    if (isLoading && !company) {
-        return (
-            <div className="flex h-[80vh] items-center justify-center">
-                <Loader2 className="w-10 h-10 animate-spin text-primary" />
-            </div>
-        );
-    }
-
-    if (!company) {
-        return (
-            <div className="flex flex-col items-center justify-center h-[80vh] space-y-4">
-                <Shield className="w-20 h-20 opacity-10" />
-                <h2 className="text-xl font-black italic tracking-tight">Active Entity Not Found</h2>
-                <Link href="/admin">
-                    <Button variant="outline" className="rounded-2xl h-12 px-8 font-black uppercase text-xs">Return to Fleet</Button>
-                </Link>
-            </div>
-        );
-    }
+export default function AdminDashboardPage() {
+    const { userInfo } = useAppSelector(s => s.auth);
 
     return (
-        <div className="space-y-10 animate-in fade-in zoom-in-95 duration-700">
-            {/* Context Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 border-b border-border/40 pb-10">
-                <div className="space-y-4">
-                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">
-                        <Building2 className="w-4 h-4 text-primary" />
-                        Entity Operations Interface
-                        <div className="h-1 w-1 rounded-full bg-muted-foreground" />
-                        {company.company_id}
-                    </div>
-                    <h1 className="text-5xl font-black tracking-tighter bg-gradient-to-br from-foreground to-foreground/40 bg-clip-text text-transparent italic leading-[1.1]">
-                        {company.name}
-                    </h1>
-                    <div className="flex flex-wrap items-center gap-6">
-                        <div className="flex items-center gap-2 text-xs font-bold bg-emerald-500/10 text-emerald-600 px-3 py-1 rounded-full border border-emerald-500/20">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Connected & Verified
-                        </div>
-                        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                            <MapPin className="w-4 h-4 text-primary opacity-50" />
-                            {company.address || "Global HQ Operations"}
-                        </div>
-                    </div>
+        <div className="space-y-6">
+            {/* Page Header */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                        Welcome back, {userInfo?.firstName}. Here's your organisation's training overview.
+                    </p>
                 </div>
-
-                <div className="flex items-center gap-3">
-                    <Link href={`/admin/dashboard/${id}/employees`}>
-                        <Button className="rounded-2xl h-14 bg-black text-white hover:bg-neutral-800 font-black px-8 text-xs shadow-2xl">
-                            MANAGE WORKFORCE
-                            <ArrowRight className="w-4 h-4 ml-3" />
-                        </Button>
-                    </Link>
+                <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+                    <Shield className="h-4 w-4 text-blue-500" />
+                    <span className="text-sm font-medium text-blue-600">Admin Access</span>
                 </div>
             </div>
 
-            {/* Metric Clusters */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="rounded-[2.5rem] border-none bg-neutral-900 text-white shadow-2xl relative overflow-hidden group">
-                    <CardContent className="p-8">
-                        <div className="flex items-center justify-between mb-8">
-                            <Users className="w-8 h-8 text-primary shadow-[0_0_20px_rgba(var(--primary),0.3)]" />
-                            <div className="px-3 py-1 rounded-full bg-white/10 text-[10px] font-black uppercase tracking-tighter">Live Dataset</div>
-                        </div>
-                        <p className="text-sm font-bold text-white/50 uppercase tracking-widest leading-none mb-2 underline decoration-primary/30">Workforce Census</p>
-                        <h3 className="text-5xl font-black tracking-tighter">{stats?.totalEmployees || 0}</h3>
-                        <p className="text-[10px] font-bold text-emerald-400 mt-4 flex items-center gap-1.5">
-                            <Activity className="w-3 h-3" />
-                            Full spectrum awareness surveillance active
-                        </p>
-                    </CardContent>
-                    {/* Gradient Blur Overlay */}
-                    <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-primary/10 rounded-full blur-[100px]" />
-                </Card>
-
-                <Card className="rounded-[2.5rem] border-border/60 bg-white/50 backdrop-blur-xl shadow-xl flex flex-col justify-between">
-                    <CardHeader className="p-8 pb-0 flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground opacity-60">Curriculum Load</CardTitle>
-                            <h3 className="text-4xl font-black tracking-tighter mt-1">{stats?.assignedCourses || 0} <span className="text-lg opacity-40 font-bold">Programs</span></h3>
-                        </div>
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
-                            <BookOpen className="w-6 h-6" />
-                        </div>
-                    </CardHeader>
-                    <CardFooter className="p-8 pt-0 mt-8">
-                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                            <div className="h-full bg-indigo-500 w-[65%]" />
-                        </div>
-                    </CardFooter>
-                </Card>
-
-                <Card className="rounded-[2.5rem] border-border/60 bg-white shadow-xl flex flex-col justify-between">
-                    <CardHeader className="p-8 pb-0 flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground opacity-60">Security Posture</CardTitle>
-                            <h3 className="text-4xl font-black tracking-tighter mt-1 text-emerald-600 italic">Robust</h3>
-                        </div>
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                            <Shield className="w-6 h-6" />
-                        </div>
-                    </CardHeader>
-                    <CardFooter className="p-8 pt-0 mt-8">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase leading-relaxed font-black opacity-50 tracking-tighter">
-                            Last update synchronized across all local nodes 2 minutes ago.
-                        </p>
-                    </CardFooter>
-                </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Internal Workforce */}
-                <Card className="lg:col-span-2 rounded-[3rem] border-border/60 shadow-xl overflow-hidden bg-card/40 border-t-[8px] border-t-indigo-500/20">
-                    <CardHeader className="p-10 border-b border-border/40 bg-muted/20 flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-xl font-black italic">Workforce Segment</CardTitle>
-                            <CardDescription className="text-[10px] font-bold uppercase tracking-widest mt-1 opacity-50 italic">Live personnel tracking for training metrics</CardDescription>
-                        </div>
-                        <Link href={`/admin/dashboard/${id}/employees`}>
-                            <Button variant="ghost" className="h-10 text-[10px] font-black uppercase text-primary hover:bg-primary/5 rounded-2xl">Full Segment Overview</Button>
-                        </Link>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="divide-y divide-border/20">
-                            {employees.length === 0 ? (
-                                <div className="h-40 flex items-center justify-center text-muted-foreground opacity-20">
-                                    <Users className="w-10 h-10" />
-                                </div>
-                            ) : employees.map(e => (
-                                <div key={e.id} className="p-8 flex items-center justify-between hover:bg-muted/30 transition-all group">
-                                    <div className="flex items-center gap-6">
-                                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-indigo-600/5 flex items-center justify-center border border-indigo-500/30 group-hover:scale-110 transition-transform">
-                                            <span className="text-xs font-black text-indigo-600 opacity-80">{e.first_name[0]}{e.last_name[0]}</span>
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-black group-hover:text-primary transition-colors">{e.first_name} {e.last_name}</p>
-                                            <p className="text-[10px] font-bold text-muted-foreground tracking-tight underline-offset-4 decoration-primary/20 group-hover:underline">{e.designation || 'Specialist'}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-8">
-                                        <div className="hidden md:block text-right">
-                                            <p className="text-[9px] font-black uppercase text-muted-foreground mb-0.5 tracking-tighter">Connection</p>
-                                            <p className="text-[10px] font-bold text-emerald-600 flex items-center gap-1.5 uppercase tracking-widest">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                Secure
-                                            </p>
-                                        </div>
-                                        <div className="w-10 h-10 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground opacity-20 group-hover:opacity-100 group-hover:bg-primary group-hover:text-white transition-all shadow-xl shadow-black/5">
-                                            <ChevronRight className="w-4 h-4" />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Infrastructure Reports */}
-                <div className="space-y-6">
-                    <Card className="rounded-[3rem] border-none bg-indigo-600 text-white p-10 flex flex-col justify-between shadow-2xl shadow-indigo-600/30 relative overflow-hidden">
-                        <div className="z-10">
-                            <Activity className="w-12 h-12 mb-8 text-indigo-300" />
-                            <h4 className="text-2xl font-black italic mb-2 tracking-tighter leading-none">Intelligence Feed</h4>
-                            <p className="text-xs text-indigo-100/70 font-medium leading-relaxed italic border-l border-indigo-400 pl-4 py-1">
-                                Real-time behavioral analysis and phishing defense analytics for {company.name} assets.
-                            </p>
-                        </div>
-                        <Button className="z-10 w-full mt-10 bg-white text-indigo-700 hover:bg-neutral-100 rounded-2xl font-black text-xs h-12 shadow-xl shadow-black/20">
-                            GENERATE SIMULATION REPORT
-                        </Button>
-                        <div className="absolute -left-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-3xl opacity-40" />
-                    </Card>
-
-                    <Card className="rounded-[3rem] border-border/60 bg-white shadow-xl p-8 space-y-8">
-                        <div className="flex items-center justify-between">
-                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Internal Awareness</h4>
-                            <Award className="w-5 h-5 text-amber-500" />
-                        </div>
-                        {[
-                            { label: "Completion Average", val: "82%", col: "bg-emerald-500" },
-                            { label: "Defense Rating", val: "91%", col: "bg-primary" },
-                            { label: "Active Threats", val: "00", col: "bg-red-500" },
-                        ].map((item, i) => (
-                            <div key={i} className="space-y-3 pb-2 border-b border-border/30 last:border-0 last:pb-0">
-                                <div className="flex justify-between items-center px-1">
-                                    <span className="text-[10px] font-black uppercase tracking-tighter opacity-70">{item.label}</span>
-                                    <span className="text-xs font-black tabular-nums">{item.val}</span>
-                                </div>
-                                <div className="h-1.5 w-full bg-muted/60 rounded-full overflow-hidden">
-                                    <div className={`h-full ${item.col} rounded-full opacity-80`} style={{ width: item.val !== '00' ? item.val : '0%' }} />
+            {/* KPI Grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                {kpis.map(kpi => {
+                    const Icon = kpi.icon;
+                    const isUp = kpi.trend === "up";
+                    return (
+                        <div key={kpi.title} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow">
+                            <div className="flex items-start justify-between mb-3">
+                                <p className="text-sm text-muted-foreground">{kpi.title}</p>
+                                <div className={`p-2 rounded-lg border ${colorMap[kpi.color]}`}>
+                                    <Icon className="h-4 w-4" />
                                 </div>
                             </div>
-                        ))}
-                    </Card>
+                            <p className="text-2xl font-bold mb-2">{kpi.value}</p>
+                            <div className={`flex items-center gap-1 text-xs font-medium ${kpi.color === "red" ? (isUp ? "text-emerald-600" : "text-red-500") :
+                                isUp ? "text-emerald-600" : "text-red-500"
+                                }`}>
+                                {isUp ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                                <span>{kpi.change}</span>
+                                <span className="text-muted-foreground font-normal">{kpi.period}</span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Employee Table */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                    <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-500" />
+                        <h2 className="font-semibold text-lg">Employee Training Status</h2>
+                    </div>
+                    <span className="text-xs text-muted-foreground">{employees.length} employees</span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-muted/30 border-b border-border">
+                            <tr>
+                                {["Employee", "Department", "Score", "Modules", "Last Active", "Risk Level", ""].map(h => (
+                                    <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                            {employees.map(emp => (
+                                <tr key={emp.email} className="hover:bg-muted/20 transition-colors group">
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
+                                                {emp.name.split(" ").map(n => n[0]).join("")}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium">{emp.name}</p>
+                                                <p className="text-xs text-muted-foreground">{emp.email}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-md">{emp.dept}</span>
+                                    </td>
+                                    <td className="px-5 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${emp.score >= 80 ? "bg-emerald-500" : emp.score >= 60 ? "bg-yellow-500" : "bg-red-400"}`}
+                                                    style={{ width: `${emp.score}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-sm font-semibold">{emp.score}%</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-4 text-sm text-muted-foreground">{emp.modules}</td>
+                                    <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{emp.lastActive}</td>
+                                    <td className="px-5 py-4">{riskBadge(emp.risk)}</td>
+                                    <td className="px-5 py-4">
+                                        <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-all">
+                                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Phishing Simulations Table */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                    <div className="flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-orange-500" />
+                        <h2 className="font-semibold text-lg">Phishing Simulations</h2>
+                    </div>
+                    <button className="text-xs text-blue-500 hover:text-blue-600 transition-colors">View All →</button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-muted/30 border-b border-border">
+                            <tr>
+                                {["Campaign", "Sent", "Opened", "Clicked", "Fail Rate", "Date"].map(h => (
+                                    <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                            {simulations.map(sim => {
+                                const failNum = parseInt(sim.failRate);
+                                const isHigh = failNum > 20;
+                                return (
+                                    <tr key={sim.name} className="hover:bg-muted/20 transition-colors">
+                                        <td className="px-5 py-4 font-medium text-sm">{sim.name}</td>
+                                        <td className="px-5 py-4 text-sm text-muted-foreground">{sim.sent}</td>
+                                        <td className="px-5 py-4 text-sm">{sim.opened} <span className="text-muted-foreground text-xs">({Math.round(sim.opened / sim.sent * 100)}%)</span></td>
+                                        <td className={`px-5 py-4 text-sm font-medium ${isHigh ? "text-red-500" : "text-foreground"}`}>{sim.clicked}</td>
+                                        <td className="px-5 py-4">
+                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isHigh ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-600"}`}>
+                                                {sim.failRate}
+                                            </span>
+                                        </td>
+                                        <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{sim.date}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
