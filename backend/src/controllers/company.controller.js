@@ -14,11 +14,13 @@ export const getMyCompanies = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT c.*, 
+              (SELECT COUNT(*)::int FROM employees WHERE company_id = c.id) AS num_employees,
               a.first_name AS "adminFirstName", a.last_name AS "adminLastName", a.email AS "adminEmail"
        FROM companies c
        LEFT JOIN admins a ON c.admin_id = a.id
        WHERE c.admin_id = $1
        ORDER BY c.created_at DESC`,
+
       [req.user.id]
     );
     return res.status(200).json({ success: true, companies: result.rows });
@@ -30,7 +32,8 @@ export const getMyCompanies = async (req, res) => {
 
 // ─── Create company ────────────────────────────────────────────────────────────
 export const createCompany = async (req, res) => {
-  const { name, email, phone, num_employees, industry, website, address, notes } = req.body;
+  const { name, email, phone, industry, website, address, notes } = req.body;
+
   if (!name || !email) {
     return res.status(400).json({ success: false, message: "Company name and email are required" });
   }
@@ -41,11 +44,12 @@ export const createCompany = async (req, res) => {
     if (check.rows.length > 0) company_id = genCompanyId() + "-2";
 
     const result = await pool.query(
-      `INSERT INTO companies (company_id, name, email, phone, num_employees, admin_id, industry, website, address, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      `INSERT INTO companies (company_id, name, email, phone, admin_id, industry, website, address, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
        RETURNING *`,
-      [company_id, name, email, phone, num_employees || 0, req.user.id, industry, website, address, notes]
+      [company_id, name, email, phone, req.user.id, industry, website, address, notes]
     );
+
     const company = result.rows[0];
 
     // Send notification email to admin
@@ -73,15 +77,17 @@ export const createCompany = async (req, res) => {
 // ─── Update company ────────────────────────────────────────────────────────────
 export const updateCompany = async (req, res) => {
   const { id } = req.params;
-  const { name, email, phone, num_employees, industry, website, address, notes } = req.body;
+  const { name, email, phone, industry, website, address, notes } = req.body;
+
   try {
     const result = await pool.query(
-      `UPDATE companies SET name=$1, email=$2, phone=$3, num_employees=$4, industry=$5,
-              website=$6, address=$7, notes=$8
-       WHERE id=$9 AND admin_id=$10
+      `UPDATE companies SET name=$1, email=$2, phone=$3, industry=$4,
+              website=$5, address=$6, notes=$7
+       WHERE id=$8 AND admin_id=$9
        RETURNING *`,
-      [name, email, phone, num_employees, industry, website, address, notes, id, req.user.id]
+      [name, email, phone, industry, website, address, notes, id, req.user.id]
     );
+
     if (result.rows.length === 0)
       return res.status(404).json({ success: false, message: "Company not found or unauthorized" });
     return res.status(200).json({ success: true, message: "Company updated", company: result.rows[0] });
@@ -112,12 +118,14 @@ export const getAllCompanies = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT c.*,
+              (SELECT COUNT(*)::int FROM employees WHERE company_id = c.id) AS num_employees,
               a.first_name AS "adminFirstName", a.last_name AS "adminLastName",
               a.email AS "adminEmail", a.id AS "adminId"
        FROM companies c
        LEFT JOIN admins a ON c.admin_id = a.id
        ORDER BY c.created_at DESC`
     );
+
     return res.status(200).json({ success: true, companies: result.rows });
   } catch (err) {
     return res.status(500).json({ success: false, message: "Internal error" });
@@ -183,9 +191,11 @@ export const getMyCompanyDetails = async (req, res) => {
   const { id } = req.params;
   try {
     const result = await pool.query(
-      "SELECT * FROM companies WHERE id=$1 AND admin_id=$2",
+      `SELECT *, (SELECT COUNT(*)::int FROM employees WHERE company_id = companies.id) AS num_employees 
+       FROM companies WHERE id=$1 AND admin_id=$2`,
       [id, req.user.id]
     );
+
     if (result.rows.length === 0)
       return res.status(404).json({ success: false, message: "Company not found" });
     return res.status(200).json({ success: true, company: result.rows[0] });

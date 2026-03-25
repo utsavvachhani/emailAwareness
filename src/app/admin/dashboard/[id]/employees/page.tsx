@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-    Users, Search, Filter, Loader2, Building2, UserCheck,
-    Shield, Mail, Plus, Pencil, Trash2, X, Check, MoreVertical,
-    Download, Briefcase, RefreshCw, AlertCircle
+    Users, Loader2, Mail, Pencil, Trash2,
+    RefreshCw, Plus, Check
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useAppSelector } from "@/lib/redux/hooks";
@@ -28,6 +27,25 @@ const emptyForm = {
     designation: "",
 };
 
+const DESIGNATIONS = [
+    "HR",
+    "Software Developer",
+    "Senior Developer",
+    "Junior Developer",
+    "Marketing",
+    "UT",
+    "Developer Options",
+    "CEO",
+    "Sales",
+    "Data Analytics",
+    "Data Entry",
+    "Finance",
+    "Operations",
+    "Management",
+    "Other"
+];
+
+
 export default function CompanyEmployeesPage() {
     const params = useParams();
     const companyId = params?.id as string;
@@ -35,12 +53,19 @@ export default function CompanyEmployeesPage() {
 
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [processingId, setProcessingId] = useState<number | null>(null);
+    const [search, setSearch] = useState("");
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isEditing, setIsEditing] = useState<number | null>(null);
     const [formData, setFormData] = useState(emptyForm);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [processingId, setProcessingId] = useState<number | null>(null);
-    const [search, setSearch] = useState("");
+
+    // CSV states
+    const [csvPreviewData, setCsvPreviewData] = useState<any[]>([]);
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
+
 
     const fetchEmployees = useCallback(async () => {
         setIsLoading(true);
@@ -49,11 +74,9 @@ export default function CompanyEmployeesPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            if (data.success) {
-                setEmployees(data.employees);
-            }
-        } catch (error) {
-            toast.error("Network error: Could not load workforce data");
+            if (data.success) setEmployees(data.employees);
+        } catch {
+            toast.error("Failed to load employees");
         } finally {
             setIsLoading(false);
         }
@@ -81,24 +104,85 @@ export default function CompanyEmployeesPage() {
             });
 
             const data = await res.json();
-            if (data.success) {
-                toast.success(isEditing ? "Personnel file updated" : "New operative added to workforce");
-                setIsModalOpen(false);
-                setFormData(emptyForm);
-                setIsEditing(null);
-                fetchEmployees();
-            } else {
-                toast.error(data.message || "Operation failed");
-            }
-        } catch (error) {
-            toast.error("Critical error connecting to server");
+            if (!res.ok) throw new Error(data.message);
+
+            toast.success(isEditing ? "Employee updated" : "Employee added");
+            setIsModalOpen(false);
+            setFormData(emptyForm);
+            setIsEditing(null);
+            fetchEmployees();
+        } catch (err: any) {
+            toast.error(err.message || "Operation failed");
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            const lines = text.split("\n");
+            const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+
+            const items = lines.slice(1).filter(line => line.trim()).map(line => {
+                const values = line.split(",").map(v => v.trim());
+                const obj: any = {};
+                headers.forEach((header, i) => {
+                    obj[header] = values[i] || "";
+                });
+                return obj;
+            });
+
+            // Normalize fields if headers are slightly different (e.g., first name -> first_name)
+            const normalized = items.map(item => ({
+                first_name: item.first_name || item.firstname || item.first || "",
+                last_name: item.last_name || item.lastname || item.last || "",
+                email: item.email || "",
+                designation: item.designation || item.role || item.position || ""
+            }));
+
+            setCsvPreviewData(normalized);
+            setIsPreviewOpen(true);
+        };
+        reader.readAsText(file);
+        e.target.value = ""; // Reset input
+    };
+
+    const importEmployees = async () => {
+        setIsImporting(true);
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const emp of csvPreviewData) {
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${companyId}/employees`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(emp),
+                });
+                if (res.ok) successCount++;
+                else failCount++;
+            } catch {
+                failCount++;
+            }
+        }
+
+        toast.success(`Import complete: ${successCount} successful, ${failCount} failed`);
+        setIsPreviewOpen(false);
+        setCsvPreviewData([]);
+        fetchEmployees();
+        setIsImporting(false);
+    };
+
     const handleDelete = async (id: number) => {
-        if (!confirm("Permanently offboard this employee from the system?")) return;
+        if (!confirm("Delete this employee?")) return;
         setProcessingId(id);
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/employees/${id}`, {
@@ -106,12 +190,38 @@ export default function CompanyEmployeesPage() {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
-            if (data.success) {
-                toast.success("Employee removed successfully");
+            if (!res.ok) throw new Error(data.message);
+
+            toast.success("Employee deleted");
+            fetchEmployees();
+        } catch (err: any) {
+            toast.error(err.message || "Delete failed");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+
+    const toggleStatus = async (emp: Employee) => {
+        setProcessingId(emp.id);
+        try {
+            const newStatus = emp.status === "active" ? "inactive" : "active";
+
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/employees/${emp.id}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: newStatus }),
+            });
+
+            if ((await res.json()).success) {
+                toast.success(`Status: ${newStatus}`);
                 fetchEmployees();
             }
-        } catch (error) {
-            toast.error("Internal service failure during deletion");
+        } catch {
+            toast.error("Status update failed");
         } finally {
             setProcessingId(null);
         }
@@ -128,29 +238,6 @@ export default function CompanyEmployeesPage() {
         setIsModalOpen(true);
     };
 
-    const toggleStatus = async (emp: Employee) => {
-        setProcessingId(emp.id);
-        try {
-            const newStatus = emp.status === 'active' ? 'inactive' : 'active';
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/employees/${emp.id}`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ status: newStatus }),
-            });
-            if ((await res.json()).success) {
-                toast.success(`Access status: ${newStatus.toUpperCase()}`);
-                fetchEmployees();
-            }
-        } catch (error) {
-            toast.error("Status synchronization failed");
-        } finally {
-            setProcessingId(null);
-        }
-    };
-
     const filtered = employees.filter(e =>
         `${e.first_name} ${e.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
         e.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -158,267 +245,239 @@ export default function CompanyEmployeesPage() {
     );
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header Hub */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-8">
+        <div className="space-y-6">
+
+            {/* Header */}
+            <div className="module-header">
                 <div>
-                    <h1 className="text-4xl font-black italic tracking-tighter uppercase leading-none flex items-center gap-3">
-                        Workforce <span className="text-blue-600">Directory</span>
-                        <div className="h-1 w-12 bg-blue-600 rounded-full hidden md:block" />
-                    </h1>
-                    <p className="text-sm font-medium text-muted-foreground mt-2 italic opacity-60">Managing active personnel and training deployment matrices.</p>
+                    <h1 className="module-title">Employees</h1>
+                    <p className="text-sm text-muted-foreground mt-1">Manage company employees</p>
                 </div>
+
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={fetchEmployees}
-                        className="p-3 rounded-xl border border-border hover:bg-muted transition-colors text-muted-foreground"
-                    >
-                        <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
-                    </button>
-                    <button
-                        onClick={() => { setIsEditing(null); setFormData(emptyForm); setIsModalOpen(true); }}
-                        className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20 active:scale-95"
-                    >
-                        <Plus className="h-4 w-4" />
-                        Add Operative
-                    </button>
-                </div>
-            </div>
-
-            {/* Metrics Dashboard */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                    { label: "Active Assets", value: employees.filter(e => e.status === 'active').length, icon: UserCheck, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-                    { label: "Total Workforce", value: employees.length, icon: Users, color: "text-blue-500", bg: "bg-blue-500/10" },
-                    { label: "Inactive Nodes", value: employees.filter(e => e.status === 'inactive').length, icon: AlertCircle, color: "text-amber-500", bg: "bg-amber-500/10" },
-                    { label: "Growth Index", value: "+4.2%", icon: RefreshCw, color: "text-purple-500", bg: "bg-purple-500/10" },
-                ].map((s) => (
-                    <div key={s.label} className="bg-card border border-border p-5 rounded-2xl hover:border-blue-500/30 transition-all group overflow-hidden relative">
-                        <div className={`absolute top-0 right-0 w-16 h-16 ${s.bg} rounded-bl-[4rem] -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform`} />
-                        <div className="flex items-center justify-between mb-4 relative z-10">
-                            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em]">{s.label}</span>
-                            <s.icon className={`h-4 w-4 ${s.color}`} />
-                        </div>
-                        <p className="text-3xl font-black tracking-tighter relative z-10">{s.value}</p>
-                    </div>
-                ))}
-            </div>
-
-            {/* Utility Bar */}
-            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between bg-card/50 backdrop-blur-md border border-border p-4 rounded-2xl shadow-sm ring-1 ring-black/[0.02]">
-                <div className="relative w-full lg:w-96 group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
                     <input
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        placeholder="Scan directory by name, role or email..."
-                        className="w-full bg-muted/40 border-none rounded-xl pl-12 pr-4 py-3 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                        placeholder="Search employees..."
+                        className="h-9 text-sm rounded-lg border border-input bg-background px-3 outline-none w-56"
                     />
-                </div>
-                <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto no-scrollbar pb-2 lg:pb-0">
-                    <button className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted transition-all whitespace-nowrap">
-                        <Filter className="h-3 w-3 opacity-40" />
-                        Sort Matrix
+
+                    <button onClick={fetchEmployees} className="h-9 px-4 rounded-lg border border-border hover:bg-muted text-sm flex items-center gap-2">
+                        <RefreshCw className={`w-4 h-4 ${isLoading && "animate-spin"}`} />
+                        Refresh
                     </button>
-                    <button className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-neutral-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-neutral-800 transition-all shadow-md whitespace-nowrap">
-                        <Download className="h-3 w-3 opacity-60" />
-                        Export Log
+
+                    <label className="h-9 px-3 rounded-lg border border-dashed border-border hover:bg-muted text-sm flex items-center gap-2 cursor-pointer">
+                        <Mail className="w-4 h-4" />
+                        Upload CSV
+                        <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
+                    </label>
+
+                    <button
+                        onClick={() => { setIsEditing(null); setFormData(emptyForm); setIsModalOpen(true); }}
+                        className="h-9 px-4 rounded-lg bg-blue-600 text-white text-sm flex items-center gap-2"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Add
                     </button>
                 </div>
             </div>
 
-            {/* Data Grid */}
-            <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-xl shadow-black/[0.02] relative">
-                {isLoading && (
-                    <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-20 flex items-center justify-center">
-                        <div className="flex flex-col items-center gap-4">
-                            <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 animate-pulse">Syncing Personnel Data...</p>
-                        </div>
-                    </div>
-                )}
 
-                <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="bg-muted/30 border-b border-border text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
-                                <th className="px-8 py-6 text-left">Entity Identity</th>
-                                <th className="px-8 py-6 text-left">Assignment</th>
-                                <th className="px-8 py-6 text-left">Clearance</th>
-                                <th className="px-8 py-6 text-right">Operations</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border/30">
-                            {filtered.length === 0 ? (
+            {/* Table */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+                {isLoading ? (
+                    <div className="flex justify-center py-20">
+                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="flex flex-col items-center py-20 text-muted-foreground">
+                        <Users className="w-10 h-10 mb-2 opacity-30" />
+                        No employees found
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className="border-b border-border bg-muted/30">
                                 <tr>
-                                    <td colSpan={4} className="px-8 py-20 text-center">
-                                        <div className="flex flex-col items-center gap-4 opacity-20">
-                                            <Users className="w-16 h-16" />
-                                            <p className="text-xl font-black italic uppercase tracking-tighter">No Personnel Records Found</p>
-                                        </div>
-                                    </td>
+                                    {["Employee", "Email", "Designation", "Status", "Joined", "Actions"].map(h => (
+                                        <th key={h} className="text-left px-5 py-3 text-xs text-muted-foreground uppercase">
+                                            {h}
+                                        </th>
+                                    ))}
                                 </tr>
-                            ) : (
-                                filtered.map((emp) => (
-                                    <tr key={emp.id} className="hover:bg-blue-500/[0.03] transition-all group border-l-2 border-l-transparent hover:border-l-blue-500">
-                                        <td className="px-8 py-5">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-500/20 flex items-center justify-center text-sm font-black text-blue-600 group-hover:scale-110 transition-transform shadow-sm">
+                            </thead>
+
+                            <tbody className="divide-y divide-border">
+                                {filtered.map(emp => (
+                                    <tr key={emp.id} className="hover:bg-muted/20">
+
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center text-xs font-bold">
                                                     {emp.first_name[0]}{emp.last_name[0]}
                                                 </div>
-                                                <div>
-                                                    <div className="text-base font-black italic tracking-tight group-hover:text-blue-600 transition-colors uppercase">
-                                                        {emp.first_name} {emp.last_name}
-                                                    </div>
-                                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground opacity-60">
-                                                        <Mail className="w-3 h-3" />
-                                                        {emp.email}
-                                                    </div>
-                                                </div>
+                                                <p className="text-sm font-medium">
+                                                    {emp.first_name} {emp.last_name}
+                                                </p>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-5">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground/80">
-                                                    <Briefcase className="w-3 h-3 text-blue-500" />
-                                                    {emp.designation}
-                                                </div>
-                                                <div className="text-[10px] text-muted-foreground/40 italic font-medium">
-                                                    Added {new Date(emp.created_at).toLocaleDateString()}
-                                                </div>
-                                            </div>
+
+                                        <td className="px-5 py-4 text-sm text-muted-foreground flex items-center gap-1">
+                                            <Mail className="w-3.5 h-3.5" />
+                                            {emp.email}
                                         </td>
-                                        <td className="px-8 py-5">
-                                            <button
-                                                onClick={() => toggleStatus(emp)}
-                                                disabled={processingId === emp.id}
-                                                className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.1em] border transition-all flex items-center gap-2 active:scale-95 ${emp.status === "active"
-                                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
-                                                    : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"
-                                                    }`}
-                                            >
-                                                <div className={`w-1.5 h-1.5 rounded-full ${emp.status === 'active' ? 'bg-emerald-500' : 'bg-red-500'} ${emp.status === 'active' && 'animate-pulse'}`} />
-                                                {emp.status}
-                                            </button>
+
+                                        <td className="px-5 py-4 text-sm text-muted-foreground">
+                                            {emp.designation || "—"}
                                         </td>
-                                        <td className="px-8 py-5 text-right">
-                                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+
+                                        <td className="px-5 py-4">
+                                            <div className="flex flex-col items-center gap-1">
                                                 <button
-                                                    onClick={() => openEdit(emp)}
-                                                    className="p-2.5 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-all active:scale-90"
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(emp.id)}
+                                                    onClick={() => toggleStatus(emp)}
                                                     disabled={processingId === emp.id}
-                                                    className="p-2.5 rounded-xl border border-red-500/20 bg-red-500/5 hover:bg-red-500 text-red-500 hover:text-white transition-all active:scale-90 disabled:opacity-50"
+                                                    className={`relative inline-flex h-5 w-10 items-center rounded-full transition-all duration-200 outline-none ${emp.status === "active" ? "bg-emerald-500 shadow-sm" : "bg-slate-300"
+                                                        }`}
                                                 >
-                                                    {processingId === emp.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                    <span
+                                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 shadow-sm ${emp.status === "active" ? "translate-x-5.5" : "translate-x-0.5"
+                                                            }`}
+                                                    />
+                                                </button>
+                                                <span className={`text-[9px] font-bold uppercase tracking-tight ${emp.status === "active" ? "text-emerald-600" : "text-slate-500"}`}>
+                                                    {emp.status}
+                                                </span>
+                                            </div>
+                                        </td>
+
+                                        <td className="px-5 py-4 text-sm text-muted-foreground">
+                                            {new Date(emp.created_at).toLocaleDateString("en-IN")}
+                                        </td>
+
+                                        <td className="px-5 py-4">
+                                            <div className="flex gap-2">
+                                                <button onClick={() => openEdit(emp)} className="p-2 text-blue-600 hover:bg-blue-500/10 rounded">
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+
+                                                <button onClick={() => handleDelete(emp.id)} className="p-2 text-red-500 hover:bg-red-500/10 rounded">
+                                                    {processingId === emp.id
+                                                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                                                        : <Trash2 className="w-4 h-4" />}
                                                 </button>
                                             </div>
                                         </td>
+
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
-            {/* Operative Modal */}
+            {/* Modal (unchanged logic) */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <div className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setIsModalOpen(false)} />
-                    <div className="bg-card w-full max-w-lg rounded-[2.5rem] border border-white/10 shadow-2xl relative z-10 overflow-hidden animate-in zoom-in-95 duration-300">
-                        <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 p-8 border-b border-white/5">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h2 className="text-3xl font-black italic uppercase tracking-tighter text-foreground leading-none">
-                                        {isEditing ? "Modify" : "Initialize"} <span className="text-blue-500">Operative</span>
-                                    </h2>
-                                    <p className="text-xs font-medium text-muted-foreground mt-2 opacity-60">
-                                        {isEditing ? `Refining credentials for record #${isEditing}` : "Registering new entity into workforce matrix"}
-                                    </p>
-                                </div>
-                                <button onClick={() => setIsModalOpen(false)} className="p-3 rounded-2xl bg-white/5 hover:bg-white/10 text-muted-foreground transition-colors group">
-                                    <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+                    <form onSubmit={handleSubmit} className="bg-card p-6 rounded-xl w-full max-w-md space-y-4">
+                        <h2 className="text-lg font-semibold">{isEditing ? "Edit Employee" : "Add Employee"}</h2>
+
+                        <input required placeholder="First name" value={formData.first_name}
+                            onChange={e => setFormData({ ...formData, first_name: e.target.value })}
+                            className="w-full border px-3 py-2 rounded" />
+
+                        <input required placeholder="Last name" value={formData.last_name}
+                            onChange={e => setFormData({ ...formData, last_name: e.target.value })}
+                            className="w-full border px-3 py-2 rounded" />
+
+                        <input required type="email" placeholder="Email" value={formData.email}
+                            onChange={e => setFormData({ ...formData, email: e.target.value })}
+                            className="w-full border px-3 py-2 rounded bg-background outline-none focus:ring-1 focus:ring-blue-500" />
+
+                        <div className="space-y-1">
+                            <label className="text-xs font-medium text-muted-foreground">Designation</label>
+                            <select
+                                required
+                                value={formData.designation}
+                                onChange={e => setFormData({ ...formData, designation: e.target.value })}
+                                className="w-full border px-3 py-2 rounded bg-background outline-none focus:ring-1 focus:ring-blue-500"
+                            >
+                                <option value="">Select Designation</option>
+                                {DESIGNATIONS.map(d => (
+                                    <option key={d} value={d}>{d}</option>
+                                ))}
+                            </select>
+                        </div>
+
+
+                        <div className="flex justify-end gap-2">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded">
+                                Cancel
+                            </button>
+                            <button className="px-4 py-2 bg-blue-600 text-white rounded flex items-center gap-2">
+                                <Check className="w-4 h-4" />
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* CSV Import Preview Modal */}
+            {isPreviewOpen && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[60] p-4">
+                    <div className="bg-card p-6 rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h2 className="text-lg font-semibold">CSV Preview</h2>
+                                <p className="text-sm text-muted-foreground">Verify the data before importing</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => { setIsPreviewOpen(false); setCsvPreviewData([]); }}
+                                    className="px-4 py-2 border rounded hover:bg-muted text-sm"
+                                    disabled={isImporting}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={importEmployees}
+                                    disabled={isImporting}
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded flex items-center gap-2 text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+                                >
+                                    {isImporting ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Check className="w-4 h-4" />
+                                    )}
+                                    Approve and Save
                                 </button>
                             </div>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">First Name</label>
-                                    <div className="relative group">
-                                        <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
-                                        <input
-                                            required
-                                            value={formData.first_name}
-                                            onChange={e => setFormData({ ...formData, first_name: e.target.value })}
-                                            className="w-full bg-muted/40 border-none rounded-2xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
-                                            placeholder="John"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Last Name</label>
-                                    <input
-                                        required
-                                        value={formData.last_name}
-                                        onChange={e => setFormData({ ...formData, last_name: e.target.value })}
-                                        className="w-full bg-muted/40 border-none rounded-2xl px-6 py-4 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
-                                        placeholder="Doe"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Secure Email Identity</label>
-                                <div className="relative group">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
-                                    <input
-                                        required
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                        className="w-full bg-muted/40 border-none rounded-2xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all font-mono font-bold"
-                                        placeholder="operative@domain.com"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Operational Designation</label>
-                                <div className="relative group">
-                                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-blue-500 transition-colors" />
-                                    <input
-                                        value={formData.designation}
-                                        onChange={e => setFormData({ ...formData, designation: e.target.value })}
-                                        className="w-full bg-muted/40 border-none rounded-2xl pl-12 pr-4 py-4 text-sm focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
-                                        placeholder="Security Engineer / Lead Analyst"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-4 flex gap-3">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 px-6 py-4 rounded-2xl border border-border text-[10px] font-black uppercase tracking-widest hover:bg-muted transition-all active:scale-95"
-                                >
-                                    Abort
-                                </button>
-                                <button
-                                    disabled={isSubmitting}
-                                    className="flex-[2] flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 active:scale-95 disabled:opacity-50"
-                                >
-                                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                                    {isEditing ? "Synchronize Changes" : "Confirm Enrollment"}
-                                </button>
-                            </div>
-                        </form>
+                        <div className="flex-1 overflow-auto border border-border rounded-lg">
+                            <table className="w-full text-sm">
+                                <thead className="bg-muted sticky top-0">
+                                    <tr>
+                                        <th className="px-4 py-2 text-left border-b border-border">First Name</th>
+                                        <th className="px-4 py-2 text-left border-b border-border">Last Name</th>
+                                        <th className="px-4 py-2 text-left border-b border-border">Email</th>
+                                        <th className="px-4 py-2 text-left border-b border-border">Designation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {csvPreviewData.map((row, idx) => (
+                                        <tr key={idx} className="border-b border-border/50 hover:bg-muted/30">
+                                            <td className="px-4 py-2">{row.first_name}</td>
+                                            <td className="px-4 py-2">{row.last_name}</td>
+                                            <td className="px-4 py-2">{row.email}</td>
+                                            <td className="px-4 py-2">{row.designation}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}

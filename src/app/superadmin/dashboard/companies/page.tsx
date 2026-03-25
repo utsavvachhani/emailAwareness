@@ -120,7 +120,8 @@ export default function SuperadminCompaniesPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                     { label: "Total Companies", value: companies.length, icon: Building2 },
-                    { label: "Total Employees", value: companies.reduce((s, c) => s + (c.num_employees || 0), 0).toLocaleString(), icon: Users },
+                    { label: "Global Headcount", value: companies.reduce((s, c) => s + (c.num_employees || 0), 0).toLocaleString(), icon: Users },
+
                     { label: "Industries", value: new Set(companies.map(c => c.industry).filter(Boolean)).size, icon: Hash },
                     { label: "Admins Registered", value: new Set(companies.map(c => c.adminId).filter(Boolean)).size, icon: User },
                 ].map(stat => (
@@ -150,7 +151,7 @@ export default function SuperadminCompaniesPage() {
                         <table className="w-full">
                             <thead className="border-b border-border bg-muted/30">
                                 <tr>
-                                    {["Company", "Company ID", "Email", "Phone", "Employees", "Admin Owner", "Status", "Registered", "Action"].map(h => (
+                                    {["Company", "Company ID", "Email", "Phone", "Total Employees", "Status", "Registered", "Action"].map(h => (
                                         <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
@@ -185,9 +186,12 @@ export default function SuperadminCompaniesPage() {
                                             </div>
                                         </td>
                                         <td className="px-5 py-4">
-                                            <div className="flex items-center gap-1.5 text-sm">
-                                                <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                                                {c.num_employees.toLocaleString()}
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-1.5 font-bold text-sm text-purple-600">
+                                                    <Users className="w-3.5 h-3.5" />
+                                                    {c.num_employees.toLocaleString()}
+                                                </div>
+                                                <span className="text-[10px] text-muted-foreground uppercase font-medium tracking-tight">Staff Count</span>
                                             </div>
                                         </td>
                                         <td className="px-5 py-4">

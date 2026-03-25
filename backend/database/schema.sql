@@ -166,7 +166,6 @@ CREATE TABLE IF NOT EXISTS companies (
     name              VARCHAR(255) NOT NULL,
     email             VARCHAR(255) NOT NULL,
     phone             VARCHAR(30),
-    num_employees     INTEGER NOT NULL DEFAULT 0,
     admin_id          INTEGER REFERENCES admins(id) ON DELETE SET NULL,
     industry          VARCHAR(100),
     website           VARCHAR(255),

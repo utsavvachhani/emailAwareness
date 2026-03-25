@@ -25,9 +25,10 @@ interface Company {
 }
 
 const emptyForm = {
-    name: "", email: "", phone: "", num_employees: 0,
+    name: "", email: "", phone: "",
     industry: "", website: "", address: "", notes: "",
 };
+
 
 export default function AdminCompaniesPage() {
     const router = useRouter();
@@ -65,9 +66,10 @@ export default function AdminCompaniesPage() {
         setEditingCompany(c);
         setForm({
             name: c.name, email: c.email, phone: c.phone || "",
-            num_employees: c.num_employees, industry: c.industry || "",
+            industry: c.industry || "",
             website: c.website || "", address: c.address || "", notes: c.notes || "",
         });
+
         setShowModal(true);
     };
 
@@ -160,7 +162,7 @@ export default function AdminCompaniesPage() {
                         <table className="w-full">
                             <thead className="border-b border-border bg-muted/30">
                                 <tr>
-                                    {["Company", "Company ID", "Email", "Phone", "Employees", "Industry", "Status", "Actions"].map(h => (
+                                    {["Company", "Company ID", "Email", "Phone", "Total Employees", "Industry", "Status", "Actions"].map(h => (
                                         <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
                                     ))}
                                 </tr>
@@ -213,9 +215,12 @@ export default function AdminCompaniesPage() {
                                             </div>
                                         </td>
                                         <td className="px-5 py-4">
-                                            <div className="flex items-center gap-1.5 text-sm">
-                                                <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                                                <span className="font-medium">{c.num_employees.toLocaleString()}</span>
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-1.5 font-bold text-sm text-blue-600">
+                                                    <Users className="w-3.5 h-3.5" />
+                                                    {c.num_employees.toLocaleString()}
+                                                </div>
+                                                <span className="text-[10px] text-muted-foreground uppercase font-medium">Headcount</span>
                                             </div>
                                         </td>
                                         <td className="px-5 py-4">
