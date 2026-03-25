@@ -33,6 +33,23 @@ export const getEmployeesByCompany = async (req, res) => {
   }
 };
 
+// ─── Get all employees in the system (Superadmin) ──────────────────────────────
+export const getAllEmployees = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT e.*, c.name AS company_name 
+       FROM employees e 
+       JOIN companies c ON e.company_id = c.id 
+       ORDER BY e.created_at DESC`
+    );
+    return res.status(200).json({ success: true, employees: result.rows });
+  } catch (err) {
+    console.error("getAllEmployees error:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+
 // ─── Create a new employee ─────────────────────────────────────────────────────
 export const createEmployee = async (req, res) => {
   const { id: identifier } = req.params;
