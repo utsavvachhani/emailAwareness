@@ -33,6 +33,9 @@ export default function SuperadminCompaniesPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [search, setSearch] = useState("");
+    const [filterStatus, setFilterStatus] = useState<string>("all");
+    const [sortField, setSortField] = useState<"name" | "employees" | "date">("name");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
     const fetchCompanies = async () => {
         setIsLoading(true);
@@ -86,11 +89,36 @@ export default function SuperadminCompaniesPage() {
         finally { setProcessingId(null); }
     };
 
-    const filtered = companies.filter(c =>
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
-        c.company_id.toLowerCase().includes(search.toLowerCase()) ||
-        (c.adminEmail || "").toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = companies
+        .filter(c => {
+            const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
+                c.company_id.toLowerCase().includes(search.toLowerCase()) ||
+                (c.adminEmail || "").toLowerCase().includes(search.toLowerCase());
+            
+            const matchesStatus = filterStatus === "all" || c.status === filterStatus;
+            
+            return matchesSearch && matchesStatus;
+        })
+        .sort((a, b) => {
+            let valA: string | number = "";
+            let valB: string | number = "";
+            
+            if (sortField === "name") {
+                valA = a.name.toLowerCase();
+                valB = b.name.toLowerCase();
+            } else if (sortField === "employees") {
+                valA = a.num_employees;
+                valB = b.num_employees;
+            } else {
+                valA = new Date(a.created_at).getTime();
+                valB = new Date(b.created_at).getTime();
+            }
+            
+            if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+            if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+            return 0;
+        });
+
 
     return (
         <div className="space-y-6">
@@ -100,20 +128,51 @@ export default function SuperadminCompaniesPage() {
                     <h1 className="module-title">All Companies</h1>
                     <p className="text-sm text-muted-foreground mt-1">View and manage all registered companies across all admins</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                     <input
                         type="text"
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         placeholder="Search companies..."
-                        className="h-9 text-sm rounded-lg border border-input bg-background px-3 outline-none focus:border-foreground transition-colors w-56"
+                        className="h-9 text-sm rounded-lg border border-input bg-background px-3 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all w-48"
                     />
+
+                    <select
+                        value={filterStatus}
+                        onChange={e => setFilterStatus(e.target.value)}
+                        className="h-9 px-2 rounded-lg border border-input bg-background text-xs font-medium outline-none"
+                    >
+                        <option value="all">Status: All</option>
+                        <option value="approved">Status: Approved</option>
+                        <option value="pending">Status: Pending</option>
+                        <option value="rejected">Status: Rejected</option>
+                    </select>
+
+                    <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-lg border border-border h-9">
+                        <select
+                            value={sortField}
+                            onChange={e => setSortField(e.target.value as any)}
+                            className="h-7 pl-1 text-[10px] font-black uppercase bg-transparent outline-none cursor-pointer"
+                        >
+                            <option value="name">Sort: Name</option>
+                            <option value="employees">Sort: Employees</option>
+                            <option value="date">Sort: Registered</option>
+                        </select>
+                        <button
+                            onClick={() => setSortOrder(o => o === "asc" ? "desc" : "asc")}
+                            className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-background transition-all"
+                        >
+                            <RefreshCw className={`h-3 w-3 ${sortOrder === "desc" ? "rotate-180" : ""} transition-transform`} />
+                        </button>
+                    </div>
+
                     <button onClick={fetchCompanies} disabled={isLoading}
                         className="flex items-center gap-2 h-9 px-4 rounded-lg border border-border hover:bg-muted transition-colors text-sm">
                         <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
                         Refresh
                     </button>
                 </div>
+
             </div>
 
             {/* Stats */}

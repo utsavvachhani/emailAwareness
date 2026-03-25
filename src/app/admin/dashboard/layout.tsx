@@ -202,7 +202,11 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                                         </Link>
                                     ))}
                                 </nav>
+                            </div>
 
+
+                            {/* Right */}
+                            <div className="flex items-center gap-4">
                                 {companyName && (
                                     <>
                                         <div className="h-4 w-px bg-border/60 mx-2" />
@@ -212,25 +216,13 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                                         </div>
                                     </>
                                 )}
-                            </div>
 
-
-                            {/* Right */}
-                            <div className="flex items-center gap-4">
                                 <button className="relative w-10 h-10 flex items-center justify-center hover:bg-muted rounded-xl transition-all border border-transparent hover:border-border">
                                     <Bell className="h-4.5 w-4.5 text-muted-foreground" />
                                     <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-blue-500 border-2 border-background" />
                                 </button>
                                 <div className="h-6 w-px bg-border/60 mx-1" />
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                                        <span className="text-xs font-bold text-blue-600">{initials}</span>
-                                    </div>
-                                    <div className="hidden sm:flex flex-col">
-                                        <span className="text-xs font-semibold leading-none">{userInfo?.firstName} {userInfo?.lastName}</span>
-                                        <span className="text-[10px] text-muted-foreground">{userInfo?.email}</span>
-                                    </div>
-                                </div>
+
                             </div>
                         </div>
                     </header>

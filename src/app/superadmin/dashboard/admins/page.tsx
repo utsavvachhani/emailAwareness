@@ -28,6 +28,12 @@ export default function AdminApprovalsPage() {
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [tab, setTab] = useState<"pending" | "all" | "users">("pending");
 
+    // Filter/Sort States
+    const [search, setSearch] = useState("");
+    const [filterStatus, setFilterStatus] = useState<string>("all");
+    const [sortField, setSortField] = useState<"name" | "date">("name");
+    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
     const fetchAdmins = async () => {
         setIsLoading(true);
         try {
@@ -116,7 +122,32 @@ export default function AdminApprovalsPage() {
         );
     };
 
-    const displayList = tab === "pending" ? admins : tab === "all" ? allAdmins : allUsers;
+    const displayList = (tab === "pending" ? admins : tab === "all" ? allAdmins : allUsers)
+        .filter(admin => {
+            const fullName = `${admin.firstName} ${admin.lastName}`.toLowerCase();
+            const matchesSearch = fullName.includes(search.toLowerCase()) || 
+                                 admin.email.toLowerCase().includes(search.toLowerCase());
+            
+            const matchesStatus = filterStatus === "all" || admin.status === filterStatus;
+            
+            return matchesSearch && matchesStatus;
+        })
+        .sort((a, b) => {
+            let valA: string | number = "";
+            let valB: string | number = "";
+            
+            if (sortField === "name") {
+                valA = `${a.firstName} ${a.lastName}`.toLowerCase();
+                valB = `${b.firstName} ${b.lastName}`.toLowerCase();
+            } else {
+                valA = new Date(a.created_at).getTime();
+                valB = new Date(b.created_at).getTime();
+            }
+            
+            if (valA < valB) return sortOrder === "asc" ? -1 : 1;
+            if (valA > valB) return sortOrder === "asc" ? 1 : -1;
+            return 0;
+        });
 
     return (
         <div className="space-y-6">
@@ -139,18 +170,64 @@ export default function AdminApprovalsPage() {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="flex gap-2 border-b border-border">
-                {(["pending", "all", "users"] as const).map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setTab(t)}
-                        className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === t ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                    >
-                        {t === "pending" ? `Pending Approval (${admins.length})` : t === "all" ? `All Admins (${allAdmins.length})` : `All Users (${allUsers.length})`}
-                    </button>
-                ))}
+            {/* Search and Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/20 p-4 rounded-xl border border-border">
+                <div className="flex gap-2 items-center w-full sm:w-auto">
+                    {(["pending", "all", "users"] as const).map(t => (
+                        <button
+                            key={t}
+                            onClick={() => { setTab(t); setSearch(""); }}
+                            className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
+                                tab === t 
+                                ? "bg-foreground text-background shadow-lg" 
+                                : "text-muted-foreground hover:bg-muted"
+                            }`}
+                        >
+                            {t === "pending" ? `Pending (${admins.length})` : t === "all" ? `Admins (${allAdmins.length})` : `Users (${allUsers.length})`}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <input
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search by name or email..."
+                        className="h-9 text-sm rounded-lg border border-input bg-background px-3 outline-none focus:ring-2 focus:ring-blue-500/20 w-48 transition-all"
+                    />
+
+                    {tab !== "users" && (
+                        <select
+                            value={filterStatus}
+                            onChange={e => setFilterStatus(e.target.value)}
+                            className="h-9 px-2 rounded-lg border border-input bg-background text-xs font-medium outline-none"
+                        >
+                            <option value="all">Status: All</option>
+                            <option value="active">Status: Active</option>
+                            <option value="pending">Status: Pending</option>
+                            <option value="rejected">Status: Rejected</option>
+                        </select>
+                    )}
+
+                    <div className="flex items-center gap-1 bg-background border border-input rounded-lg h-9 px-1">
+                        <select
+                            value={sortField}
+                            onChange={e => setSortField(e.target.value as any)}
+                            className="h-7 pl-1 text-[10px] font-black uppercase tracking-tight bg-transparent outline-none cursor-pointer"
+                        >
+                            <option value="name">Sort: Name</option>
+                            <option value="date">Sort: Joined</option>
+                        </select>
+                        <button
+                            onClick={() => setSortOrder(o => o === "asc" ? "desc" : "asc")}
+                            className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-muted transition-all"
+                        >
+                            <RefreshCw className={`h-3 w-3 ${sortOrder === "desc" ? "rotate-180" : ""} transition-transform`} />
+                        </button>
+                    </div>
+                </div>
             </div>
+
 
             {/* Table */}
             <div className="rounded-xl border border-border bg-card overflow-hidden">
