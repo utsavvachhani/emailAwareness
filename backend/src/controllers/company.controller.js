@@ -190,19 +190,23 @@ export const updateCompanyStatus = async (req, res) => {
 export const getMyCompanyDetails = async (req, res) => {
   const { id } = req.params;
   try {
+    const isSerial = /^\d+$/.test(id);
     const result = await pool.query(
       `SELECT *, (SELECT COUNT(*)::int FROM employees WHERE company_id = companies.id) AS num_employees 
-       FROM companies WHERE id=$1 AND admin_id=$2`,
+       FROM companies 
+       WHERE (${isSerial ? 'id' : 'company_id'} = $1) AND admin_id = $2`,
       [id, req.user.id]
     );
 
     if (result.rows.length === 0)
-      return res.status(404).json({ success: false, message: "Company not found" });
+      return res.status(404).json({ success: true, message: "Company not found", company: null });
     return res.status(200).json({ success: true, company: result.rows[0] });
   } catch (err) {
+    console.error("getMyCompanyDetails:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
   }
 };
+
 
 // ─── Employee Management ─────────────────────────────────────────────────────
 export const getCompanyEmployees = async (req, res) => {

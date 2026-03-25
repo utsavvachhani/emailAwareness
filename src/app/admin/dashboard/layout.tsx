@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
     const dispatch = useAppDispatch();
@@ -19,12 +20,37 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     const pathname = usePathname();
     const params = useParams();
     const id = params?.id as string;
-    const { userInfo } = useAppSelector(s => s.auth);
+    const { userInfo, token } = useAppSelector(s => s.auth);
+    const [companyName, setCompanyName] = useState<string>("");
+
+    useEffect(() => {
+        const fetchCompany = async () => {
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (data.success && data.company) {
+                    setCompanyName(data.company.name);
+                } else {
+                    setCompanyName("");
+                }
+            } catch (err) {
+                console.error("Layout fetch error:", err);
+                setCompanyName("");
+            }
+        };
+
+        if (id && token) {
+            fetchCompany();
+        } else {
+            setCompanyName("");
+        }
+    }, [id, token]);
 
     const navItems = [
         { label: "Dashboard", href: id ? `/admin/dashboard/${id}` : "/admin/dashboard", icon: LayoutDashboard },
         { label: "Companies", href: "/admin/dashboard/companies", icon: Building2 },
-        { label: "Courses", href: "/admin/dashboard/courses", icon: BookOpen },
         { label: "Profile", href: "/admin/dashboard/profile", icon: User },
         { label: "Settings", href: "/admin/dashboard/settings", icon: Settings },
     ];
@@ -33,8 +59,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         { label: "Dashboard", href: id ? `/admin/dashboard/${id}` : "/admin/dashboard", icon: LayoutDashboard },
         { label: "Companies", href: "/admin/dashboard/companies", icon: Building2 },
         { label: "Employees", href: id ? `/admin/dashboard/${id}/employees` : "/admin/dashboard/employees", icon: Users },
+        { label: "Courses", href: id ? `/admin/dashboard/${id}/courses` : "/admin/dashboard/courses", icon: BookOpen },
         { label: "Bills", href: id ? `/admin/dashboard/${id}/bills` : "/admin/dashboard/bills", icon: CreditCard },
-        { label: "Courses", href: id ? `/admin/dashboard/${id}/training` : "/admin/dashboard/training", icon: BookOpen },
         { label: "Profile", href: "/admin/dashboard/profile", icon: User },
         { label: "Settings", href: "/admin/dashboard/settings", icon: Settings },
     ];
@@ -101,8 +127,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                                             <Link
                                                 href={item.href}
                                                 className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all ${isActive
-                                                        ? "bg-blue-500 text-white font-medium"
-                                                        : "text-white/60 hover:text-white hover:bg-white/8"
+                                                    ? "bg-blue-500 text-white font-medium"
+                                                    : "text-white/60 hover:text-white hover:bg-white/8"
                                                     }`}
                                             >
                                                 <item.icon className="h-4 w-4 shrink-0" />
@@ -157,6 +183,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                                 <nav className="hidden xl:flex items-center gap-1 bg-muted/50 p-1 rounded-xl border border-border/50">
                                     {(id ? [
                                         { label: "Employees", href: `/admin/dashboard/${id}/employees` },
+                                        { label: "Courses", href: `/admin/dashboard/${id}/courses` },
                                         { label: "Bills", href: `/admin/dashboard/${id}/bills` },
                                         { label: "Training", href: `/admin/dashboard/${id}/training` },
                                     ] : [
@@ -167,15 +194,26 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                                             key={link.href}
                                             href={link.href}
                                             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${pathname === link.href
-                                                    ? "bg-white text-blue-600 shadow-sm"
-                                                    : "text-muted-foreground hover:text-foreground hover:bg-white/50"
+                                                ? "bg-white text-blue-600 shadow-sm"
+                                                : "text-muted-foreground hover:text-foreground hover:bg-white/50"
                                                 }`}
                                         >
                                             {link.label}
                                         </Link>
                                     ))}
                                 </nav>
+
+                                {companyName && (
+                                    <>
+                                        <div className="h-4 w-px bg-border/60 mx-2" />
+                                        <div className="flex items-center gap-2 px-3 py-1 bg-blue-500/5 border border-blue-500/10 rounded-lg">
+                                            <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                                            <span className="text-xs font-bold text-blue-700 tracking-tight italic">{companyName}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
+
 
                             {/* Right */}
                             <div className="flex items-center gap-4">
