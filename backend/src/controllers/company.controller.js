@@ -9,6 +9,19 @@ const genCompanyId = () => {
   return `${prefix}-${nums}`;
 };
 
+// ─── Auto-migration: ensure plan & is_paid columns exist (idempotent) ─────────
+const ensureCompanyColumns = async () => {
+  try {
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'none'`);
+    await pool.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS is_paid BOOLEAN DEFAULT FALSE`);
+  } catch (e) {
+    console.error('ensureCompanyColumns failed:', e.message);
+  }
+};
+ensureCompanyColumns();
+
+
+
 // ─── Get all companies for this admin ─────────────────────────────────────────
 export const getMyCompanies = async (req, res) => {
   try {
@@ -349,6 +362,45 @@ export const getAdminEmployees = async (req, res) => {
     );
     return res.status(200).json({ success: true, employees: result.rows });
   } catch (err) {
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+// ─── Update Company Plan ──────────────────────────────────────────────────────
+export const updateCompanyPlan = async (req, res) => {
+  const { id } = req.params;
+  const { plan } = req.body;
+  const validPlans = ['basic', 'standard', 'premium'];
+  if (!validPlans.includes(plan)) {
+    return res.status(400).json({ success: false, message: "Invalid plan. Choose basic, standard, or premium." });
+  }
+  try {
+    // Reset is_paid when plan changes so payment is required again
+    const result = await pool.query(
+      `UPDATE companies SET plan = $1, is_paid = FALSE WHERE company_id = $2 AND admin_id = $3 RETURNING id, company_id, name, plan, is_paid`,
+      [plan, id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: "Company not found or unauthorized" });
+    return res.status(200).json({ success: true, message: `Plan updated to ${plan}`, company: result.rows[0] });
+  } catch (err) {
+    console.error("updateCompanyPlan:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+// ─── Update Company Payment Status ───────────────────────────────────────────
+export const updateCompanyPaymentStatus = async (req, res) => {
+  const { id } = req.params;
+  const { is_paid } = req.body;
+  try {
+    const result = await pool.query(
+      `UPDATE companies SET is_paid = $1 WHERE company_id = $2 AND admin_id = $3 RETURNING id, company_id, name, plan, is_paid`,
+      [is_paid, id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: "Company not found or unauthorized" });
+    return res.status(200).json({ success: true, message: is_paid ? "Payment confirmed. Dashboard activated." : "Payment revoked.", company: result.rows[0] });
+  } catch (err) {
+    console.error("updateCompanyPaymentStatus:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
   }
 };

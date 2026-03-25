@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
     Users, Loader2, Mail, Pencil, Trash2,
-    RefreshCw, Plus, Check
+    RefreshCw, Plus, Check, UserCheck, UserX, Search
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useAppSelector } from "@/lib/redux/hooks";
@@ -283,8 +283,52 @@ export default function CompanyEmployeesPage() {
                 </div>
             </div>
 
+            {/* ── Stats Strip ─────────────────────────────────────────── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    {
+                        label: "Total Employees",
+                        value: employees.length,
+                        icon: Users,
+                        color: "text-blue-600",
+                        bg: "bg-blue-500/5 border-blue-500/10",
+                    },
+                    {
+                        label: "Active",
+                        value: employees.filter(e => e.status === "active").length,
+                        icon: UserCheck,
+                        color: "text-emerald-600",
+                        bg: "bg-emerald-500/5 border-emerald-500/10",
+                    },
+                    {
+                        label: "Inactive",
+                        value: employees.filter(e => e.status === "inactive").length,
+                        icon: UserX,
+                        color: "text-red-500",
+                        bg: "bg-red-500/5 border-red-500/10",
+                    },
+                    {
+                        label: search ? "Filtered Results" : "Designations",
+                        value: search
+                            ? filtered.length
+                            : new Set(employees.map(e => e.designation).filter(Boolean)).size,
+                        icon: Search,
+                        color: "text-purple-600",
+                        bg: "bg-purple-500/5 border-purple-500/10",
+                    },
+                ].map(stat => (
+                    <div key={stat.label} className={`rounded-2xl border p-4 flex items-center gap-4 ${stat.bg}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-white/60 dark:bg-black/20 border border-current/10 shrink-0`}>
+                            <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                        </div>
+                        <div>
+                            <p className={`text-2xl font-black italic tracking-tighter ${stat.color}`}>{stat.value}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">{stat.label}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
 
-            {/* Table */}
             <div className="rounded-xl border border-border bg-card overflow-hidden">
                 {isLoading ? (
                     <div className="flex justify-center py-20">

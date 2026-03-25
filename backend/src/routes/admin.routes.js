@@ -22,6 +22,8 @@ import {
   getCompanyStats,
   getAdminGlobalStats,
   getAdminEmployees,
+  updateCompanyPlan,
+  updateCompanyPaymentStatus,
 } from "../controllers/company.controller.js";
 import { 
   getEmployeesByCompany, 
@@ -60,6 +62,9 @@ router.post("/companies",        authMiddleware, requireRole('admin'), requireAp
 router.get("/companies/:id",     authMiddleware, requireRole('admin'), requireApproved, getMyCompanyDetails);
 router.put("/companies/:id",     authMiddleware, requireRole('admin'), requireApproved, updateCompany);
 router.delete("/companies/:id",  authMiddleware, requireRole('admin'), requireApproved, deleteMyCompany);
+router.put("/companies/:id/plan",    authMiddleware, requireRole('admin'), requireApproved, updateCompanyPlan);
+router.put("/companies/:id/payment", authMiddleware, requireRole('admin'), requireApproved, updateCompanyPaymentStatus);
+
 
 // Specific Company Management
 router.get("/companies/:id/employees", authMiddleware, requireRole('admin'), requireApproved, getEmployeesByCompany);
