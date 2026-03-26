@@ -15,7 +15,8 @@ import {
 } from "../controllers/superadmin.controller.js";
 import { getAllCompanies, deleteCompany, updateCompanyStatus } from "../controllers/company.controller.js";
 import { getAllEmployees, deleteEmployee } from "../controllers/employees.controller.js";
-import { getAllCourses, approveCourse, rejectCourse } from "../controllers/courses.controller.js";
+import { getAllCourses, approveCourse, rejectCourse, resetCourseToPending } from "../controllers/courses.controller.js";
+
 import { authMiddleware, requireRole } from "../middleware/auth.middleware.js";
 
 
@@ -55,5 +56,7 @@ router.delete("/companies/:id",  authMiddleware, requireRole('superadmin'), dele
 router.get("/courses",           authMiddleware, requireRole('superadmin'), getAllCourses);
 router.patch("/courses/:id/approve", authMiddleware, requireRole('superadmin'), approveCourse);
 router.patch("/courses/:id/reject",  authMiddleware, requireRole('superadmin'), rejectCourse);
+router.patch("/courses/:id/reset",   authMiddleware, requireRole('superadmin'), resetCourseToPending);
+
 
 export default router;

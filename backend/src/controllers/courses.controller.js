@@ -1,7 +1,12 @@
 import pool from "../config/database.js";
+import { deleteFromCloudinary } from "../utils/cloudinary.js";
 
 // ─── Plan limits ──────────────────────────────────────────────────────────────
 const PLAN_COURSE_LIMITS = { basic: 2, standard: 4, premium: 6 };
+const PLAN_MODULE_LIMITS = { basic: 5, standard: 8, premium: 12 };
+const PLAN_VIDEO_LIMITS  = { basic: 1, standard: 3, premium: 5 };
+
+
 
 // ─── Helper: resolve company from either numeric id or company_id string ──────
 const resolveCompany = async (companyParam, adminId) => {
@@ -26,8 +31,10 @@ export const getCompanyPlanInfo = async (req, res) => {
     }
 
     const limit = PLAN_COURSE_LIMITS[company.plan] ?? 0;
+    const moduleLimit = PLAN_MODULE_LIMITS[company.plan] ?? 0;
+    const videoLimit  = PLAN_VIDEO_LIMITS[company.plan] ?? 0;
 
-    // Count existing non-rejected courses for this company numeric id
+    // Count existing non-rejected courses
     const countRes = await pool.query(
       `SELECT COUNT(*)::int AS cnt FROM courses WHERE company_id = $1 AND status != 'rejected'`,
       [company.id]
@@ -42,8 +49,11 @@ export const getCompanyPlanInfo = async (req, res) => {
       is_paid: company.is_paid ?? false,
       course_count,
       course_limit: limit,
+      module_limit: moduleLimit,
+      video_limit: videoLimit,
       can_create,
     });
+
   } catch (err) {
     console.error("getCompanyPlanInfo:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
@@ -140,16 +150,36 @@ export const createCourse = async (req, res) => {
 export const deleteCourse = async (req, res) => {
   const { id } = req.params;
   try {
+    // 1. Verify and get module assets
+    const modulesRes = await pool.query(
+      `SELECT m.video_url, m.image_url FROM course_modules m
+       JOIN courses c ON m.course_id = c.id
+       JOIN companies comp ON c.company_id = comp.id
+       WHERE c.id = $1 AND comp.admin_id = $2`,
+      [id, req.user.id]
+    );
+
+    // 2. Delete the course (will cascade delete modules if setup in DB, 
+    // but we can also delete them manually if not)
+    // Actually, USING companies for verification is good.
     const result = await pool.query(
       `DELETE FROM courses c USING companies comp
        WHERE c.id = $1 AND c.company_id = comp.id AND comp.admin_id = $2
        RETURNING c.id`,
       [id, req.user.id]
     );
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: "Course not found or unauthorized" });
     }
-    return res.status(200).json({ success: true, message: "Course deleted" });
+
+    // 3. Cleanup Cloudinary if DB delete succeeded
+    for (const m of modulesRes.rows) {
+      if (m.video_url) await deleteFromCloudinary(m.video_url);
+      if (m.image_url) await deleteFromCloudinary(m.image_url);
+    }
+
+    return res.status(200).json({ success: true, message: "Course and associated assets deleted" });
   } catch (err) {
     console.error("deleteCourse:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
@@ -215,6 +245,23 @@ export const rejectCourse = async (req, res) => {
     return res.status(200).json({ success: true, message: "Course rejected", course: result.rows[0] });
   } catch (err) {
     console.error("rejectCourse:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+// ─── SUPERADMIN: Reset to Pending ─────────────────────────────────────────────
+export const resetCourseToPending = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE courses SET status = 'pending', rejection_reason = NULL WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Course not found" });
+    }
+    return res.status(200).json({ success: true, message: "Course reset to pending", course: result.rows[0] });
+  } catch (err) {
+    console.error("resetCourseToPending:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
   }
 };

@@ -229,4 +229,30 @@ CREATE TRIGGER update_courses_updated_at
     BEFORE UPDATE ON courses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+-- ─── COURSE MODULES ────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS course_modules (
+    id            SERIAL PRIMARY KEY,
+    course_id     INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title         VARCHAR(255) NOT NULL,
+    type          VARCHAR(20) NOT NULL DEFAULT 'docs',
+    content       TEXT,
 
+    video_url     TEXT,
+    image_url     TEXT,
+    duration      VARCHAR(50),
+    status        VARCHAR(20) NOT NULL DEFAULT 'published',
+
+
+    order_index   INTEGER NOT NULL DEFAULT 0,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_modules_course_id ON course_modules(course_id);
+CREATE INDEX IF NOT EXISTS idx_modules_status    ON course_modules(status);
+
+DROP TRIGGER IF EXISTS update_modules_updated_at ON course_modules;
+
+CREATE TRIGGER update_modules_updated_at
+    BEFORE UPDATE ON course_modules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -32,12 +32,26 @@ export const initializeDatabase = async () => {
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     `).catch(err => console.warn("⚠️  Manual column fix warning:", err.message));
 
+    await client.query(`
+      ALTER TABLE course_modules 
+      ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'published',
+      ADD COLUMN IF NOT EXISTS duration VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS image_url TEXT,
+      ADD COLUMN IF NOT EXISTS type VARCHAR(20) NOT NULL DEFAULT 'docs'
+    `).catch(err => console.warn("⚠️  Manual modules column fix warning:", err.message));
+
+
+
+
+
     // ── 1.2 EXECUTE SCHEMA ────────────────────────────────────────────────────
-    // Split by semicolon BUT only when not inside a dollar-quoted string ($$)
+    // Split by semicolon BUT only when not inside a dollar-quoted string ($$) or single-quoted string
+    // This is a more robust regex that handles even counts of single quotes and double dollars
     const statements = schema
-      .split(/;(?=(?:[^$]*\$[^$]*\$)*[^$]*$)/)
+      .split(/;(?=(?:[^']*'[^']*')*[^']*$)(?=(?:[^\$]*\$\$[^\$]*\$\$)*[^\$]*$)/)
       .map(s => s.trim())
       .filter(s => s.length > 0);
+
 
     for (const statement of statements) {
       try {

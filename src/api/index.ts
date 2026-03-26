@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const API = axios.create({ 
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
+
     withCredentials: true, // required to send cookies if used
 });
 
@@ -67,9 +68,24 @@ export const adminCreateCourse = (companyId: string, data: any) => API.post(`/ad
 export const adminDeleteCourse = (id: string) => API.delete(`/admin/my-courses/${id}`);
 export const adminGetCompanyPlanInfo = (companyId: string) => API.get(`/admin/companies/${companyId}/plan-info`);
 
+// Module APIs
+export const adminGetCourseModules = (courseId: string) => API.get(`/admin/courses/${courseId}/modules`);
+export const adminGetModuleDetails = (id: string) => API.get(`/admin/modules/${id}`);
+export const adminCreateModule = (courseId: string, data: any) => API.post(`/admin/courses/${courseId}/modules`, data);
+
+export const adminUpdateModule = (id: string, data: any) => API.put(`/admin/modules/${id}`, data);
+export const adminDeleteModule = (id: string) => API.delete(`/admin/modules/${id}`);
+export const adminUploadMedia = (formData: FormData) => API.post('/admin/upload-media', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+});
+
+
+
 // ─── SUPERADMIN COURSE APIs ───────────────────────────────────────────────────
 export const superadminGetAllCourses = (status?: string) => API.get('/superadmin/courses', { params: status ? { status } : {} });
 export const superadminApproveCourse = (id: string) => API.patch(`/superadmin/courses/${id}/approve`);
 export const superadminRejectCourse = (id: string, data: { reason: string }) => API.patch(`/superadmin/courses/${id}/reject`, data);
+export const superadminResetCourse = (id: string) => API.patch(`/superadmin/courses/${id}/reset`);
+
 
 export default API;

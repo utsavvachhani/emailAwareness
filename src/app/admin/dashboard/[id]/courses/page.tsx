@@ -1,19 +1,26 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+
 import { useAppSelector } from "@/lib/redux/hooks";
 import {
   BookOpen, Plus, Clock, CheckCircle2, AlertCircle,
   Loader2, X, Trash2, Lock, ChevronRight, Zap, Sparkles, Crown,
-  XCircle, Info,
+  XCircle, Info, RefreshCcw, List,
 } from "lucide-react";
+
 import { toast } from "sonner";
 import {
   adminGetCoursesByCompany,
   adminCreateCourse,
   adminDeleteCourse,
   adminGetCompanyPlanInfo,
+  adminGetCourseModules,
+  adminCreateModule,
+  adminUpdateModule,
+  adminDeleteModule,
 } from "@/api";
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Course = {
@@ -34,6 +41,17 @@ type PlanInfo = {
   course_limit: number;
   can_create: boolean;
 };
+
+type Module = {
+  id: number;
+  course_id: number;
+  title: string;
+  content: string | null;
+  video_url: string | null;
+  order_index: number;
+  created_at: string;
+};
+
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const DIFF_CFG = {
@@ -210,9 +228,12 @@ function CreateCourseModal({
   );
 }
 
+
+
 // ─── Course Card ──────────────────────────────────────────────────────────────
-function CourseCard({ course, onDelete, deleting }: {
-  course: Course; onDelete: (id: number) => void; deleting: boolean;
+
+function CourseCard({ course, onDelete, onManageModules, deleting }: {
+  course: Course; onDelete: (id: number) => void; onManageModules: () => void; deleting: boolean;
 }) {
   const diff = DIFF_CFG[course.difficulty] ?? DIFF_CFG.medium;
   const stat = STATUS_CFG[course.status] ?? STATUS_CFG.pending;
@@ -238,30 +259,30 @@ function CourseCard({ course, onDelete, deleting }: {
         )}
       </div>
 
-      {/* Status messages */}
-      {course.status === "rejected" && course.rejection_reason && (
-        <div className="flex items-start gap-2 p-2.5 bg-red-500/5 border border-red-500/15 rounded-lg">
-          <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-red-600 leading-relaxed">{course.rejection_reason}</p>
-        </div>
-      )}
-      {course.status === "pending" && (
-        <div className="flex items-center gap-2 p-2.5 bg-amber-500/5 border border-amber-500/15 rounded-lg">
-          <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-          <p className="text-xs text-amber-700">Awaiting superadmin review</p>
-        </div>
-      )}
-      {course.status === "approved" && (
-        <div className="flex items-center gap-2 p-2.5 bg-emerald-500/5 border border-emerald-500/15 rounded-lg">
-          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-          <p className="text-xs text-emerald-700 font-medium">Live — employees can start training</p>
-        </div>
-      )}
+      {/* Actions / Buttons based on status */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onManageModules}
+          className="flex-1 h-8 rounded-lg border border-border text-[10px] font-bold uppercase tracking-widest hover:bg-secondary transition-all flex items-center justify-center gap-2"
+        >
+          <List className="w-3.5 h-3.5" /> Manage Modules
+        </button>
+        <button
+          onClick={() => onDelete(course.id)}
+          disabled={deleting}
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40"
+          title="Delete course"
+        >
+          {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+        </button>
+      </div>
 
-      {/* Footer */}
-      <div className="flex items-center gap-2 mt-auto pt-1">
+      <div className="h-px bg-border/50 my-1" />
+
+      {/* Plan & Difficulty Footer */}
+      <div className="flex items-center gap-2">
         {course.total_duration && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
             <Clock className="w-3 h-3" /> {course.total_duration}
           </div>
         )}
@@ -269,22 +290,16 @@ function CourseCard({ course, onDelete, deleting }: {
           <span className={`w-1.5 h-1.5 rounded-full ${diff.dot}`} />
           {diff.label}
         </span>
-        <button
-          onClick={() => onDelete(course.id)}
-          disabled={deleting}
-          className="ml-auto p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-40"
-          title="Delete course"
-        >
-          {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-        </button>
       </div>
     </div>
   );
 }
 
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminCoursesPage() {
   const params = useParams();
+  const router = useRouter();
   // The [id] in the URL is the company_id string (e.g. EZE-56474)
   const companyId = params?.id as string;
 
@@ -294,6 +309,8 @@ export default function AdminCoursesPage() {
   const [showModal, setShowModal] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+
+
 
   const fetchData = useCallback(async () => {
     if (!companyId) return;
@@ -355,6 +372,8 @@ export default function AdminCoursesPage() {
         planInfo={planInfo}
       />
 
+
+
       <div className="space-y-6">
         {/* ── Header ── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -371,7 +390,17 @@ export default function AdminCoursesPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={fetchData}
+              disabled={loading}
+              className="flex items-center gap-2 h-9 px-4 rounded-xl border border-border bg-card text-xs font-semibold hover:bg-secondary transition-all disabled:opacity-50"
+            >
+              <RefreshCcw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
+
             {/* Plan badge */}
+
             {planInfo && planInfo.plan && planInfo.plan !== "none" && (
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold ${planColor}`}
                    style={{ backgroundColor: "var(--background)", borderColor: "currentColor", opacity: 0.9 }}>
@@ -494,9 +523,12 @@ export default function AdminCoursesPage() {
                 key={course.id}
                 course={course}
                 onDelete={handleDelete}
+                onManageModules={() => router.push(`/admin/dashboard/${companyId}/courses/${course.id}`)}
                 deleting={deletingId === course.id}
               />
             ))}
+
+
           </div>
         )}
       </div>

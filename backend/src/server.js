@@ -1,16 +1,15 @@
+import dotenv from "dotenv";
+dotenv.config();
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import superadminRoutes from "./routes/superadmin.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import usersRoutes from "./routes/users.routes.js";
 import { initializeDatabase } from "./config/initDb.js";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;

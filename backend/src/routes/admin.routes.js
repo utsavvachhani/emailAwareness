@@ -37,7 +37,26 @@ import {
   deleteCourse,
   getCompanyPlanInfo,
 } from "../controllers/courses.controller.js";
+import {
+  getCourseModules,
+  createModule,
+  updateModule,
+  deleteModule,
+  getModuleDetails,
+} from "../controllers/modules.controller.js";
+
+import { uploadMedia } from "../controllers/upload.controller.js";
+
 import { authMiddleware, requireRole, requireApproved } from "../middleware/auth.middleware.js";
+import multer from "multer";
+
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit for videos
+});
+
+
 
 const router = express.Router();
 
@@ -94,4 +113,18 @@ router.post("/companies/:company_id/courses-create", authMiddleware, requireRole
 router.delete("/my-courses/:id",                  authMiddleware, requireRole('admin'), requireApproved, deleteCourse);
 router.get("/companies/:company_id/plan-info",     authMiddleware, requireRole('admin'), requireApproved, getCompanyPlanInfo);
 
+// Media Upload
+router.post("/upload-media", authMiddleware, requireRole('admin'), requireApproved, upload.single('media'), uploadMedia);
+
+
+// Module Management
+router.get("/courses/:course_id/modules",          authMiddleware, requireRole('admin'), requireApproved, getCourseModules);
+router.post("/courses/:course_id/modules",         authMiddleware, requireRole('admin'), requireApproved, createModule);
+router.get("/modules/:id",                         authMiddleware, requireRole('admin'), requireApproved, getModuleDetails);
+router.put("/modules/:id",                         authMiddleware, requireRole('admin'), requireApproved, updateModule);
+router.delete("/modules/:id",                      authMiddleware, requireRole('admin'), requireApproved, deleteModule);
+
+
+
 export default router;
+
