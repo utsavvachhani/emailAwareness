@@ -1,6 +1,21 @@
--- ═══════════════════════════════════════════════════════════════════════════════
--- CyberShield Guard — Multi-Role Platform Schema (Split Tables)
--- ═══════════════════════════════════════════════════════════════════════════════
+-- ─── REFRESH TRIGGER LOGIC (Run first to ensure NEW.updated_at works) ───────
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- ─── CRITICAL COLUMN GUARDS ──────────────────────────────────────────────────
+-- (Ensure these columns exist before triggers try to use them)
+ALTER TABLE users        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE admins       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE superadmins  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE companies    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE employees    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE courses      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE profiles     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 -- ─── NORMAL USERS ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
@@ -72,9 +87,6 @@ CREATE TABLE IF NOT EXISTS profiles (
     )
 );
 
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS admin_id INTEGER UNIQUE REFERENCES admins(id) ON DELETE CASCADE;
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS superadmin_id INTEGER UNIQUE REFERENCES superadmins(id) ON DELETE CASCADE;
-
 -- ─── OTPs ────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS otps (
     id            SERIAL PRIMARY KEY,
@@ -91,9 +103,6 @@ CREATE TABLE IF NOT EXISTS otps (
     )
 );
 
-ALTER TABLE otps ADD COLUMN IF NOT EXISTS admin_id INTEGER REFERENCES admins(id) ON DELETE CASCADE;
-ALTER TABLE otps ADD COLUMN IF NOT EXISTS superadmin_id INTEGER REFERENCES superadmins(id) ON DELETE CASCADE;
-
 -- ─── REFRESH TOKENS ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     id            SERIAL PRIMARY KEY,
@@ -107,9 +116,6 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
         (user_id IS NOT NULL)::int + (admin_id IS NOT NULL)::int + (superadmin_id IS NOT NULL)::int = 1
     )
 );
-
-ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS admin_id INTEGER REFERENCES admins(id) ON DELETE CASCADE;
-ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS superadmin_id INTEGER REFERENCES superadmins(id) ON DELETE CASCADE;
 
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
 
@@ -126,19 +132,7 @@ CREATE TABLE IF NOT EXISTS login_audit (
     logged_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE login_audit ADD COLUMN IF NOT EXISTS admin_id INTEGER;
-ALTER TABLE login_audit ADD COLUMN IF NOT EXISTS superadmin_id INTEGER;
-
-
--- ─── AUTO-UPDATE updated_at TRIGGER ──────────────────────────────────────────
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
-$$ language 'plpgsql';
-
+-- ─── TRIGGERS ────────────────────────────────────────────────────────────────
 DROP TRIGGER IF EXISTS update_users_updated_at    ON users;
 CREATE TRIGGER update_users_updated_at
     BEFORE UPDATE ON users
@@ -202,6 +196,37 @@ CREATE INDEX IF NOT EXISTS idx_employees_email ON employees(email);
 DROP TRIGGER IF EXISTS update_employees_updated_at ON employees;
 CREATE TRIGGER update_employees_updated_at
     BEFORE UPDATE ON employees
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ─── COURSES ──────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS courses (
+    id               SERIAL PRIMARY KEY,
+    title            VARCHAR(255) NOT NULL,
+    description      TEXT,
+    total_duration   VARCHAR(50),
+    difficulty       VARCHAR(20) NOT NULL DEFAULT 'medium',
+    status           VARCHAR(20) NOT NULL DEFAULT 'pending',
+    admin_id         INTEGER REFERENCES admins(id) ON DELETE SET NULL,
+    company_id       INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+    rejection_reason TEXT,
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Extra guards for missing courses columns
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS status           VARCHAR(20) NOT NULL DEFAULT 'pending';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS difficulty       VARCHAR(20) NOT NULL DEFAULT 'medium';
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS admin_id         INTEGER REFERENCES admins(id) ON DELETE SET NULL;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS company_id       INTEGER REFERENCES companies(id) ON DELETE CASCADE;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS total_duration   VARCHAR(50);
+
+CREATE INDEX IF NOT EXISTS idx_courses_company_id ON courses(company_id);
+CREATE INDEX IF NOT EXISTS idx_courses_status     ON courses(status);
+
+DROP TRIGGER IF EXISTS update_courses_updated_at ON courses;
+CREATE TRIGGER update_courses_updated_at
+    BEFORE UPDATE ON courses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 

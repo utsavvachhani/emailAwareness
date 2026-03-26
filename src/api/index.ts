@@ -61,4 +61,15 @@ export const superadminRejectAdmin = (id: string, data: { reason: string }) => A
 export const superadminGetAllUsers = () => API.get('/superadmin/users/all');
 export const superadminGetAudit = () => API.get('/superadmin/audit');
 
+// ─── ADMIN COURSE APIs ────────────────────────────────────────────────────────
+export const adminGetCoursesByCompany = (companyId: string) => API.get(`/admin/companies/${companyId}/courses-list`);
+export const adminCreateCourse = (companyId: string, data: any) => API.post(`/admin/companies/${companyId}/courses-create`, data);
+export const adminDeleteCourse = (id: string) => API.delete(`/admin/my-courses/${id}`);
+export const adminGetCompanyPlanInfo = (companyId: string) => API.get(`/admin/companies/${companyId}/plan-info`);
+
+// ─── SUPERADMIN COURSE APIs ───────────────────────────────────────────────────
+export const superadminGetAllCourses = (status?: string) => API.get('/superadmin/courses', { params: status ? { status } : {} });
+export const superadminApproveCourse = (id: string) => API.patch(`/superadmin/courses/${id}/approve`);
+export const superadminRejectCourse = (id: string, data: { reason: string }) => API.patch(`/superadmin/courses/${id}/reject`, data);
+
 export default API;

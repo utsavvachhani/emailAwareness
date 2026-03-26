@@ -31,6 +31,12 @@ import {
   updateEmployee, 
   deleteEmployee 
 } from "../controllers/employees.controller.js";
+import {
+  createCourse,
+  getAdminCoursesByCompany,
+  deleteCourse,
+  getCompanyPlanInfo,
+} from "../controllers/courses.controller.js";
 import { authMiddleware, requireRole, requireApproved } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -81,5 +87,11 @@ router.get("/employees",               authMiddleware, requireRole('admin'), req
 
 // Shared
 router.get("/courses",                 authMiddleware, requireRole('admin'), requireApproved, getAllAvailableCourses);
+
+// Course Management (admin creates, pending superadmin approval)
+router.get("/companies/:company_id/courses-list",  authMiddleware, requireRole('admin'), requireApproved, getAdminCoursesByCompany);
+router.post("/companies/:company_id/courses-create", authMiddleware, requireRole('admin'), requireApproved, createCourse);
+router.delete("/my-courses/:id",                  authMiddleware, requireRole('admin'), requireApproved, deleteCourse);
+router.get("/companies/:company_id/plan-info",     authMiddleware, requireRole('admin'), requireApproved, getCompanyPlanInfo);
 
 export default router;

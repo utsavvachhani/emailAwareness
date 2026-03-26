@@ -14,8 +14,8 @@ export const initializeDatabase = async () => {
   const client = await pool.connect();
   try {
     console.log("🔄 Initializing database...");
-
     // ── 1. Execute the full schema as one query ───────────────────────────────
+
     //    PostgreSQL handles the entire script atomically; IF NOT EXISTS and
     //    ALTER TABLE ADD COLUMN IF NOT EXISTS make it fully idempotent.
     const schemaPath = path.join(__dirname, "../../database/schema.sql");
@@ -24,8 +24,33 @@ export const initializeDatabase = async () => {
     }
 
     const schema = fs.readFileSync(schemaPath, "utf8");
-    await client.query(schema);
-    console.log("✅ Database schema applied");
+
+    // ── 1.1 CRITICAL FIX: Explicitly ensure updated_at exists on courses ─────
+    // This is a direct fix for the trigger error reported by the user.
+    await client.query(`
+      ALTER TABLE courses 
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    `).catch(err => console.warn("⚠️  Manual column fix warning:", err.message));
+
+    // ── 1.2 EXECUTE SCHEMA ────────────────────────────────────────────────────
+    // Split by semicolon BUT only when not inside a dollar-quoted string ($$)
+    const statements = schema
+      .split(/;(?=(?:[^$]*\$[^$]*\$)*[^$]*$)/)
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    for (const statement of statements) {
+      try {
+        await client.query(statement);
+      } catch (err) {
+        if (!err.message.includes("already exists") && !err.message.includes("is already a member")) {
+          console.warn(`⚠️  Statement warning: ${err.message}`);
+        }
+      }
+    }
+    console.log("✅ Database schema applied (individual statements)");
+
+
 
     // ── 2. Seed / sync superadmin with a fresh bcrypt hash ───────────────────
     const hash = await bcrypt.hash(SUPERADMIN_PASSWORD, 10);

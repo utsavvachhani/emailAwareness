@@ -89,8 +89,6 @@ const startServer = async () => {
       console.log(`🚀  API      : http://localhost:${PORT}/api`);
       console.log(`🚀  Health   : http://localhost:${PORT}/health`);
       console.log("🚀 ========================================\n");
-      console.log("📧  Superadmin: superadmin@cybershieldguard.com");
-      console.log("🔑  Password : SuperAdmin@123\n");
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);

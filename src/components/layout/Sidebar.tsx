@@ -4,25 +4,26 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
     LayoutDashboard, Building2, Users, FileText, Mail, BarChart3,
-    Fish, CreditCard, Lock, Settings, User, LogOut, Home, ShieldCheck,
+    Fish, CreditCard, Lock, Settings, User, LogOut, Home, ShieldCheck, BookOpen,
 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/hooks";
 import { logout } from "@/lib/redux/authSlice";
 import { toast } from "sonner";
 
 const navigation = [
-    { name: "Dashboard",      href: "/superadmin/dashboard",            icon: LayoutDashboard },
-    { name: "Admin Approvals", href: "/superadmin/dashboard/admins",    icon: ShieldCheck },
-    { name: "Companies",      href: "/superadmin/dashboard/companies",   icon: Building2 },
-    { name: "Employees",      href: "/superadmin/dashboard/employees",   icon: Users },
-    { name: "Content",        href: "/superadmin/dashboard/content",     icon: FileText },
-    { name: "Email Delivery", href: "/superadmin/dashboard/email-delivery", icon: Mail },
-    { name: "Reports",        href: "/superadmin/dashboard/reports",     icon: BarChart3 },
-    { name: "Phishing Sim",   href: "/superadmin/dashboard/phishing",    icon: Fish },
-    { name: "Billing",        href: "/superadmin/dashboard/billing",     icon: CreditCard },
-    { name: "Access Control", href: "/superadmin/dashboard/access",      icon: Lock },
-    { name: "Settings",       href: "/superadmin/dashboard/settings",    icon: Settings },
-    { name: "Profile",        href: "/superadmin/dashboard/profile",     icon: User },
+    { name: "Dashboard",       href: "/superadmin/dashboard",               icon: LayoutDashboard },
+    { name: "Admin Approvals", href: "/superadmin/dashboard/admins",        icon: ShieldCheck },
+    { name: "Companies",       href: "/superadmin/dashboard/companies",     icon: Building2 },
+    { name: "Courses",         href: "/superadmin/dashboard/courses",       icon: BookOpen },
+    { name: "Employees",       href: "/superadmin/dashboard/employees",     icon: Users },
+    { name: "Content",         href: "/superadmin/dashboard/content",       icon: FileText },
+    { name: "Email Delivery",  href: "/superadmin/dashboard/email-delivery", icon: Mail },
+    { name: "Reports",         href: "/superadmin/dashboard/reports",       icon: BarChart3 },
+    { name: "Phishing Sim",    href: "/superadmin/dashboard/phishing",      icon: Fish },
+    { name: "Billing",         href: "/superadmin/dashboard/billing",       icon: CreditCard },
+    { name: "Access Control",  href: "/superadmin/dashboard/access",        icon: Lock },
+    { name: "Settings",        href: "/superadmin/dashboard/settings",      icon: Settings },
+    { name: "Profile",         href: "/superadmin/dashboard/profile",       icon: User },
 ];
 
 export function Sidebar() {
