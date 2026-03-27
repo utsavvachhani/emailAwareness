@@ -234,6 +234,7 @@ CREATE TABLE IF NOT EXISTS course_modules (
     id            SERIAL PRIMARY KEY,
     course_id     INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     title         VARCHAR(255) NOT NULL,
+    content           TEXT,
     type          VARCHAR(20) NOT NULL DEFAULT 'docs', -- 'docs' or 'video'
     duration      VARCHAR(50),
     status        VARCHAR(20) NOT NULL DEFAULT 'published',
@@ -248,7 +249,7 @@ CREATE TABLE IF NOT EXISTS course_modules_docs (
     id                SERIAL PRIMARY KEY,
     course_module_id  INTEGER NOT NULL REFERENCES course_modules(id) ON DELETE CASCADE,
     image_url         TEXT,
-    content           TEXT,
+    contentextra           TEXT,
     updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -257,7 +258,6 @@ CREATE TABLE IF NOT EXISTS course_modules_video (
     id                SERIAL PRIMARY KEY,
     course_module_id  INTEGER NOT NULL REFERENCES course_modules(id) ON DELETE CASCADE,
     video_url         TEXT,
-    content           TEXT, 
     updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 

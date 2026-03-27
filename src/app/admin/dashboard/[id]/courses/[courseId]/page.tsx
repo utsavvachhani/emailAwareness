@@ -26,6 +26,7 @@ type Module = {
   title: string;
   type: "docs" | "video";
   content: string | null;
+  contentextra: string | null;
   video_url: string | null;
   image_url: string | null;
   duration: string | null;
@@ -59,6 +60,7 @@ export default function CourseModulesPage() {
     title: "", 
     type: "docs" as "docs" | "video",
     content: "", 
+    contentextra: "",
     video_url: "", 
     image_url: "",
     duration: "",
@@ -144,7 +146,7 @@ export default function CourseModulesPage() {
           setShowForm(false);
         }
       }
-      setForm({ title: "", type: "docs", content: "", video_url: "", image_url: "", duration: "", status: "published" });
+      setForm({ title: "", type: "docs", content: "", contentextra: "", video_url: "", image_url: "", duration: "", status: "published" });
 
     } catch {
       toast.error("Failed to save module");
@@ -258,7 +260,7 @@ export default function CourseModulesPage() {
                    return toast.error(`Total limit reached: max ${planInfo.module_limit} modules allowed.`);
                 }
                 setEditModule(null);
-                setForm({ title: "", type: "docs", content: "", video_url: "", image_url: "", duration: "", status: "published" });
+                setForm({ title: "", type: "docs", content: "", contentextra: "", video_url: "", image_url: "", duration: "", status: "published" });
                 setShowForm(true);
               }}
               disabled={courseStatus !== 'approved'}
@@ -282,7 +284,7 @@ export default function CourseModulesPage() {
                   }
                 }
                 setEditModule(null);
-                setForm({ title: "", type: "video", content: "", video_url: "", image_url: "", duration: "", status: "published" });
+                setForm({ title: "", type: "video", content: "", contentextra: "", video_url: "", image_url: "", duration: "", status: "published" });
                 setShowForm(true);
               }}
               disabled={courseStatus !== 'approved'}
@@ -651,6 +653,7 @@ export default function CourseModulesPage() {
                           title: m.title,
                           type: m.type,
                           content: m.content ?? "",
+                          contentextra: m.contentextra ?? "",
                           video_url: m.video_url ?? "",
                           image_url: m.image_url ?? "",
                           duration: m.duration ?? "",

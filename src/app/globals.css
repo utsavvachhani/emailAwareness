@@ -297,4 +297,51 @@
             transform: scale(1);
         }
     }
+
+/* =========================
+   EDITOR.JS CUSTOM THEME
+========================= */
+.ce-block__content {
+    max-width: 900px;
+    margin: 0 auto;
+}
+.ce-toolbar__content {
+    max-width: 900px;
+    margin: 0 auto;
+}
+.codex-editor--narrow .ce-block__content {
+    max-width: 900px;
+}
+.ce-header {
+    font-weight: 800;
+    margin-bottom: 0.5em;
+    line-height: 1.1;
+}
+h1.ce-header { font-size: 2.5rem; }
+h2.ce-header { font-size: 2rem; }
+h3.ce-header { font-size: 1.5rem; }
+
+.ce-paragraph {
+    line-height: 1.8;
+    font-size: 1.125rem;
+    color: hsl(var(--foreground) / 0.85);
+}
+
+.cdx-list {
+    padding-left: 1.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+.cdx-list__item {
+    padding: 0.5rem 0;
+    line-height: 1.6;
+}
+
+/* Prevent toolbar artifacts in read-only mode */
+.editorjs-view .ce-toolbar { display: none !important; }
+.editorjs-view .ce-block--selected .ce-block__content { background: transparent !important; }
+.editorjs-view .ce-block__content { cursor: default; }
+.ce-block--selected .ce-block__content {
+    background-color: transparent !important;
+}
 }

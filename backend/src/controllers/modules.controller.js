@@ -19,8 +19,8 @@ export const getCourseModules = async (req, res) => {
 
     const result = await pool.query(
       `SELECT m.*, 
-              d.content as doc_content, d.image_url,
-              v.content as video_content, v.video_url
+              d.contentextra as doc_content, d.image_url,
+              v.video_url
        FROM course_modules m
        LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
@@ -29,11 +29,11 @@ export const getCourseModules = async (req, res) => {
       [course_id]
     );
 
-    // Map content/urls back to generic names for frontend compatibility if needed
+    // Map content/urls back to generic names for frontend compatibility
     const modules = result.rows.map(m => ({
       ...m,
-      content: m.type === 'docs' ? m.doc_content : m.video_content,
-      // video_url and image_url are already merged via LEFT JOIN
+      contentextra: m.doc_content,
+      // m.content is already in the main table row
     }));
 
     return res.status(200).json({ success: true, modules });
@@ -71,26 +71,28 @@ export const createModule = async (req, res) => {
 
     // 2. Insert into main table
     const mainRes = await client.query(
-      `INSERT INTO course_modules (course_id, title, type, duration, status, order_index)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [course_id, title, type ?? 'docs', duration ?? null, status ?? "published", order_index ?? 0]
+      `INSERT INTO course_modules (course_id, title, content, type, duration, status, order_index)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [course_id, title, content ?? null, type ?? 'docs', duration ?? null, status ?? "published", order_index ?? 0]
     );
     const newModule = mainRes.rows[0];
 
     // 3. Insert into sub-table
     let subId = null;
+    let contentextra = req.body.contentextra || null;
+
     if (newModule.type === 'video') {
       const vidRes = await client.query(
-        `INSERT INTO course_modules_video (course_module_id, video_url, content)
-         VALUES ($1, $2, $3) RETURNING id`,
-        [newModule.id, video_url ?? null, content ?? null]
+        `INSERT INTO course_modules_video (course_module_id, video_url)
+         VALUES ($1, $2) RETURNING id`,
+        [newModule.id, video_url ?? null]
       );
       subId = vidRes.rows[0].id;
     } else {
       const docRes = await client.query(
-        `INSERT INTO course_modules_docs (course_module_id, image_url, content)
+        `INSERT INTO course_modules_docs (course_module_id, image_url, contentextra)
          VALUES ($1, $2, $3) RETURNING id`,
-        [newModule.id, image_url ?? null, content ?? null]
+        [newModule.id, image_url ?? null, contentextra ?? (type === 'docs' ? content : null)] // fall back to content if contentextra missing
       );
       subId = docRes.rows[0].id;
     }
@@ -103,7 +105,7 @@ export const createModule = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Module created successfully",
-      module: { ...newModule, sub_id: subId, content, video_url, image_url }
+      module: { ...newModule, sub_id: subId, contentextra, video_url, image_url }
     });
   } catch (err) {
     await client.query("ROLLBACK");
@@ -150,21 +152,22 @@ export const updateModule = async (req, res) => {
     // 2. Update main table
     const mainRes = await client.query(
       `UPDATE course_modules
-       SET title = $1, type = $2, duration = $3, status = $4, order_index = $5, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6 RETURNING *`,
-      [title || old.title, type || old.type, duration ?? old.duration, status ?? old.status, finalOrderIndex, id]
+       SET title = $1, content = $2, type = $3, duration = $4, status = $5, order_index = $6, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $7 RETURNING *`,
+      [title || old.title, content ?? old.content, type || old.type, duration ?? old.duration, status ?? old.status, finalOrderIndex, id]
     );
 
     // 3. Update sub-table
+    let contentextra = req.body.contentextra || null;
     if ((type || old.type) === 'video') {
       await client.query(
-        `UPDATE course_modules_video SET video_url = $1, content = $2, updated_at = CURRENT_TIMESTAMP WHERE course_module_id = $3`,
-        [video_url ?? old.old_video, content ?? old.content, id]
+        `UPDATE course_modules_video SET video_url = $1, updated_at = CURRENT_TIMESTAMP WHERE course_module_id = $2`,
+        [video_url ?? old.old_video, id]
       );
     } else {
       await client.query(
-        `UPDATE course_modules_docs SET image_url = $1, content = $2, updated_at = CURRENT_TIMESTAMP WHERE course_module_id = $3`,
-        [image_url ?? old.old_image, content ?? old.content, id]
+        `UPDATE course_modules_docs SET image_url = $1, contentextra = $2, updated_at = CURRENT_TIMESTAMP WHERE course_module_id = $3`,
+        [image_url ?? old.old_image, contentextra ?? old.contentextra, id]
       );
     }
 
@@ -216,8 +219,8 @@ export const getModuleDetails = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT m.*,
-              d.content as doc_content, d.image_url,
-              v.content as video_content, v.video_url
+              d.contentextra as doc_contentextra, d.image_url,
+              v.video_url
        FROM course_modules m
        LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
@@ -234,7 +237,7 @@ export const getModuleDetails = async (req, res) => {
     const row = result.rows[0];
     const module = {
       ...row,
-      content: row.type === 'docs' ? row.doc_content : row.video_content,
+      contentextra: row.doc_contentextra,
     };
 
     return res.status(200).json({ success: true, module });

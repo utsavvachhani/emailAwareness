@@ -1,6 +1,7 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft, Edit3, XCircle, Plus, BookOpen, Loader2, Save, X,
   Video, FileText, Image as ImageIcon, CheckCircle2,
@@ -13,10 +14,11 @@ import {
   adminUploadMedia,
 } from "@/api";
 
-type Section = {
-  headline: string;
-  description: string;
-};
+// Dynamically import EditorJS to avoid SSR issues
+const EditorJSComponent = dynamic(() => import("@/components/EditorJSComponent"), { 
+  ssr: false,
+  loading: () => <div className="h-40 flex items-center justify-center bg-secondary/20 rounded-2xl animate-pulse text-xs font-bold text-muted-foreground uppercase tracking-widest">Initialising Editor...</div>
+});
 
 type Module = {
   id: number;
@@ -24,6 +26,7 @@ type Module = {
   title: string;
   type: "docs" | "video";
   content: string | null;
+  contentextra: string | null;
   video_url: string | null;
   image_url: string | null;
   duration: string | null;
@@ -45,16 +48,12 @@ export default function ModuleViewPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // Structured Doc Content (5 Sections)
-  const [sections, setSections] = useState<Section[]>(
-    Array(5).fill(null).map(() => ({ headline: "", description: "" }))
-  );
-
   // Form state
   const [form, setForm] = useState({
     title: "",
     type: "docs" as "docs" | "video",
-    content: "",
+    content: "", 
+    contentextra: "", // For EditorJS rich content
     video_url: "",
     image_url: "",
     duration: "",
@@ -73,35 +72,12 @@ export default function ModuleViewPage() {
           title: m.title,
           type: m.type,
           content: m.content ?? "",
+          contentextra: m.contentextra ?? "",
           video_url: m.video_url ?? "",
           image_url: m.image_url ?? "",
           duration: m.duration ?? "",
           status: m.status
         });
-
-        // Initialize sections if doc
-        if (m.type === 'docs' && m.content) {
-          try {
-            const parsed = JSON.parse(m.content);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              const filled = [...parsed];
-              while (filled.length < 5) filled.push({ headline: "", description: "" });
-              setSections(filled.slice(0, 5));
-            } else {
-              // Not an array but valid JSON? Use as description for first section
-              setSections(prev => [
-                { headline: "", description: typeof parsed === 'string' ? parsed : JSON.stringify(parsed) },
-                ...prev.slice(1)
-              ]);
-            }
-          } catch {
-            // Not JSON (it's plain text from creation time), use as description for first section
-            setSections(prev => [
-              { headline: "", description: m.content || "" },
-              ...prev.slice(1)
-            ]);
-          }
-        }
       }
     } catch {
       toast.error("Failed to load module details");
@@ -151,16 +127,13 @@ export default function ModuleViewPage() {
 
     setSaving(true);
     try {
-
       const payload = {
         ...form,
         order_index: module?.order_index ?? 0,
-        content: form.type === 'docs' ? JSON.stringify(sections) : form.content,
         // Ensure only type-related fields are sent
         video_url: form.type === 'video' ? form.video_url : null,
         image_url: form.type === 'docs' ? (form.image_url || null) : null,
       };
-
       
       const res = await adminUpdateModule(moduleId, payload);
 
@@ -176,11 +149,37 @@ export default function ModuleViewPage() {
     }
   };
 
-  const updateSection = (idx: number, field: keyof Section, val: string) => {
-    const newSections = [...sections];
-    newSections[idx] = { ...newSections[idx], [field]: val };
-    setSections(newSections);
-  };
+  // Convert old content to EditorJS format if needed
+  const editorData = useMemo(() => {
+    // Check contentextra first, then fallback to content for legacy support
+    const rawData = form.contentextra || form.content;
+    if (!rawData) return { blocks: [] };
+    
+    try {
+      const parsed = JSON.parse(rawData);
+      // Valid EditorJS format has a 'blocks' array
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+        return parsed;
+      }
+      
+      // If it's the old 5-section array format, migrate it!
+      if (Array.isArray(parsed)) {
+        const blocks = parsed.flatMap((s: any) => {
+          const b = [];
+          if (s.headline) b.push({ type: 'header', data: { text: s.headline, level: 2 } });
+          if (s.description) b.push({ type: 'paragraph', data: { text: s.description } });
+          return b;
+        });
+        return { blocks };
+      }
+
+      // If it's just a string, wrap in paragraph
+      return { blocks: [{ type: 'paragraph', data: { text: String(parsed) } }] };
+    } catch {
+      // It's raw text
+      return { blocks: [{ type: 'paragraph', data: { text: rawData } }] };
+    }
+  }, [form.contentextra, form.content]);
 
   if (loading) {
     return (
@@ -224,6 +223,15 @@ export default function ModuleViewPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => { fetchDetails(); toast.success("Lesson data refreshed!"); }}
+            disabled={loading}
+            className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary transition-all shadow-sm group"
+            title="Reload Module Data"
+          >
+            <Loader2 className={`w-4 h-4 text-muted-foreground group-hover:text-blue-600 transition-colors ${loading ? 'animate-spin' : ''}`} />
+          </button>
+
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-background border border-border shadow-sm">
                <div className={`w-2 h-2 rounded-full ${form.type === 'video' ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'}`} />
                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{form.type} Module</span>
@@ -312,41 +320,31 @@ export default function ModuleViewPage() {
             ) : (
 
               <div className="md:col-span-2 space-y-12">
-                {/* 5 Structured Sections */}
-                <div className="space-y-10">
-                  {sections.map((sec, idx) => (
-                    <div key={idx} className="space-y-4 p-8 rounded-3xl bg-secondary/10 border border-border/50 hover:bg-secondary/20 transition-all group">
-                      <div className="flex items-center gap-3 mb-2">
-                         <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center text-xs font-black">H{idx+1}</div>
-                         <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Content Block {idx+1}</span>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="relative">
-                          <Type className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground opacity-40" />
-                          <input
-                            placeholder={`Headline ${idx + 1}`}
-                            value={sec.headline}
-                            onChange={e => updateSection(idx, 'headline', e.target.value)}
-                            className={`w-full h-14 pl-12 pr-6 rounded-2xl border border-input bg-background outline-none transition-all font-bold ${
-                              idx === 0 ? "text-2xl" : idx === 1 ? "text-xl" : idx === 2 ? "text-lg" : "text-base"
-                            }`}
-                          />
-                        </div>
-                        
-                        <div className="relative">
-                          <AlignLeft className="absolute left-4 top-6 w-4 h-4 text-muted-foreground opacity-40" />
-                          <textarea
-                            placeholder={`Section ${idx + 1} Description...`}
-                            value={sec.description}
-                            onChange={e => updateSection(idx, 'description', e.target.value)}
-                            rows={idx === 0 ? 5 : 3}
-                            className="w-full pl-12 pr-6 py-5 rounded-2xl border border-input bg-background outline-none transition-all text-sm leading-relaxed resize-none"
-                          />
-                        </div>
-                      </div>
+                <div className="space-y-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Short Module Summary</label>
+                    <textarea
+                      value={form.content}
+                      onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                      rows={3}
+                      placeholder="A brief overview for students..."
+                      className="w-full p-6 rounded-2xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm leading-relaxed"
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 mb-2 underline-offset-8 decoration-blue-500 underline decoration-2">
+                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rich Curriculum Editor</span>
                     </div>
-                  ))}
+                    
+                    <div className="min-h-[400px] p-10 rounded-[32px] bg-secondary/10 border border-border shadow-inner">
+                      <EditorJSComponent 
+                        holder="editorjs-edit" 
+                        data={editorData} 
+                        onChange={(data) => setForm(f => ({ ...f, contentextra: JSON.stringify(data) }))}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -438,34 +436,33 @@ export default function ModuleViewPage() {
                   </div>
                 )}
                 
-                <div className="space-y-16">
-                   {sections.some(s => s.headline || s.description) ? (
-                     sections.map((sec, idx) => (
-                       (sec.headline || sec.description) && (
-                         <div key={idx} className="space-y-6 group animate-in fade-in slide-in-from-left-4 grow">
-                            {sec.headline && (
-                              <h2 className={`font-black tracking-tighter text-foreground leading-tight ${
-                                idx === 0 ? "text-4xl md:text-5xl" : idx === 1 ? "text-3xl md:text-4xl" : idx === 2 ? "text-2xl md:text-3xl" : "text-xl"
-                              }`}>
-                                {sec.headline}
-                              </h2>
-                            )}
-                            {sec.description && (
-                              <div className="p-1 rounded-2xl bg-secondary/5 mb-2 prose prose-slate max-w-none text-foreground/70 text-lg leading-relaxed whitespace-pre-wrap font-medium">
-                                {sec.description}
-                              </div>
-                            )}
-                            {idx === 0 && <div className="h-1.5 w-20 bg-blue-600 rounded-full" />}
-                         </div>
-                       )
-                     ))
-                   ) : (
-                     <div className="bg-card border-2 border-dashed border-border rounded-3xl p-20 text-center">
-                        <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-                        <h3 className="font-bold text-lg">Empty Document Module</h3>
-                        <p className="text-sm text-muted-foreground mt-2">Click the Edit button at the top to start building your lesson content.</p>
+                <div className="space-y-12">
+                   {module.content && (
+                     <div className="bg-secondary/20 border-l-4 border-orange-500 p-10 rounded-2xl">
+                        <p className="text-lg font-medium text-foreground/80 italic leading-relaxed">
+                           "{module.content}"
+                        </p>
                      </div>
                    )}
+
+                   <div className="min-h-[500px]">
+                      {module.contentextra || module.content ? (
+                         <div className="editorjs-view animate-in fade-in slide-in-from-left-4 duration-700">
+                            <EditorJSComponent 
+                              holder="editorjs-view" 
+                              data={editorData} 
+                              readOnly={true}
+                              onChange={() => {}}
+                            />
+                         </div>
+                      ) : (
+                        <div className="bg-card border-2 border-dashed border-border rounded-3xl p-20 text-center">
+                           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
+                           <h3 className="font-bold text-lg">No Curriculum Content</h3>
+                           <p className="text-sm text-muted-foreground mt-2">Start building your rich training module with EditorJS.</p>
+                        </div>
+                      )}
+                   </div>
                 </div>
               </div>
             )}
