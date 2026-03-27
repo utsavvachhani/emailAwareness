@@ -9,14 +9,14 @@ const PLAN_VIDEO_LIMITS  = { basic: 1, standard: 3, premium: 5 };
 
 
 // ─── Helper: resolve company from either numeric id or company_id string ──────
-const resolveCompany = async (companyParam, adminId) => {
+const resolveCompany = async (companyParam, adminId, role) => {
   const isNumeric = /^\d+$/.test(String(companyParam));
   const col = isNumeric ? "id" : "company_id";
   const result = await pool.query(
     `SELECT id, company_id, name, plan, is_paid
      FROM companies
-     WHERE ${col} = $1 AND admin_id = $2`,
-    [companyParam, adminId]
+     WHERE ${col} = $1 AND (admin_id = $2 OR $3 = 'superadmin')`,
+    [companyParam, adminId, role]
   );
   return result.rows[0] ?? null;
 };
@@ -25,7 +25,7 @@ const resolveCompany = async (companyParam, adminId) => {
 export const getCompanyPlanInfo = async (req, res) => {
   const { company_id } = req.params;
   try {
-    const company = await resolveCompany(company_id, req.user.id);
+    const company = await resolveCompany(company_id, req.user.id, req.user.role);
     if (!company) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
@@ -99,7 +99,7 @@ const cleanupRejectedCourses = async (adminId) => {
 export const getAdminCoursesByCompany = async (req, res) => {
   const { company_id } = req.params;
   try {
-    const company = await resolveCompany(company_id, req.user.id);
+    const company = await resolveCompany(company_id, req.user.id, req.user.role);
     if (!company) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
@@ -139,7 +139,7 @@ export const createCourse = async (req, res) => {
 
   try {
     // Verify company belongs to this admin
-    const company = await resolveCompany(company_id, req.user.id);
+    const company = await resolveCompany(company_id, req.user.id, req.user.role);
     if (!company) {
       return res.status(404).json({ success: false, message: "Company not found or unauthorized" });
     }
@@ -192,8 +192,8 @@ export const getCourseDetails = async (req, res) => {
       `SELECT c.*, comp.name AS "companyName", comp.plan AS "companyPlan"
        FROM courses c
        JOIN companies comp ON c.company_id = comp.id
-       WHERE c.id = $1 AND comp.admin_id = $2`,
-      [id, req.user.id]
+       WHERE c.id = $1 AND (comp.admin_id = $2 OR $3 = 'superadmin')`,
+      [id, req.user.id, req.user.role]
     );
 
     if (result.rows.length === 0) {
@@ -216,8 +216,8 @@ export const deleteCourse = async (req, res) => {
       `SELECT m.video_url, m.image_url FROM course_modules m
        JOIN courses c ON m.course_id = c.id
        JOIN companies comp ON c.company_id = comp.id
-       WHERE c.id = $1 AND comp.admin_id = $2`,
-      [id, req.user.id]
+       WHERE c.id = $1 AND (comp.admin_id = $2 OR $3 = 'superadmin')`,
+      [id, req.user.id, req.user.role]
     );
 
     // 2. Delete the course (will cascade delete modules if setup in DB, 
@@ -225,9 +225,9 @@ export const deleteCourse = async (req, res) => {
     // Actually, USING companies for verification is good.
     const result = await pool.query(
       `DELETE FROM courses c USING companies comp
-       WHERE c.id = $1 AND c.company_id = comp.id AND comp.admin_id = $2
+       WHERE c.id = $1 AND c.company_id = comp.id AND (comp.admin_id = $2 OR $3 = 'superadmin')
        RETURNING c.id`,
-      [id, req.user.id]
+      [id, req.user.id, req.user.role]
     );
 
     if (result.rows.length === 0) {

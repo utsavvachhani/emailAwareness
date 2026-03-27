@@ -31,7 +31,29 @@ const SignInPage = () => {
         setIsLoading(true);
 
         try {
-            const { data, error } = await signinSuperadmin({ email, password });
+            // Fetch Location and IP Details
+            let location = "Unknown Location";
+            let ip = "Unknown IP";
+            try {
+                const res = await fetch("https://ipapi.co/json/");
+                if (res.ok) {
+                    const data = await res.json();
+                    location = `${data.city || ""}, ${data.region || ""}, ${data.country_name || ""}`.replace(/^, | ,|, $/g, "");
+                    ip = data.ip || ip;
+                }
+            } catch (err) {
+                console.warn("Could not fetch location data", err);
+            }
+
+            const currentUrl = typeof window !== 'undefined' ? window.location.href : "Unknown URL";
+
+            const { data, error } = await signinSuperadmin({ 
+                email, 
+                password, 
+                location, 
+                ip, 
+                url: currentUrl 
+            });
 
             if (error) {
                 throw new Error(error.message || 'Signin failed');

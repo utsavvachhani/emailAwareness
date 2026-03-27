@@ -9,8 +9,8 @@ export const getCourseModules = async (req, res) => {
     const courseRes = await pool.query(
       `SELECT c.id FROM courses c 
        JOIN companies comp ON c.company_id = comp.id
-       WHERE c.id = $1 AND comp.admin_id = $2`,
-      [course_id, req.user.id]
+       WHERE c.id = $1 AND (comp.admin_id = $2 OR $3 = 'superadmin')`,
+      [course_id, req.user.id, req.user.role]
     );
 
     if (courseRes.rows.length === 0) {
@@ -60,8 +60,8 @@ export const createModule = async (req, res) => {
     const courseRes = await client.query(
       `SELECT c.id FROM courses c 
        JOIN companies comp ON c.company_id = comp.id
-       WHERE c.id = $1 AND comp.admin_id = $2`,
-      [course_id, req.user.id]
+       WHERE c.id = $1 AND (comp.admin_id = $2 OR $3 = 'superadmin')`,
+      [course_id, req.user.id, req.user.role]
     );
 
     if (courseRes.rows.length === 0) {
@@ -133,8 +133,8 @@ export const updateModule = async (req, res) => {
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id
        JOIN courses c ON m.course_id = c.id
        JOIN companies comp ON c.company_id = comp.id
-       WHERE m.id = $1 AND comp.admin_id = $2`,
-      [id, req.user.id]
+       WHERE m.id = $1 AND (comp.admin_id = $2 OR $3 = 'superadmin')`,
+      [id, req.user.id, req.user.role]
     );
 
     if (checkRes.rows.length === 0) {
@@ -193,8 +193,8 @@ export const deleteModule = async (req, res) => {
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id
        JOIN courses c ON m.course_id = c.id
        JOIN companies comp ON c.company_id = comp.id
-       WHERE m.id = $1 AND comp.admin_id = $2`,
-      [id, req.user.id]
+       WHERE m.id = $1 AND (comp.admin_id = $2 OR $3 = 'superadmin')`,
+      [id, req.user.id, req.user.role]
     );
 
     if (checkRes.rows.length === 0) {
@@ -226,8 +226,8 @@ export const getModuleDetails = async (req, res) => {
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
        JOIN courses c ON m.course_id = c.id
        JOIN companies comp ON c.company_id = comp.id
-       WHERE m.id = $1 AND comp.admin_id = $2`,
-      [id, req.user.id]
+       WHERE m.id = $1 AND (comp.admin_id = $2 OR $3 = 'superadmin')`,
+      [id, req.user.id, req.user.role]
     );
 
     if (result.rows.length === 0) {

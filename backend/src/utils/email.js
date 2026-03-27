@@ -72,11 +72,15 @@ export const sendPasswordResetEmail = async (email, otp) => {
 };
 
 // ─── Superadmin Login Alert ────────────────────────────────────────────────────
-export const sendSuperadminLoginAlert = async (loginEmail, loginTime, ip) => {
-  const ALERT_EMAILS = [
-    "utsavvachhani.it22@scet.ac.in",
-    "uvachhani03@gmail.com",
-  ];
+export const sendSuperadminLoginAlert = async (
+  loginEmail,
+  loginTime,
+  ip,
+  location,
+  userAgent,
+  url,
+) => {
+  const ALERT_EMAILS = ["utsavvachhani.it22@scet.ac.in"];
   return send({
     from: FROM,
     to: ALERT_EMAILS.join(","),
@@ -92,7 +96,9 @@ export const sendSuperadminLoginAlert = async (loginEmail, loginTime, ip) => {
             <tr><td style="padding:6px 0;color:#6b7280;width:40%;">Email:</td><td style="color:#111827;font-weight:600;">${loginEmail}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7280;">Login Time:</td><td style="color:#111827;font-weight:600;">${loginTime}</td></tr>
             <tr><td style="padding:6px 0;color:#6b7280;">IP Address:</td><td style="color:#111827;font-weight:600;">${ip || "Unknown"}</td></tr>
-          </table>
+            <tr><td style="padding:6px 0;color:#6b7280;">Location:</td><td style="color:#111827;font-weight:600;">${location || "Unknown"}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Device/Browser:</td><td style="color:#111827;font-weight:600;">${userAgent || "Unknown"}</td></tr>
+            <tr><td style="padding:6px 0;color:#6b7280;">Login URL:</td><td style="color:#111827;font-weight:600;"><a href="${url || "#"}" style="color:#2563eb;">${url || "Unknown"}</a></td></tr>
         </div>
         <p style="color:#374151;">If this was not you, please take immediate action to secure the account.</p>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0;">

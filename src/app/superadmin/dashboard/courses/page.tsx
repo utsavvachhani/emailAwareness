@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
   BookOpen, CheckCircle2, XCircle, Clock, Eye, X, Loader2,
-  AlertCircle, BarChart3, Building2, User, Calendar, RefreshCcw, Search, RotateCcw,
+  AlertCircle, BarChart3, Building2, User, Calendar, RefreshCcw, Search, RotateCcw, LayoutList
 } from "lucide-react";
 
 
@@ -68,6 +68,14 @@ function CourseDetailModal({ course, onClose, onApprove, onReject, onReset, proc
 
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [reason, setReason] = useState("");
+  const router = import("next/navigation").then(m => m.useRouter).catch(() => null); // Fallback: since this component is in the same file as page, we can assume useRouter is imported top-level, actually wait, useRouter is imported on line 3! So I can just use it directly!
+
+  // The actual useRouter from top-level import:
+  let routerInstance: ReturnType<typeof import("next/navigation")["useRouter"]> | null = null;
+  try {
+    const { useRouter } = require("next/navigation");
+    routerInstance = useRouter();
+  } catch (e) {}
 
   useEffect(() => { setShowRejectForm(false); setReason(""); }, [course]);
 
@@ -100,9 +108,23 @@ function CourseDetailModal({ course, onClose, onApprove, onReject, onReset, proc
               </span>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
-            <X className="w-4 h-4 text-muted-foreground" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                 if (routerInstance) {
+                   routerInstance.push(`/superadmin/dashboard/courses/${course.id}`);
+                 } else {
+                   window.location.href = `/superadmin/dashboard/courses/${course.id}`;
+                 }
+              }}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 text-xs font-semibold hover:bg-blue-500/20 transition-colors mr-2"
+            >
+              <LayoutList className="w-3.5 h-3.5" /> Course Builder
+            </button>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}

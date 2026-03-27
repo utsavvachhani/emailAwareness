@@ -29,12 +29,25 @@ export const signin = async (req, res) => {
     await pool.query(`INSERT INTO refresh_tokens (superadmin_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '${interval}')`, [user.id, refreshToken]);
 
     // Audit and Alert
-    const ip = req.ip || req.headers["x-forwarded-for"] || "Unknown";
+    const ip = req.body.ip || req.ip || req.headers["x-forwarded-for"] || "Unknown";
+    const userAgent = req.headers["user-agent"] || "Unknown";
+    const location = req.body.location || "Unknown location";
+    const loginUrl = req.body.url || "Admin Dashboard";
+
     await pool.query(
       "INSERT INTO login_audit (superadmin_id, email, role, ip_address, user_agent) VALUES ($1, $2, $3, $4, $5)",
-      [user.id, user.email, user.role, ip, req.headers["user-agent"]]
+      [user.id, user.email, user.role, ip, userAgent]
     );
-    sendSuperadminLoginAlert(user.email, new Date().toLocaleString(), ip).catch(() => {});
+
+    // Send enhanced alert (loginEmail, loginTime, ip, location, userAgent, url)
+    sendSuperadminLoginAlert(
+      user.email, 
+      new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }), 
+      ip, 
+      location, 
+      userAgent, 
+      loginUrl
+    ).catch(() => {});
 
     const { password_hash, ...safeUser } = user;
     return res.status(200).json({ success: true, message: "Superadmin login successful", user: safeUser, accessToken, refreshToken });

@@ -49,6 +49,9 @@ export const requireRole = (...roles) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: "Not authenticated" });
     }
+    // Superadmin override: superadmins can access any admin endpoint
+    if (req.user.role === "superadmin") return next();
+
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
