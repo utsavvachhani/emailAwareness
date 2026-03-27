@@ -92,7 +92,7 @@ function CreateCourseModal({
       const res = await adminCreateCourse(companyId, {
         title: form.title.trim(),
         description: form.description.trim() || undefined,
-        total_duration: form.total_duration.trim() || undefined,
+        total_duration: form.total_duration ? `${form.total_duration} mins` : undefined,
         difficulty: form.difficulty,
       });
       if (res.data.success) {
@@ -180,14 +180,19 @@ function CreateCourseModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium mb-1.5">Total Duration</label>
-              <input
-                type="text"
-                placeholder="e.g. 45 min"
-                value={form.total_duration}
-                onChange={(e) => setForm(f => ({ ...f, total_duration: e.target.value }))}
-                className="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-blue-500/60 transition-colors placeholder:text-muted-foreground"
-              />
+              <label className="block text-xs font-medium mb-1.5">Total Duration (Minutes)</label>
+              <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="45"
+                  value={form.total_duration}
+                  onChange={(e) => setForm(f => ({ ...f, total_duration: e.target.value }))}
+                  className="w-full h-9 pl-9 pr-12 rounded-lg border border-input bg-background text-sm outline-none focus:border-blue-500/60 transition-colors"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">MINS</span>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-medium mb-1.5">Difficulty Level</label>
@@ -240,7 +245,10 @@ function CourseCard({ course, onDelete, onManageModules, deleting }: {
   const { Icon: StatusIcon } = stat;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3 hover:border-blue-500/30 hover:shadow-sm transition-all duration-200 group">
+    <div  
+      className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3 hover:border-blue-500/30 hover:shadow-sm transition-all duration-200 group cursor-pointer"
+      onClick={onManageModules}
+    >
       {/* Top */}
       <div className="flex items-start justify-between gap-2">
         <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:bg-blue-500/15 transition-colors">
@@ -256,6 +264,15 @@ function CourseCard({ course, onDelete, onManageModules, deleting }: {
         <h3 className="font-semibold text-sm leading-tight">{course.title}</h3>
         {course.description && (
           <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{course.description}</p>
+        )}
+        {course.status === 'rejected' && (
+          <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-red-600 font-medium leading-tight">
+              Rejected courses are automatically deleted 10 days after rejection. 
+              {course.rejection_reason && <span className="block mt-1 font-bold italic">Reason: {course.rejection_reason}</span>}
+            </p>
+          </div>
         )}
       </div>
 
@@ -333,6 +350,17 @@ export default function AdminCoursesPage() {
   }, [companyId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleManageModules = (courseId: number) => {
+    const course = courses.find(c => c.id === courseId);
+    if (course?.status === "pending") {
+      return toast.warning("Course is under review. Please wait for superadmin approval.");
+    }
+    if (course?.status === "rejected") {
+      return toast.error("Course has been rejected. Check the reason in the card.");
+    }
+    router.push(`/admin/dashboard/${companyId}/courses/${courseId}`);
+  }
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this course permanently?")) return;
@@ -523,11 +551,11 @@ export default function AdminCoursesPage() {
                 key={course.id}
                 course={course}
                 onDelete={handleDelete}
-                onManageModules={() => router.push(`/admin/dashboard/${companyId}/courses/${course.id}`)}
+                onManageModules={() => handleManageModules(course.id)}
                 deleting={deletingId === course.id}
               />
             ))}
-
+  
 
           </div>
         )}

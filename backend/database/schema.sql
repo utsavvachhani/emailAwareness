@@ -234,25 +234,49 @@ CREATE TABLE IF NOT EXISTS course_modules (
     id            SERIAL PRIMARY KEY,
     course_id     INTEGER NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     title         VARCHAR(255) NOT NULL,
-    type          VARCHAR(20) NOT NULL DEFAULT 'docs',
-    content       TEXT,
-
-    video_url     TEXT,
-    image_url     TEXT,
+    type          VARCHAR(20) NOT NULL DEFAULT 'docs', -- 'docs' or 'video'
     duration      VARCHAR(50),
     status        VARCHAR(20) NOT NULL DEFAULT 'published',
-
-
     order_index   INTEGER NOT NULL DEFAULT 0,
+    sub_id        INTEGER, -- References id in course_modules_docs or course_modules_video
     created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ─── COURSE MODULE DOCS ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS course_modules_docs (
+    id                SERIAL PRIMARY KEY,
+    course_module_id  INTEGER NOT NULL REFERENCES course_modules(id) ON DELETE CASCADE,
+    image_url         TEXT,
+    content           TEXT,
+    updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ─── COURSE MODULE VIDEOS ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS course_modules_video (
+    id                SERIAL PRIMARY KEY,
+    course_module_id  INTEGER NOT NULL REFERENCES course_modules(id) ON DELETE CASCADE,
+    video_url         TEXT,
+    content           TEXT, 
+    updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_modules_course_id ON course_modules(course_id);
 CREATE INDEX IF NOT EXISTS idx_modules_status    ON course_modules(status);
+CREATE INDEX IF NOT EXISTS idx_docs_module_id    ON course_modules_docs(course_module_id);
+CREATE INDEX IF NOT EXISTS idx_video_module_id   ON course_modules_video(course_module_id);
 
 DROP TRIGGER IF EXISTS update_modules_updated_at ON course_modules;
-
 CREATE TRIGGER update_modules_updated_at
     BEFORE UPDATE ON course_modules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_docs_updated_at ON course_modules_docs;
+CREATE TRIGGER update_docs_updated_at
+    BEFORE UPDATE ON course_modules_docs
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_video_updated_at ON course_modules_video;
+CREATE TRIGGER update_video_updated_at
+    BEFORE UPDATE ON course_modules_video
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -15,6 +15,7 @@ import {
   adminDeleteModule,
   adminGetCompanyPlanInfo,
   adminUploadMedia,
+  adminGetCourseDetails,
 } from "@/api";
 
 
@@ -48,6 +49,8 @@ export default function CourseModulesPage() {
   const courseId = params?.courseId as string;
 
   const [modules, setModules] = useState<Module[]>([]);
+  const [courseStatus, setCourseStatus] = useState<"pending" | "approved" | "rejected" | null>(null);
+  const [courseTitle, setCourseTitle] = useState("");
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -70,12 +73,17 @@ export default function CourseModulesPage() {
     if (!courseId || !companyId) return;
     setLoading(true);
     try {
-      const [modRes, planRes] = await Promise.all([
+      const [modRes, planRes, courseRes] = await Promise.all([
         adminGetCourseModules(courseId),
-        adminGetCompanyPlanInfo(companyId)
+        adminGetCompanyPlanInfo(companyId),
+        adminGetCourseDetails(courseId)
       ]);
       if (modRes.data.success) setModules(modRes.data.modules ?? []);
       if (planRes.data.success) setPlanInfo(planRes.data);
+      if (courseRes.data.success) {
+        setCourseStatus(courseRes.data.course.status);
+        setCourseTitle(courseRes.data.course.title);
+      }
     } catch {
       toast.error("Failed to load data");
     } finally {
@@ -191,10 +199,12 @@ export default function CourseModulesPage() {
       const res = await adminUploadMedia(formData);
       if (res.data.success) {
         if (isVideo) {
+          // Convert seconds to minutes and round up
+          const durationMins = res.data.duration ? Math.ceil(res.data.duration / 60) : 0;
           setForm(f => ({ 
             ...f, 
             video_url: res.data.secure_url, 
-            duration: res.data.duration ? `${res.data.duration}s` : f.duration 
+            duration: durationMins > 0 ? `${durationMins} mins` : f.duration 
           }));
         } else {
           setForm(f => ({ 
@@ -233,14 +243,17 @@ export default function CourseModulesPage() {
               <LayoutList className="w-6 h-6 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Curriculum Builder</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Manage lessons, videos and reading materials</p>
+              <h1 className="text-2xl font-bold tracking-tight">{courseTitle || "Curriculum Builder"}</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {courseStatus === 'pending' ? "⏳ This course is currently under review by Superadmins." : "Manage lessons, videos and reading materials"}
+              </p>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
+                if (courseStatus !== 'approved') return toast.error("Course is under review and cannot be modified.");
                 if (planInfo && modules.length >= planInfo.module_limit) {
                    return toast.error(`Total limit reached: max ${planInfo.module_limit} modules allowed.`);
                 }
@@ -248,12 +261,18 @@ export default function CourseModulesPage() {
                 setForm({ title: "", type: "docs", content: "", video_url: "", image_url: "", duration: "", status: "published" });
                 setShowForm(true);
               }}
-              className="flex items-center gap-2 px-6 h-11 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-400 transition-all shadow-lg shadow-orange-500/20"
+              disabled={courseStatus !== 'approved'}
+              className={`flex items-center gap-2 px-6 h-11 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${
+                courseStatus === 'approved' 
+                  ? "bg-orange-500 hover:bg-orange-400 shadow-orange-500/20" 
+                  : "bg-slate-400 cursor-not-allowed opacity-60"
+              }`}
             >
               <FileText className="w-4 h-4" /> Add Document
             </button>
             <button
               onClick={() => {
+                if (courseStatus !== 'approved') return toast.error("Course is under review and cannot be modified.");
                 if (planInfo) {
                   if (modules.length >= planInfo.module_limit) {
                     return toast.error(`Total limit reached: max ${planInfo.module_limit} modules allowed.`);
@@ -266,7 +285,12 @@ export default function CourseModulesPage() {
                 setForm({ title: "", type: "video", content: "", video_url: "", image_url: "", duration: "", status: "published" });
                 setShowForm(true);
               }}
-              className="flex items-center gap-2 px-6 h-11 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20"
+              disabled={courseStatus !== 'approved'}
+              className={`flex items-center gap-2 px-6 h-11 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${
+                courseStatus === 'approved' 
+                  ? "bg-blue-600 hover:bg-blue-500 shadow-blue-500/20" 
+                  : "bg-slate-400 cursor-not-allowed opacity-60"
+              }`}
             >
               <Video className="w-4 h-4" /> Add Video
             </button>
@@ -371,15 +395,23 @@ export default function CourseModulesPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Estimated Duration</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Estimated Duration (Mins) {form.type === 'video' && <span className="text-blue-500 ml-1">(Auto-detected)</span>}
+                </label>
                 <div className="relative">
                   <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
-                    placeholder="e.g. 15 mins"
-                    value={form.duration}
-                    onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
-                    className="w-full h-12 pl-12 pr-4 rounded-xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm font-medium"
+                    type="number"
+                    min="1"
+                    placeholder="15"
+                    readOnly={form.type === 'video'}
+                    value={form.duration.replace(/\D/g, '')}
+                    onChange={e => setForm(f => ({ ...f, duration: e.target.value ? `${e.target.value} mins` : "" }))}
+                    className={`w-full h-12 pl-12 pr-12 rounded-xl border border-input outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm font-medium ${
+                      form.type === 'video' ? 'bg-secondary/40 text-muted-foreground cursor-not-allowed border-dashed' : 'bg-background'
+                    }`}
                   />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase opacity-50">MINS</span>
                 </div>
               </div>
 
@@ -403,11 +435,18 @@ export default function CourseModulesPage() {
                       <div className="relative">
                         <Video className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <input
-                          placeholder="https://..."
+                          placeholder="Upload a video below to generate URL..."
                           value={form.video_url}
-                          onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))}
-                          className="w-full h-12 pl-12 pr-4 rounded-xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm font-medium"
+                          readOnly
+                          className={`w-full h-12 pl-12 pr-4 rounded-xl border border-input outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-xs font-medium italic ${
+                            form.video_url ? 'bg-secondary/40 text-blue-600 border-dashed cursor-default' : 'bg-secondary/20 text-muted-foreground cursor-not-allowed'
+                          }`}
                         />
+                        {form.video_url && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[8px] font-bold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 uppercase tracking-widest">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Cloudinary Verified
+                          </div>
+                        )}
                       </div>
                       
                       <div className="group relative">
@@ -503,11 +542,11 @@ export default function CourseModulesPage() {
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || uploading || (form.type === 'video' && !form.video_url)}
                 className="flex-[2] h-12 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                {editModule ? "Update Existing Lesson" : "Create & Add to Course"}
+                {uploading ? "Waiting for upload..." : editModule ? "Update Existing Lesson" : "Create & Add to Course"}
               </button>
             </div>
           </form>
@@ -606,6 +645,7 @@ export default function CourseModulesPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (courseStatus !== 'approved') return toast.error("Course is locked while under review.");
                         setEditModule(m);
                         setForm({
                           title: m.title,
@@ -619,15 +659,29 @@ export default function CourseModulesPage() {
                         setShowForm(true);
                         window.scrollTo({ top: 0, behavior: "smooth" });
                       }}
-                      className="p-3 rounded-xl bg-secondary hover:bg-foreground hover:text-background transition-all"
-                      title="Edit Lesson"
+                      disabled={courseStatus !== 'approved'}
+                      className={`p-3 rounded-xl transition-all ${
+                        courseStatus === 'approved' 
+                          ? "bg-secondary hover:bg-foreground hover:text-background" 
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                      }`}
+                      title={courseStatus === 'approved' ? "Edit Lesson" : "Locked"}
                     >
                       <Plus className="w-4 h-4 rotate-45" />
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}
-                      className="p-3 rounded-xl bg-secondary hover:bg-red-500 hover:text-white transition-all text-red-500"
-                      title="Delete Lesson"
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (courseStatus !== 'approved') return toast.error("Locked courses cannot be modified.");
+                        handleDelete(m.id); 
+                      }}
+                      disabled={courseStatus !== 'approved'}
+                      className={`p-3 rounded-xl transition-all ${
+                        courseStatus === 'approved' 
+                          ? "bg-secondary hover:bg-red-500 hover:text-white text-red-500" 
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed"
+                      }`}
+                      title={courseStatus === 'approved' ? "Delete Lesson" : "Locked"}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

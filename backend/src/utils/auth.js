@@ -8,17 +8,37 @@ const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET || "access-secret";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "refresh-secret";
 const SALT_ROUNDS = 10;
 
-// Cookie options
-export const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+// Role-based expiration durations
+export const TOKEN_EXPIRY = {
+  user: {
+    access: "1h",
+    refresh: "7d",
+    refreshMs: 7 * 24 * 60 * 60 * 1000,
+    interval: "7 days"
+  },
+  admin: {
+    access: "1h",
+    refresh: "1d",
+    refreshMs: 1 * 24 * 60 * 60 * 1000,
+    interval: "1 day"
+  },
+  superadmin: {
+    access: "1h",
+    refresh: "12h",
+    refreshMs: 12 * 60 * 60 * 1000,
+    interval: "12 hours"
+  }
 };
 
-export const ACCESS_COOKIE_OPTIONS = {
-  ...COOKIE_OPTIONS,
-  maxAge: 15 * 60 * 1000, // 15 mins
+// Default Cookie options (will be overridden by role-specific ones)
+export const getCookieOptions = (role = 'user', isAccess = false) => {
+  const expiry = TOKEN_EXPIRY[role] || TOKEN_EXPIRY.user;
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: isAccess ? 1 * 60 * 60 * 1000 : expiry.refreshMs, // 1h for access, role-based for refresh
+  };
 };
 
 // Hash password
@@ -33,15 +53,17 @@ export const comparePassword = async (password, hash) => {
 
 // Generate Access Token
 export const generateAccessToken = (userId, email, role) => {
+  const expiry = TOKEN_EXPIRY[role]?.access || "1h";
   return jwt.sign({ id: userId, email, role }, JWT_ACCESS_SECRET, {
-    expiresIn: "15m",
+    expiresIn: expiry,
   });
 };
 
 // Generate Refresh Token
-export const generateRefreshToken = (userId) => {
-  return jwt.sign({ id: userId }, JWT_REFRESH_SECRET, {
-    expiresIn: "7d",
+export const generateRefreshToken = (userId, role = 'user') => {
+  const expiry = TOKEN_EXPIRY[role]?.refresh || "7d";
+  return jwt.sign({ id: userId, role }, JWT_REFRESH_SECRET, {
+    expiresIn: expiry,
   });
 };
 
@@ -64,23 +86,24 @@ export const verifyRefreshToken = (token) => {
 };
 
 // Send auth cookies
-export const sendAuthCookies = (res, accessToken, refreshToken) => {
-  res.cookie("accessToken", accessToken, ACCESS_COOKIE_OPTIONS);
-  res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
+export const sendAuthCookies = (res, accessToken, refreshToken, role = 'user') => {
+  res.cookie("accessToken", accessToken, getCookieOptions(role, true));
+  res.cookie("refreshToken", refreshToken, getCookieOptions(role, false));
 };
 
 // Clear auth cookies
-export const clearAuthCookies = (res) => {
-  res.clearCookie("accessToken", ACCESS_COOKIE_OPTIONS);
-  res.clearCookie("refreshToken", COOKIE_OPTIONS);
+export const clearAuthCookies = (res, role = 'user') => {
+  res.clearCookie("accessToken", getCookieOptions(role, true));
+  res.clearCookie("refreshToken", getCookieOptions(role, false));
 };
 
 // Unified token issuer
 export const issueTokens = (res, user) => {
-  const accessToken = generateAccessToken(user.id, user.email, user.role);
-  const refreshToken = generateRefreshToken(user.id);
-  sendAuthCookies(res, accessToken, refreshToken);
-  return { accessToken, refreshToken };
+  const role = user.role || 'user';
+  const accessToken = generateAccessToken(user.id, user.email, role);
+  const refreshToken = generateRefreshToken(user.id, role);
+  sendAuthCookies(res, accessToken, refreshToken, role);
+  return { accessToken, refreshToken, expiresIn: TOKEN_EXPIRY[role].refresh };
 };
 
 // Generate OTP (6-digit code)

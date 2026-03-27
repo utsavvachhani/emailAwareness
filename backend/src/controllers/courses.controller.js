@@ -60,6 +60,41 @@ export const getCompanyPlanInfo = async (req, res) => {
   }
 };
 
+// ─── HELPER: Cleanup old rejected courses (10+ days) ─────────────────────────
+const cleanupRejectedCourses = async (adminId) => {
+  try {
+    // 1. Find courses rejected more than 10 days ago
+    const toDeleteRes = await pool.query(
+      `SELECT c.id FROM courses c
+       JOIN companies comp ON c.company_id = comp.id
+       WHERE c.status = 'rejected' 
+       AND c.updated_at < NOW() - INTERVAL '10 days'
+       AND comp.admin_id = $1`,
+      [adminId]
+    );
+
+    for (const row of toDeleteRes.rows) {
+      // Reuse deleteCourse logic or just direct delete if no assets
+      // For safety, we fetch assets to cleanup Cloudinary
+      const modulesRes = await pool.query(
+        `SELECT video_url, image_url FROM course_modules WHERE course_id = $1`,
+        [row.id]
+      );
+      
+      // Delete from Cloudinary
+      for (const m of modulesRes.rows) {
+        if (m.video_url) await deleteFromCloudinary(m.video_url);
+        if (m.image_url) await deleteFromCloudinary(m.image_url);
+      }
+
+      // Delete from DB
+      await pool.query(`DELETE FROM courses WHERE id = $1`, [row.id]);
+    }
+  } catch (err) {
+    console.error("cleanupRejectedCourses error:", err);
+  }
+};
+
 // ─── ADMIN: Get courses for a company ────────────────────────────────────────
 export const getAdminCoursesByCompany = async (req, res) => {
   const { company_id } = req.params;
@@ -68,6 +103,9 @@ export const getAdminCoursesByCompany = async (req, res) => {
     if (!company) {
       return res.status(404).json({ success: false, message: "Company not found" });
     }
+
+    // 🔥 Auto-cleanup before returning
+    await cleanupRejectedCourses(req.user.id);
 
     const result = await pool.query(
       `SELECT c.*, comp.plan AS "companyPlan"
@@ -142,6 +180,29 @@ export const createCourse = async (req, res) => {
     });
   } catch (err) {
     console.error("createCourse:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+// ─── ADMIN: Get single course details ───────────────────────────────────────
+export const getCourseDetails = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT c.*, comp.name AS "companyName", comp.plan AS "companyPlan"
+       FROM courses c
+       JOIN companies comp ON c.company_id = comp.id
+       WHERE c.id = $1 AND comp.admin_id = $2`,
+      [id, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Course not found or unauthorized" });
+    }
+
+    return res.status(200).json({ success: true, course: result.rows[0] });
+  } catch (err) {
+    console.error("getCourseDetails:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
   }
 };

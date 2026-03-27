@@ -7,7 +7,8 @@ import {
   clearAuthCookies,
   verifyRefreshToken,
   isValidEmail,
-  isValidPassword
+  isValidPassword,
+  TOKEN_EXPIRY
 } from "../utils/auth.js";
 import { sendOTP, sendPasswordResetEmail } from "../utils/email.js";
 
@@ -152,7 +153,8 @@ export const signin = async (req, res) => {
 
     const { accessToken, refreshToken } = issueTokens(res, user);
     await pool.query("UPDATE users SET last_login = NOW() WHERE id = $1", [user.id]);
-    await pool.query("INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')", [user.id, refreshToken]);
+    const interval = TOKEN_EXPIRY[user.role]?.interval || '7 days';
+    await pool.query(`INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '${interval}')`, [user.id, refreshToken]);
 
     const { password_hash, ...safeUser } = user;
     return res.status(200).json({ success: true, message: "Login successful", user: safeUser, accessToken, refreshToken });
@@ -168,7 +170,7 @@ export const logout = async (req, res) => {
   if (refreshToken) {
     await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [refreshToken]);
   }
-  clearAuthCookies(res);
+  clearAuthCookies(res, 'user');
   return res.status(200).json({ success: true, message: "Logged out" });
 };
 
@@ -250,7 +252,8 @@ export const refreshTokenController = async (req, res) => {
     const { accessToken, refreshToken } = issueTokens(res, user);
     // Rotate refresh token
     await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [token]);
-    await pool.query("INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')", [user.id, refreshToken]);
+    const interval = TOKEN_EXPIRY[user.role]?.interval || '7 days';
+    await pool.query(`INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '${interval}')`, [user.id, refreshToken]);
 
     return res.status(200).json({ success: true, accessToken, refreshToken });
   } catch (error) {

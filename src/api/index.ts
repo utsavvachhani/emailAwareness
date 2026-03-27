@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { store } from '@/lib/redux/store';
+import { setToken, logout } from '@/lib/redux/authSlice';
 
 const API = axios.create({ 
     baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
@@ -16,6 +18,69 @@ API.interceptors.request.use((req) => {
     }
     return req;
 });
+
+// Singleton promise to handle concurrent refreshes
+let isRefreshing = false;
+let refreshPromise: Promise<string> | null = null;
+
+// Response interceptor for token refresh
+API.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        
+        // If the error is 401 and we haven't retried yet
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+            
+            try {
+                // If there's already a refresh in progress, wait for it
+                if (!refreshPromise) {
+                    refreshPromise = (async () => {
+                        const userInfoStr = typeof window !== 'undefined' ? localStorage.getItem('userInfo') : null;
+                        const userInfo = userInfoStr ? JSON.parse(userInfoStr) : null;
+                        const role = userInfo?.role || 'user';
+                        
+                        let refreshEndpoint = '/users/refresh-token';
+                        if (role === 'admin') refreshEndpoint = '/admin/refresh-token';
+                        if (role === 'superadmin') refreshEndpoint = '/superadmin/refresh-token';
+                        
+                        const { data } = await axios.post(
+                            `${API.defaults.baseURL}${refreshEndpoint}`,
+                            {},
+                            { withCredentials: true }
+                        );
+                        
+                        const newToken = data.accessToken;
+                        if (typeof window !== 'undefined') {
+                            store.dispatch(setToken(newToken));
+                        }
+                        return newToken;
+                    })().finally(() => {
+                        // Reset the promise after completion (successful or not)
+                        refreshPromise = null;
+                    });
+                }
+
+                const accessToken = await refreshPromise;
+                
+                // Retry original request with the new token
+                originalRequest.headers.authorization = `Bearer ${accessToken}`;
+                return API(originalRequest);
+                
+            } catch (refreshError) {
+                // If refresh fails, clear auth and redirect
+                if (typeof window !== 'undefined') {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('userInfo');
+                    store.dispatch(logout()); // Redux sync
+                }
+                return Promise.reject(refreshError);
+            }
+        }
+        return Promise.reject(error);
+    }
+);
 
 // ─── USER APIS ────────────────────────────────────────────────────────
 export const userSignUp = (data: any) => API.post('/users/signup', data);
@@ -51,6 +116,7 @@ export const superadminLogout = () => API.post('/superadmin/logout');
 export const superadminGetMe = () => API.get('/superadmin/me');
 export const superadminGetProfile = () => API.get('/superadmin/profile');
 export const superadminUpdateProfile = (data: any) => API.put('/superadmin/profile/update', data);
+export const superadminRefreshToken = () => API.post('/superadmin/refresh-token');
 
 // Superadmin Managing Admins
 export const superadminGetPendingAdmins = () => API.get('/superadmin/admins/pending');
@@ -65,6 +131,7 @@ export const superadminGetAudit = () => API.get('/superadmin/audit');
 // ─── ADMIN COURSE APIs ────────────────────────────────────────────────────────
 export const adminGetCoursesByCompany = (companyId: string) => API.get(`/admin/companies/${companyId}/courses-list`);
 export const adminCreateCourse = (companyId: string, data: any) => API.post(`/admin/companies/${companyId}/courses-create`, data);
+export const adminGetCourseDetails = (id: string) => API.get(`/admin/my-courses/${id}`);
 export const adminDeleteCourse = (id: string) => API.delete(`/admin/my-courses/${id}`);
 export const adminGetCompanyPlanInfo = (companyId: string) => API.get(`/admin/companies/${companyId}/plan-info`);
 

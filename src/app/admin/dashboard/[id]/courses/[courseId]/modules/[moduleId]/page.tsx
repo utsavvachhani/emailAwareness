@@ -124,10 +124,11 @@ export default function ModuleViewPage() {
       const res = await adminUploadMedia(formData);
       if (res.data.success) {
         if (form.type === 'video') {
+          const durationMins = res.data.duration ? Math.ceil(res.data.duration / 60) : 0;
           setForm(f => ({
             ...f,
             video_url: res.data.secure_url,
-            duration: res.data.duration ? `${res.data.duration}s` : f.duration
+            duration: durationMins > 0 ? `${durationMins} mins` : f.duration
           }));
         } else {
           setForm(f => ({
@@ -278,12 +279,23 @@ export default function ModuleViewPage() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Duration</label>
-                    <input 
-                      value={form.duration} 
-                      onChange={e => setForm(f => ({ ...f, duration: e.target.value }))} 
-                      className="w-full h-14 px-6 rounded-2xl border border-input bg-background" 
-                    />
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Duration (Mins) {form.type === 'video' && <span className="text-blue-500 ml-1">(Auto-detected)</span>}
+                    </label>
+                    <div className="relative">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input 
+                        type="number"
+                        min="1"
+                        readOnly={form.type === 'video'}
+                        value={form.duration.replace(/\D/g, '')} 
+                        onChange={e => setForm(f => ({ ...f, duration: e.target.value ? `${e.target.value} mins` : "" }))} 
+                        className={`w-full h-14 pl-12 pr-12 rounded-2xl border border-input outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-bold ${
+                          form.type === 'video' ? 'bg-secondary/40 text-muted-foreground cursor-not-allowed border-dashed' : 'bg-background'
+                        }`} 
+                      />
+                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase opacity-50">MINS</span>
+                    </div>
                   </div>
                   <div className="space-y-3">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Video Asset</label>
@@ -361,14 +373,17 @@ export default function ModuleViewPage() {
                             Use a high-resolution horizontal image (16:9). This image will appear at the top of the module as a header to engage your students.
                           </p>
                         </div>
-                        <div className="flex items-center gap-3 px-6 h-14 rounded-2xl bg-secondary/50 border border-border">
+                        <div className="flex items-center gap-3 px-6 h-14 rounded-2xl bg-secondary/50 border border-border relative">
                            <Clock className="w-4 h-4 text-muted-foreground" />
                            <input 
-                             placeholder="Duration (e.g. 20 min)" 
-                             value={form.duration} 
-                             onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
+                             type="number"
+                             min="1"
+                             placeholder="20" 
+                             value={form.duration.replace(/\D/g, '')} 
+                             onChange={e => setForm(f => ({ ...f, duration: e.target.value ? `${e.target.value} mins` : "" }))}
                              className="bg-transparent border-none outline-none text-sm font-bold flex-1"
                            />
+                           <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-50">MINS</span>
                         </div>
                       </div>
                    </div>
@@ -380,11 +395,11 @@ export default function ModuleViewPage() {
           <div className="flex gap-4 pt-10 border-t border-border">
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || uploading || (form.type === 'video' && !form.video_url)}
               className="flex-1 h-16 rounded-2xl bg-blue-600 text-white font-bold text-base hover:bg-blue-500 transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-600/30 disabled:opacity-50"
             >
               {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
-              Publish Curriculum Updates
+              {uploading ? "Waiting for upload..." : "Publish Curriculum Updates"}
             </button>
           </div>
         </form>

@@ -258,7 +258,10 @@ function CourseRow({ course, onView, onApprove, onReset, processing }: CourseRow
   const StatusIcon = stat.icon;
 
   return (
-    <tr className="border-b border-border hover:bg-secondary/30 transition-colors group">
+    <tr 
+      className="border-b border-border hover:bg-secondary/30 transition-colors group cursor-pointer"
+      onClick={onView}
+    >
       <td className="px-4 py-3.5">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">

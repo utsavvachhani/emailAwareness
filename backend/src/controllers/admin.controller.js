@@ -6,8 +6,7 @@ import {
   issueTokens,
   clearAuthCookies,
   verifyRefreshToken,
-  isValidEmail,
-  isValidPassword,
+  TOKEN_EXPIRY
 } from "../utils/auth.js";
 import {
   sendOTP,
@@ -127,8 +126,9 @@ export const signin = async (req, res) => {
     await pool.query("UPDATE admins SET last_login = NOW() WHERE id = $1", [
       user.id,
     ]);
+    const interval = TOKEN_EXPIRY[user.role]?.interval || '1 day';
     await pool.query(
-      "INSERT INTO refresh_tokens (admin_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
+      `INSERT INTO refresh_tokens (admin_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '${interval}')`,
       [user.id, refreshToken],
     );
 
@@ -156,7 +156,7 @@ export const logout = async (req, res) => {
     await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [
       refreshToken,
     ]);
-  clearAuthCookies(res);
+  clearAuthCookies(res, 'admin');
   return res.status(200).json({ success: true, message: "Logged out" });
 };
 
@@ -280,8 +280,9 @@ export const refreshTokenController = async (req, res) => {
 
     const { accessToken, refreshToken } = issueTokens(res, user);
     await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [token]);
+    const interval = TOKEN_EXPIRY[user.role]?.interval || '1 day';
     await pool.query(
-      "INSERT INTO refresh_tokens (admin_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')",
+      `INSERT INTO refresh_tokens (admin_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '${interval}')`,
       [user.id, refreshToken],
     );
     return res.status(200).json({ success: true, accessToken, refreshToken });

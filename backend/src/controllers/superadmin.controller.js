@@ -1,5 +1,11 @@
 import pool from "../config/database.js";
-import { comparePassword, issueTokens, clearAuthCookies } from "../utils/auth.js";
+import { 
+  comparePassword, 
+  issueTokens, 
+  clearAuthCookies, 
+  verifyRefreshToken,
+  TOKEN_EXPIRY 
+} from "../utils/auth.js";
 import { sendAdminApprovalResult, sendSuperadminLoginAlert } from "../utils/email.js";
 
 // ─── Superadmin Signin ──────────────────────────────────────────────────────────
@@ -19,7 +25,8 @@ export const signin = async (req, res) => {
 
     const { accessToken, refreshToken } = issueTokens(res, user);
     await pool.query("UPDATE superadmins SET last_login = NOW() WHERE id = $1", [user.id]);
-    await pool.query("INSERT INTO refresh_tokens (superadmin_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')", [user.id, refreshToken]);
+    const interval = TOKEN_EXPIRY[user.role]?.interval || '12 hours';
+    await pool.query(`INSERT INTO refresh_tokens (superadmin_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '${interval}')`, [user.id, refreshToken]);
 
     // Audit and Alert
     const ip = req.ip || req.headers["x-forwarded-for"] || "Unknown";
@@ -41,8 +48,35 @@ export const signin = async (req, res) => {
 export const logout = async (req, res) => {
   const refreshToken = req.cookies?.refreshToken;
   if (refreshToken) await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [refreshToken]);
-  clearAuthCookies(res);
+  clearAuthCookies(res, 'superadmin');
   return res.status(200).json({ success: true, message: "Logged out" });
+};
+
+// ─── Superadmin Refresh Token ───────────────────────────────────────────────
+export const refreshTokenController = async (req, res) => {
+  const token = req.cookies?.refreshToken || req.body.refreshToken;
+  if (!token) return res.status(401).json({ success: false, message: "No refresh token" });
+
+  try {
+    const decoded = verifyRefreshToken(token);
+    if (!decoded) return res.status(401).json({ success: false, message: "Invalid refresh token" });
+
+    const dbToken = await pool.query("SELECT id FROM refresh_tokens WHERE token = $1 AND superadmin_id = $2 AND expires_at > NOW()", [token, decoded.id]);
+    if (dbToken.rows.length === 0) return res.status(401).json({ success: false, message: "Refresh token expired or revoked" });
+
+    const userRes = await pool.query("SELECT id, email, role FROM superadmins WHERE id = $1", [decoded.id]);
+    const user = userRes.rows[0];
+
+    const { accessToken, refreshToken } = issueTokens(res, user);
+    // Rotate refresh token
+    await pool.query("DELETE FROM refresh_tokens WHERE token = $1", [token]);
+    const interval = TOKEN_EXPIRY[user.role]?.interval || '12 hours';
+    await pool.query(`INSERT INTO refresh_tokens (superadmin_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '${interval}')`, [user.id, refreshToken]);
+
+    return res.status(200).json({ success: true, accessToken, refreshToken });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
 };
 
 // ─── Management: Admins ────────────────────────────────────────────────────────

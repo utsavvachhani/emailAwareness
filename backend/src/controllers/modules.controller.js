@@ -6,7 +6,6 @@ import { deleteFromCloudinary } from "../utils/cloudinary.js";
 export const getCourseModules = async (req, res) => {
   const { course_id } = req.params;
   try {
-    // Verify course belongs to this admin's company
     const courseRes = await pool.query(
       `SELECT c.id FROM courses c 
        JOIN companies comp ON c.company_id = comp.id
@@ -19,10 +18,25 @@ export const getCourseModules = async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT * FROM course_modules WHERE course_id = $1 ORDER BY order_index ASC, created_at ASC`,
+      `SELECT m.*, 
+              d.content as doc_content, d.image_url,
+              v.content as video_content, v.video_url
+       FROM course_modules m
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
+       LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
+       WHERE m.course_id = $1 
+       ORDER BY m.order_index ASC, m.created_at ASC`,
       [course_id]
     );
-    return res.status(200).json({ success: true, modules: result.rows });
+
+    // Map content/urls back to generic names for frontend compatibility if needed
+    const modules = result.rows.map(m => ({
+      ...m,
+      content: m.type === 'docs' ? m.doc_content : m.video_content,
+      // video_url and image_url are already merged via LEFT JOIN
+    }));
+
+    return res.status(200).json({ success: true, modules });
   } catch (err) {
     console.error("getCourseModules:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
@@ -34,17 +48,16 @@ export const createModule = async (req, res) => {
   const { course_id } = req.params;
   const { title, type, content, video_url, image_url, duration, status, order_index } = req.body;
 
-
-
-
-
   if (!title) {
     return res.status(400).json({ success: false, message: "Module title is required" });
   }
 
+  const client = await pool.connect();
   try {
-    // Verify course belongs to this admin's company
-    const courseRes = await pool.query(
+    await client.query("BEGIN");
+
+    // 1. Verify ownership
+    const courseRes = await client.query(
       `SELECT c.id FROM courses c 
        JOIN companies comp ON c.company_id = comp.id
        WHERE c.id = $1 AND comp.admin_id = $2`,
@@ -52,27 +65,52 @@ export const createModule = async (req, res) => {
     );
 
     if (courseRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ success: false, message: "Course not found or unauthorized" });
     }
 
-    const result = await pool.query(
-      `INSERT INTO course_modules (course_id, title, type, content, video_url, image_url, duration, status, order_index)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [course_id, title, type ?? 'docs', content ?? null, video_url ?? null, image_url ?? null, duration ?? null, status ?? "published", order_index ?? 0]
+    // 2. Insert into main table
+    const mainRes = await client.query(
+      `INSERT INTO course_modules (course_id, title, type, duration, status, order_index)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [course_id, title, type ?? 'docs', duration ?? null, status ?? "published", order_index ?? 0]
     );
+    const newModule = mainRes.rows[0];
 
+    // 3. Insert into sub-table
+    let subId = null;
+    if (newModule.type === 'video') {
+      const vidRes = await client.query(
+        `INSERT INTO course_modules_video (course_module_id, video_url, content)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [newModule.id, video_url ?? null, content ?? null]
+      );
+      subId = vidRes.rows[0].id;
+    } else {
+      const docRes = await client.query(
+        `INSERT INTO course_modules_docs (course_module_id, image_url, content)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [newModule.id, image_url ?? null, content ?? null]
+      );
+      subId = docRes.rows[0].id;
+    }
 
-
-
+    // 4. Update main table with sub_id
+    await client.query(`UPDATE course_modules SET sub_id = $1 WHERE id = $2`, [subId, newModule.id]);
+    
+    await client.query("COMMIT");
 
     return res.status(201).json({
       success: true,
       message: "Module created successfully",
-      module: result.rows[0]
+      module: { ...newModule, sub_id: subId, content, video_url, image_url }
     });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("createModule:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
+  } finally {
+    client.release();
   }
 };
 
@@ -81,53 +119,63 @@ export const updateModule = async (req, res) => {
   const { id } = req.params;
   const { title, type, content, video_url, image_url, duration, status, order_index } = req.body;
 
-
-
-
-
+  const client = await pool.connect();
   try {
-    // Verify module belongs to this admin's company
-    const checkRes = await pool.query(
-      `SELECT m.* FROM course_modules m
+    await client.query("BEGIN");
+
+    // 1. Verify & check current assets
+    const checkRes = await client.query(
+      `SELECT m.*, d.image_url as old_image, v.video_url as old_video
+       FROM course_modules m
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id
+       LEFT JOIN course_modules_video v ON m.id = v.course_module_id
        JOIN courses c ON m.course_id = c.id
        JOIN companies comp ON c.company_id = comp.id
        WHERE m.id = $1 AND comp.admin_id = $2`,
-
       [id, req.user.id]
     );
 
     if (checkRes.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ success: false, message: "Module not found or unauthorized" });
     }
 
-    // Preserve order_index if not provided
-    const oldModule = checkRes.rows[0];
-    const finalOrderIndex = (order_index !== undefined && order_index !== null) ? order_index : (oldModule.order_index || 0);
+    const old = checkRes.rows[0];
+    const finalOrderIndex = order_index ?? old.order_index;
 
-    // 🔥 Cleanup old assets if they changed or were removed
-    if (video_url !== undefined && oldModule.video_url && oldModule.video_url !== video_url) {
-      await deleteFromCloudinary(oldModule.video_url);
-    }
-    if (image_url !== undefined && oldModule.image_url && oldModule.image_url !== image_url) {
-      await deleteFromCloudinary(oldModule.image_url);
-    }
+    // Asset cleanup
+    if (video_url !== undefined && old.old_video && old.old_video !== video_url) await deleteFromCloudinary(old.old_video);
+    if (image_url !== undefined && old.old_image && old.old_image !== image_url) await deleteFromCloudinary(old.old_image);
 
-    const result = await pool.query(
+    // 2. Update main table
+    const mainRes = await client.query(
       `UPDATE course_modules
-       SET title = $1, type = $2, content = $3, video_url = $4, image_url = $5, duration = $6, status = $7, order_index = $8, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $9 RETURNING *`,
-      [title, type, content, video_url, image_url, duration, status, finalOrderIndex, id]
+       SET title = $1, type = $2, duration = $3, status = $4, order_index = $5, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6 RETURNING *`,
+      [title || old.title, type || old.type, duration ?? old.duration, status ?? old.status, finalOrderIndex, id]
     );
 
-  
-    return res.status(200).json({
-      success: true,
-      message: "Module updated successfully",
-      module: result.rows[0]
-    });
+    // 3. Update sub-table
+    if ((type || old.type) === 'video') {
+      await client.query(
+        `UPDATE course_modules_video SET video_url = $1, content = $2, updated_at = CURRENT_TIMESTAMP WHERE course_module_id = $3`,
+        [video_url ?? old.old_video, content ?? old.content, id]
+      );
+    } else {
+      await client.query(
+        `UPDATE course_modules_docs SET image_url = $1, content = $2, updated_at = CURRENT_TIMESTAMP WHERE course_module_id = $3`,
+        [image_url ?? old.old_image, content ?? old.content, id]
+      );
+    }
+
+    await client.query("COMMIT");
+    return res.status(200).json({ success: true, message: "Module updated", module: mainRes.rows[0] });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("updateModule:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
+  } finally {
+    client.release();
   }
 };
 
@@ -135,9 +183,11 @@ export const updateModule = async (req, res) => {
 export const deleteModule = async (req, res) => {
   const { id } = req.params;
   try {
-    // Verify module belongs to this admin's company
     const checkRes = await pool.query(
-      `SELECT m.* FROM course_modules m
+      `SELECT m.*, d.image_url, v.video_url
+       FROM course_modules m
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id
+       LEFT JOIN course_modules_video v ON m.id = v.course_module_id
        JOIN courses c ON m.course_id = c.id
        JOIN companies comp ON c.company_id = comp.id
        WHERE m.id = $1 AND comp.admin_id = $2`,
@@ -149,8 +199,6 @@ export const deleteModule = async (req, res) => {
     }
 
     const m = checkRes.rows[0];
-
-    // Delete assets from cloudinary
     if (m.video_url) await deleteFromCloudinary(m.video_url);
     if (m.image_url) await deleteFromCloudinary(m.image_url);
 
@@ -165,10 +213,14 @@ export const deleteModule = async (req, res) => {
 // ─── ADMIN: Get module details ──────────────────────────────────────────────
 export const getModuleDetails = async (req, res) => {
   const { id } = req.params;
-
   try {
     const result = await pool.query(
-      `SELECT m.* FROM course_modules m
+      `SELECT m.*,
+              d.content as doc_content, d.image_url,
+              v.content as video_content, v.video_url
+       FROM course_modules m
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
+       LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
        JOIN courses c ON m.course_id = c.id
        JOIN companies comp ON c.company_id = comp.id
        WHERE m.id = $1 AND comp.admin_id = $2`,
@@ -179,10 +231,13 @@ export const getModuleDetails = async (req, res) => {
       return res.status(404).json({ success: false, message: "Module not found or unauthorized" });
     }
 
-    return res.status(200).json({
-      success: true,
-      module: result.rows[0]
-    });
+    const row = result.rows[0];
+    const module = {
+      ...row,
+      content: row.type === 'docs' ? row.doc_content : row.video_content,
+    };
+
+    return res.status(200).json({ success: true, module });
   } catch (err) {
     console.error("getModuleDetails:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
