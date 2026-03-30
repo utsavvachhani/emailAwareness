@@ -18,7 +18,45 @@ const ensureCompanyColumns = async () => {
     console.error('ensureCompanyColumns failed:', e.message);
   }
 };
+
+const ensureProgressTable = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS employee_progress (
+        id SERIAL PRIMARY KEY,
+        employee_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
+        module_id INTEGER, -- Not referencing to avoid dependency during migration
+        status VARCHAR(20) DEFAULT 'in-progress', 
+        score INTEGER DEFAULT 0,
+        completed_at TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(employee_id, module_id)
+      )
+    `);
+  } catch (e) {
+    console.error('ensureProgressTable failed:', e.message);
+  }
+};
+
+const ensureCompanyCoursesTable = async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS company_courses (
+                id SERIAL PRIMARY KEY,
+                company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE,
+                course_id INTEGER,
+                assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(company_id, course_id)
+            )
+        `);
+    } catch (e) {
+        console.error('ensureCompanyCoursesTable failed:', e.message);
+    }
+};
+
 ensureCompanyColumns();
+ensureProgressTable();
+ensureCompanyCoursesTable();
 
 
 
@@ -204,30 +242,44 @@ export const getMyCompanyDetails = async (req, res) => {
   const { id } = req.params;
   try {
     const isSerial = /^\d+$/.test(id);
-    const result = await pool.query(
-      `SELECT *, (SELECT COUNT(*)::int FROM employees WHERE company_id = companies.id) AS num_employees 
-       FROM companies 
-       WHERE (${isSerial ? 'id' : 'company_id'} = $1) AND admin_id = $2`,
-      [id, req.user.id]
-    );
+    const queryStr = `
+      SELECT c.*, 
+             (SELECT COUNT(*)::int FROM employees WHERE company_id = c.id) AS num_employees 
+      FROM companies c
+      WHERE (${isSerial ? 'c.id' : 'c.company_id'} = $1) AND c.admin_id = $2
+    `;
+    const result = await pool.query(queryStr, [id, req.user.id]);
 
     if (result.rows.length === 0)
-      return res.status(404).json({ success: true, message: "Company not found", company: null });
+      return res.status(404).json({ success: false, message: "Company not found" });
     return res.status(200).json({ success: true, company: result.rows[0] });
   } catch (err) {
-    console.error("getMyCompanyDetails:", err);
-    return res.status(500).json({ success: false, message: "Internal error" });
+    console.error("getMyCompanyDetails Detailed Error:", err);
+    return res.status(500).json({ success: false, message: "Internal error", error: err.message });
   }
 };
 
 
+// ─── Helper: Resolve company identifier to internal integer ID ────────────────
+const resolveInternalId = async (idOrString, adminId) => {
+  const isSerial = /^\d+$/.test(idOrString);
+  const result = await pool.query(
+    `SELECT id FROM companies WHERE (${isSerial ? 'id' : 'company_id'} = $1) AND admin_id = $2`,
+    [idOrString, adminId]
+  );
+  return result.rows.length > 0 ? result.rows[0].id : null;
+};
+
 // ─── Employee Management ─────────────────────────────────────────────────────
 export const getCompanyEmployees = async (req, res) => {
-  const { id: company_id } = req.params;
+  const { id } = req.params;
   try {
+    const internalId = await resolveInternalId(id, req.user.id);
+    if (!internalId) return res.status(404).json({ success: false, message: "Company not found" });
+
     const result = await pool.query(
       "SELECT * FROM employees WHERE company_id=$1 ORDER BY created_at DESC",
-      [company_id]
+      [internalId]
     );
     return res.status(200).json({ success: true, employees: result.rows });
   } catch (err) {
@@ -236,17 +288,20 @@ export const getCompanyEmployees = async (req, res) => {
 };
 
 export const createEmployee = async (req, res) => {
-  const { id: company_id } = req.params;
+  const { id } = req.params;
   const { first_name, last_name, email, designation } = req.body;
   if (!first_name || !last_name || !email) {
     return res.status(400).json({ success: false, message: "First name, last name, and email are required" });
   }
   try {
+    const internalId = await resolveInternalId(id, req.user.id);
+    if (!internalId) return res.status(404).json({ success: false, message: "Company not found" });
+
     const result = await pool.query(
       `INSERT INTO employees (first_name, last_name, email, company_id, designation)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [first_name, last_name, email, company_id, designation]
+      [first_name, last_name, email, internalId, designation]
     );
     return res.status(201).json({ success: true, message: "Employee created", employee: result.rows[0] });
   } catch (err) {
@@ -257,14 +312,17 @@ export const createEmployee = async (req, res) => {
 
 // ─── Course Management ───────────────────────────────────────────────────────
 export const getCompanyCourses = async (req, res) => {
-  const { id: company_id } = req.params;
+  const { id } = req.params;
   try {
+    const internalId = await resolveInternalId(id, req.user.id);
+    if (!internalId) return res.status(404).json({ success: false, message: "Company not found" });
+
     const result = await pool.query(
       `SELECT c.*, cc.assigned_at 
        FROM courses c
        JOIN company_courses cc ON c.id = cc.course_id
        WHERE cc.company_id = $1`,
-      [company_id]
+      [internalId]
     );
     return res.status(200).json({ success: true, courses: result.rows });
   } catch (err) {
@@ -282,14 +340,17 @@ export const getAllAvailableCourses = async (req, res) => {
 };
 
 export const assignCourseToCompany = async (req, res) => {
-  const { id: company_id } = req.params;
+  const { id } = req.params;
   const { course_id } = req.body;
   try {
+    const internalId = await resolveInternalId(id, req.user.id);
+    if (!internalId) return res.status(404).json({ success: false, message: "Company not found" });
+
     // Check if already assigned
-    const check = await pool.query("SELECT id FROM company_courses WHERE company_id=$1 AND course_id=$2", [company_id, course_id]);
+    const check = await pool.query("SELECT id FROM company_courses WHERE company_id=$1 AND course_id=$2", [internalId, course_id]);
     if (check.rows.length > 0) return res.status(400).json({ success: false, message: "Course already assigned" });
 
-    await pool.query("INSERT INTO company_courses (company_id, course_id) VALUES ($1, $2)", [company_id, course_id]);
+    await pool.query("INSERT INTO company_courses (company_id, course_id) VALUES ($1, $2)", [internalId, course_id]);
     return res.status(200).json({ success: true, message: "Course assigned successfully" });
   } catch (err) {
     return res.status(500).json({ success: false, message: "Internal error" });
@@ -298,53 +359,67 @@ export const assignCourseToCompany = async (req, res) => {
 
 // ─── Company Stats (Reports) ──────────────────────────────────────────────────
 export const getCompanyStats = async (req, res) => {
-  const { id: company_id } = req.params;
+  const { id } = req.params;
   try {
-    const employeesCount = await pool.query("SELECT count(*) FROM employees WHERE company_id=$1", [company_id]);
-    const coursesCount = await pool.query("SELECT count(*) FROM company_courses WHERE company_id=$1", [company_id]);
+    const internalId = await resolveInternalId(id, req.user.id);
+    if (!internalId) return res.status(404).json({ success: false, message: "Company not found" });
+
+    const employeesCount = await pool.query("SELECT count(*) FROM employees WHERE company_id=$1", [internalId]);
+    const coursesCount = await pool.query("SELECT count(*) FROM company_courses WHERE company_id=$1", [internalId]);
     
-    // Progress stats
-    const progress = await pool.query(
-      `SELECT status, count(*) 
-       FROM employee_progress ep
-       JOIN employees e ON ep.employee_id = e.id
-       WHERE e.company_id = $1
-       GROUP BY status`,
-      [company_id]
-    );
+    let progress = [];
+    try {
+      const progressRes = await pool.query(
+        `SELECT status, count(*)::int 
+         FROM employee_progress ep
+         JOIN employees e ON ep.employee_id = e.id
+         WHERE e.company_id = $1
+         GROUP BY status`,
+        [internalId]
+      );
+      progress = progressRes.rows || [];
+    } catch (e) {
+      console.error("Progress fetch inner error:", e.message);
+    }
 
     return res.status(200).json({ 
       success: true, 
       stats: {
-        totalEmployees: parseInt(employeesCount.rows[0].count),
-        assignedCourses: parseInt(coursesCount.rows[0].count),
-        progress: progress.rows
+        totalEmployees: parseInt(employeesCount.rows[0]?.count || "0"),
+        assignedCourses: parseInt(coursesCount.rows[0]?.count || "0"),
+        progress: progress
       }
     });
   } catch (err) {
-    return res.status(500).json({ success: false, message: "Internal error" });
+    console.error("getCompanyStats Detailed Error:", err);
+    return res.status(500).json({ success: false, message: "Internal error", error: err.message });
   }
 };
 
 // ─── Admin Global Stats ──────────────────────────────────────────────────────
 export const getAdminGlobalStats = async (req, res) => {
   try {
-    const companies = await pool.query("SELECT count(*) FROM companies WHERE admin_id=$1", [req.user.id]);
-    const employees = await pool.query(
-      "SELECT count(*) FROM employees e JOIN companies c ON e.company_id = c.id WHERE c.admin_id = $1",
+    const companiesRes = await pool.query("SELECT count(*)::int as count, plan FROM companies WHERE admin_id=$1 GROUP BY plan", [req.user.id]);
+    const plans = companiesRes.rows.map(row => ({ plan: row.plan, count: row.count }));
+    const totalCompanies = plans.reduce((acc, p) => acc + p.count, 0);
+
+    const employeesRes = await pool.query(
+      "SELECT count(*)::int FROM employees e JOIN companies c ON e.company_id = c.id WHERE c.admin_id = $1",
       [req.user.id]
     );
-    const courses = await pool.query("SELECT count(*) FROM courses");
+
+    const totalEmployees = parseInt(employeesRes.rows[0].count);
 
     return res.status(200).json({
       success: true,
       stats: {
-        totalCompanies: parseInt(companies.rows[0].count),
-        totalEmployees: parseInt(employees.rows[0].count),
-        totalCourses: parseInt(courses.rows[0].count),
+        totalCompanies,
+        totalEmployees,
+        plans,
       }
     });
   } catch (err) {
+    console.error("getAdminGlobalStats error:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
   }
 };

@@ -49,20 +49,19 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     }, [id, token]);
 
     const navItems = [
-        { label: "Dashboard", href: id ? `/admin/dashboard/${id}` : "/admin/dashboard", icon: LayoutDashboard },
+        { label: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
         { label: "Companies", href: "/admin/dashboard/companies", icon: Building2 },
-        { label: "Profile", href: "/admin/dashboard/profile", icon: User },
+        { label: "My Profile", href: "/admin/dashboard/profile", icon: User },
         { label: "Settings", href: "/admin/dashboard/settings", icon: Settings },
     ];
 
     const navItemsOnID = [
-        { label: "Dashboard", href: id ? `/admin/dashboard/${id}` : "/admin/dashboard", icon: LayoutDashboard },
-        { label: "Companies", href: "/admin/dashboard/companies", icon: Building2 },
-        { label: "Employees", href: id ? `/admin/dashboard/${id}/employees` : "/admin/dashboard/employees", icon: Users },
-        { label: "Courses", href: id ? `/admin/dashboard/${id}/courses` : "/admin/dashboard/courses", icon: BookOpen },
-        { label: "Bills", href: id ? `/admin/dashboard/${id}/bills` : "/admin/dashboard/bills", icon: CreditCard },
-        { label: "Profile", href: "/admin/dashboard/profile", icon: User },
-        { label: "Settings", href: "/admin/dashboard/settings", icon: Settings },
+        { label: "Global Overview", href: "/admin/dashboard", icon: Home },
+        { label: "Company Dashboard", href: `/admin/dashboard/${id}`, icon: LayoutDashboard },
+        { label: "Employees", href: `/admin/dashboard/${id}/employees`, icon: Users },
+        { label: "My Curriculum", href: `/admin/dashboard/${id}/courses`, icon: BookOpen },
+        { label: "Billing & Plans", href: `/admin/dashboard/${id}/bills`, icon: CreditCard },
+        { label: "Switch Company", href: "/admin/dashboard/companies", icon: Building2 },
     ];
 
 
@@ -118,10 +117,9 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                         <nav className="flex-1 overflow-y-auto px-3 py-3">
                             <ul className="space-y-0.5">
                                 {currentNavItems.map(item => {
-                                    const isDashboard = item.label === "Dashboard";
-                                    const isActive = isDashboard
-                                        ? pathname === item.href
-                                        : (pathname === item.href || (item.href !== "/admin/dashboard" && pathname.startsWith(item.href)));
+                                    const matchingItems = currentNavItems.filter(i => pathname.startsWith(i.href));
+                                    const longestMatch = matchingItems.sort((a, b) => b.href.length - a.href.length)[0];
+                                    const isActive = longestMatch?.href === item.href;
                                     return (
                                         <li key={item.href}>
                                             <Link

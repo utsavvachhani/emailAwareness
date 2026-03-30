@@ -134,6 +134,10 @@ export const adminCreateCourse = (companyId: string, data: any) => API.post(`/ad
 export const adminGetCourseDetails = (id: string) => API.get(`/admin/my-courses/${id}`);
 export const adminDeleteCourse = (id: string) => API.delete(`/admin/my-courses/${id}`);
 export const adminGetCompanyPlanInfo = (companyId: string) => API.get(`/admin/companies/${companyId}/plan-info`);
+export const adminGetCompanyStats = (companyId: string) => API.get(`/admin/companies/${companyId}/stats`);
+export const adminGetCompanyDetails = (companyId: string) => API.get(`/admin/companies/${companyId}`);
+export const adminGetCompanies = () => API.get('/admin/companies');
+export const adminGetGlobalStats = () => API.get('/admin/stats');
 
 // Module APIs
 export const adminGetCourseModules = (courseId: string) => API.get(`/admin/courses/${courseId}/modules`);

@@ -1,198 +1,213 @@
 "use client";
 
 import { useAppSelector } from "@/lib/redux/hooks";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import {
     Users, Mail, Eye, CheckCircle, AlertTriangle, TrendingUp,
-    Shield, Activity, ArrowUp, ArrowDown, MoreHorizontal
+    Shield, Activity, ArrowUp, ArrowDown, MoreHorizontal,
+    BookOpen, Loader2, Building2
 } from "lucide-react";
+import { adminGetCompanyStats, adminGetCompanyDetails } from "@/api";
 
-const kpis = [
-    { title: "Total Employees", value: "248", change: "+12", period: "this month", trend: "up", icon: Users, color: "blue" },
-    { title: "Emails Sent", value: "1,842", change: "+124", period: "this week", trend: "up", icon: Mail, color: "purple" },
-    { title: "Open Rate", value: "71.4%", change: "+3.2%", period: "vs last week", trend: "up", icon: Eye, color: "green" },
-    { title: "Quiz Completion", value: "86.2%", change: "-0.8%", period: "vs last week", trend: "down", icon: CheckCircle, color: "yellow" },
-    { title: "High-Risk Users", value: "7", change: "-2", period: "vs last week", trend: "up", icon: AlertTriangle, color: "red" },
-    { title: "Avg Training Score", value: "82/100", change: "+5", period: "this month", trend: "up", icon: TrendingUp, color: "blue" },
-];
+interface CompanyStats {
+    totalEmployees: number;
+    assignedCourses: number;
+    progress: { status: string; count: string }[];
+}
 
-const colorMap: Record<string, string> = {
-    blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    purple: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-    green: "bg-green-500/10 text-green-500 border-green-500/20",
-    yellow: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-    red: "bg-red-500/10 text-red-500 border-red-500/20",
-};
+interface CompanyDetails {
+    name: string;
+    company_id: string;
+    plan: string;
+}
 
-const employees = [
-    { name: "Riya Patel", email: "riya@example.com", dept: "Engineering", score: 94, modules: "4/4", lastActive: "Today", risk: "low" },
-    { name: "Arjun Shah", email: "arjun@example.com", dept: "Sales", score: 72, modules: "3/4", lastActive: "Yesterday", risk: "medium" },
-    { name: "Meera Joshi", email: "meera@example.com", dept: "HR", score: 88, modules: "4/4", lastActive: "Today", risk: "low" },
-    { name: "Rahul Desai", email: "rahul@example.com", dept: "Finance", score: 41, modules: "1/4", lastActive: "5 days ago", risk: "high" },
-    { name: "Priya Modi", email: "priya@example.com", dept: "Marketing", score: 67, modules: "2/4", lastActive: "2 days ago", risk: "medium" },
-    { name: "Vivek Kumar", email: "vivek@example.com", dept: "IT", score: 98, modules: "4/4", lastActive: "Today", risk: "low" },
-];
+export default function CompanyDashboardPage() {
+    const { token } = useAppSelector(s => s.auth);
+    const params = useParams();
+    const id = params?.id as string;
+    
+    const [stats, setStats] = useState<CompanyStats | null>(null);
+    const [companyDetails, setCompanyDetails] = useState<CompanyDetails | null>(null);
+    const [loading, setLoading] = useState(true);
 
-const simulations = [
-    { name: "Q1 Phishing Test", sent: 248, opened: 187, clicked: 43, date: "Mar 8, 2026", failRate: "17.3%" },
-    { name: "CEO Fraud Simulation", sent: 248, opened: 201, clicked: 28, date: "Feb 22, 2026", failRate: "11.3%" },
-    { name: "Invoice Scam Test", sent: 248, opened: 165, clicked: 61, date: "Feb 5, 2026", failRate: "24.6%" },
-    { name: "IT Support Pretexting", sent: 248, opened: 142, clicked: 19, date: "Jan 18, 2026", failRate: "7.7%" },
-];
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch Stats
+                const statsRes = await adminGetCompanyStats(id);
+                if (statsRes.data.success) {
+                    setStats(statsRes.data.stats);
+                }
 
-const riskBadge = (risk: string) => {
-    const map: Record<string, string> = {
-        low: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-        medium: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-        high: "bg-red-500/10 text-red-500 border-red-500/20",
+                // Fetch Basic Details
+                const detailsRes = await adminGetCompanyDetails(id);
+                if (detailsRes.data.success) {
+                    setCompanyDetails(detailsRes.data.company);
+                }
+            } catch (err) {
+                console.error("Company dashboard fetch error:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (id && token) fetchData();
+    }, [id, token]);
+
+    if (loading) {
+        return (
+            <div className="flex h-[60vh] items-center justify-center">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            </div>
+        );
+    }
+
+    const completedPercent = stats?.progress?.find(p => p.status === 'completed')?.count || "0";
+    const inProgressPercent = stats?.progress?.find(p => p.status === 'in-progress')?.count || "0";
+
+    const kpis = [
+        { title: "Total Employees", value: stats?.totalEmployees.toString() || "0", sub: "Currently Enrolled", icon: Users, color: "blue" },
+        { title: "Training Modules", value: stats?.assignedCourses.toString() || "0", sub: "Active Curriculum", icon: BookOpen, color: "purple" },
+        { title: "Avg Progress", value: stats?.totalEmployees ? `${Math.round((parseInt(completedPercent) / stats.totalEmployees) * 100)}%` : "0%", sub: "Module Completion", icon: CheckCircle, color: "green" },
+        { title: "High-Risk Users", value: "0", sub: "Based on Simulations", icon: AlertTriangle, color: "red" },
+    ];
+
+    const colorMap: Record<string, string> = {
+        blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+        purple: "bg-purple-500/10 text-purple-500 border-purple-500/20",
+        green: "bg-green-500/10 text-green-600 border-green-500/20",
+        red: "bg-red-500/10 text-red-500 border-red-500/20",
     };
-    return <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${map[risk]}`}>{risk.charAt(0).toUpperCase() + risk.slice(1)}</span>;
-};
-
-export default function AdminDashboardPage() {
-    const { userInfo } = useAppSelector(s => s.auth);
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Welcome back, {userInfo?.firstName}. Here's your organisation's training overview.
-                    </p>
+        <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <Building2 className="w-5 h-5 text-blue-600" />
+                        <h1 className="text-3xl font-extrabold tracking-tight">{companyDetails?.name || "Company Overview"}</h1>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground font-medium">
+                        <span className="px-2 py-0.5 rounded-md bg-muted border border-border uppercase tracking-widest text-[10px]">{companyDetails?.company_id}</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                        <span className="uppercase tracking-widest text-[10px] font-bold text-blue-600">{companyDetails?.plan} Subscription</span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-                    <Shield className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-medium text-blue-600">Admin Access</span>
+                <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-2xl px-4 py-3 shadow-sm">
+                    <Shield className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm font-bold text-blue-700 uppercase tracking-tighter">Secure Enterprise View</span>
                 </div>
             </div>
 
             {/* KPI Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {kpis.map(kpi => {
                     const Icon = kpi.icon;
-                    const isUp = kpi.trend === "up";
                     return (
-                        <div key={kpi.title} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow">
-                            <div className="flex items-start justify-between mb-3">
-                                <p className="text-sm text-muted-foreground">{kpi.title}</p>
-                                <div className={`p-2 rounded-lg border ${colorMap[kpi.color]}`}>
-                                    <Icon className="h-4 w-4" />
+                        <div key={kpi.title} className="group rounded-3xl border border-border bg-card p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                            <div className="flex items-start justify-between mb-4">
+                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{kpi.title}</p>
+                                <div className={`p-3 rounded-2xl border ${colorMap[kpi.color]} group-hover:scale-110 transition-transform shadow-sm`}>
+                                    <Icon className="h-5 w-5" />
                                 </div>
                             </div>
-                            <p className="text-2xl font-bold mb-2">{kpi.value}</p>
-                            <div className={`flex items-center gap-1 text-xs font-medium ${kpi.color === "red" ? (isUp ? "text-emerald-600" : "text-red-500") :
-                                isUp ? "text-emerald-600" : "text-red-500"
-                                }`}>
-                                {isUp ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                <span>{kpi.change}</span>
-                                <span className="text-muted-foreground font-normal">{kpi.period}</span>
+                            <p className="text-4xl font-extrabold tracking-tight mb-1">{kpi.value}</p>
+                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                                {kpi.sub}
                             </div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Employee Table */}
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                    <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-blue-500" />
-                        <h2 className="font-semibold text-lg">Employee Training Status</h2>
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                {/* Training Progress Card */}
+                <div className="xl:col-span-2 bg-card border border-border rounded-3xl overflow-hidden shadow-sm flex flex-col">
+                    <div className="px-8 py-6 border-b border-border bg-muted/20 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center text-white shadow-lg shadow-green-500/20">
+                                <Activity className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-xl font-bold tracking-tight">Real-time Engagement</h2>
+                        </div>
+                        <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Training Completion</div>
                     </div>
-                    <span className="text-xs text-muted-foreground">{employees.length} employees</span>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-muted/30 border-b border-border">
-                            <tr>
-                                {["Employee", "Department", "Score", "Modules", "Last Active", "Risk Level", ""].map(h => (
-                                    <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {employees.map(emp => (
-                                <tr key={emp.email} className="hover:bg-muted/20 transition-colors group">
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
-                                                {emp.name.split(" ").map(n => n[0]).join("")}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium">{emp.name}</p>
-                                                <p className="text-xs text-muted-foreground">{emp.email}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-md">{emp.dept}</span>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full ${emp.score >= 80 ? "bg-emerald-500" : emp.score >= 60 ? "bg-yellow-500" : "bg-red-400"}`}
-                                                    style={{ width: `${emp.score}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-sm font-semibold">{emp.score}%</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4 text-sm text-muted-foreground">{emp.modules}</td>
-                                    <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{emp.lastActive}</td>
-                                    <td className="px-5 py-4">{riskBadge(emp.risk)}</td>
-                                    <td className="px-5 py-4">
-                                        <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-all">
-                                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                    <div className="p-8 flex-1 flex flex-col justify-center space-y-8">
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between text-sm font-bold uppercase tracking-tight">
+                                <span>Curriculum Progress</span>
+                                <span className="text-blue-600">{stats?.totalEmployees ? Math.round((parseInt(completedPercent) / stats.totalEmployees) * 100) : 0}% Complete</span>
+                            </div>
+                            <div className="h-4 w-full bg-muted rounded-2xl overflow-hidden shadow-inner border border-border/50">
+                                <div 
+                                    className="h-full rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-1000 shadow-lg relative"
+                                    style={{ width: `${stats?.totalEmployees ? (parseInt(completedPercent) / stats.totalEmployees) * 100 : 0}%` }}
+                                >
+                                    <div className="absolute inset-0 bg-white/20 animate-pulse" />
+                                </div>
+                            </div>
+                        </div>
 
-            {/* Phishing Simulations Table */}
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                    <div className="flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-orange-500" />
-                        <h2 className="font-semibold text-lg">Phishing Simulations</h2>
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="p-4 rounded-2xl bg-muted/40 border border-border text-center">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Completed</p>
+                                <p className="text-2xl font-bold">{completedPercent}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-muted/40 border border-border text-center">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">In-Progress</p>
+                                <p className="text-2xl font-bold">{inProgressPercent}</p>
+                            </div>
+                            <div className="p-4 rounded-2xl bg-muted/40 border border-border text-center">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Untouched</p>
+                                <p className="text-2xl font-bold">{(stats?.totalEmployees || 0) - parseInt(completedPercent) - parseInt(inProgressPercent)}</p>
+                            </div>
+                        </div>
                     </div>
-                    <button className="text-xs text-blue-500 hover:text-blue-600 transition-colors">View All →</button>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-muted/30 border-b border-border">
-                            <tr>
-                                {["Campaign", "Sent", "Opened", "Clicked", "Fail Rate", "Date"].map(h => (
-                                    <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {simulations.map(sim => {
-                                const failNum = parseInt(sim.failRate);
-                                const isHigh = failNum > 20;
-                                return (
-                                    <tr key={sim.name} className="hover:bg-muted/20 transition-colors">
-                                        <td className="px-5 py-4 font-medium text-sm">{sim.name}</td>
-                                        <td className="px-5 py-4 text-sm text-muted-foreground">{sim.sent}</td>
-                                        <td className="px-5 py-4 text-sm">{sim.opened} <span className="text-muted-foreground text-xs">({Math.round(sim.opened / sim.sent * 100)}%)</span></td>
-                                        <td className={`px-5 py-4 text-sm font-medium ${isHigh ? "text-red-500" : "text-foreground"}`}>{sim.clicked}</td>
-                                        <td className="px-5 py-4">
-                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isHigh ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-600"}`}>
-                                                {sim.failRate}
-                                            </span>
-                                        </td>
-                                        <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{sim.date}</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+
+                {/* Company Health Card */}
+                <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
+                    <div className="px-8 py-6 border-b border-border bg-muted/20">
+                        <h2 className="text-xl font-bold tracking-tight">Cloud Security Score</h2>
+                    </div>
+                    <div className="p-8 text-center space-y-6">
+                        <div className="relative inline-flex items-center justify-center">
+                            <svg className="w-32 h-32 transform -rotate-90">
+                                <circle
+                                    className="text-muted-foreground/10"
+                                    strokeWidth="8"
+                                    stroke="currentColor"
+                                    fill="transparent"
+                                    r="58"
+                                    cx="64"
+                                    cy="64"
+                                />
+                                <circle
+                                    className="text-blue-500 transition-all duration-1000"
+                                    strokeWidth="8"
+                                    strokeDasharray={364}
+                                    strokeDashoffset={364 - (364 * 82) / 100}
+                                    strokeLinecap="round"
+                                    stroke="currentColor"
+                                    fill="transparent"
+                                    r="58"
+                                    cx="64"
+                                    cy="64"
+                                />
+                            </svg>
+                            <span className="absolute text-3xl font-black">82</span>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="font-bold text-lg">Overall Organization Health</p>
+                            <p className="text-sm text-muted-foreground font-medium">B+ Rating (Competitive)</p>
+                        </div>
+                        <div className="flex items-center gap-2 justify-center p-3 rounded-2xl bg-blue-500/5 border border-blue-500/10 text-[10px] font-bold uppercase tracking-widest text-blue-600">
+                             <TrendingUp className="w-3 h-3" /> Up 4% from last month
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

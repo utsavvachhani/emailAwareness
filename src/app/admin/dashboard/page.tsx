@@ -1,199 +1,262 @@
 "use client";
 
 import { useAppSelector } from "@/lib/redux/hooks";
+import { useEffect, useState } from "react";
 import {
-    Users, Mail, Eye, CheckCircle, AlertTriangle, TrendingUp,
-    Shield, Activity, ArrowUp, ArrowDown, MoreHorizontal
+    Users, Building2, CreditCard, Shield, 
+    TrendingUp, ArrowRight, Loader2, Globe, Award, Plus
 } from "lucide-react";
+import Link from "next/link";
+import { adminGetGlobalStats, adminGetCompanies } from "@/api";
 
-const kpis = [
-    { title: "Total Employees", value: "248", change: "+12", period: "this month", trend: "up", icon: Users, color: "blue" },
-    { title: "Emails Sent", value: "1,842", change: "+124", period: "this week", trend: "up", icon: Mail, color: "purple" },
-    { title: "Open Rate", value: "71.4%", change: "+3.2%", period: "vs last week", trend: "up", icon: Eye, color: "green" },
-    { title: "Quiz Completion", value: "86.2%", change: "-0.8%", period: "vs last week", trend: "down", icon: CheckCircle, color: "yellow" },
-    { title: "High-Risk Users", value: "7", change: "-2", period: "vs last week", trend: "up", icon: AlertTriangle, color: "red" },
-    { title: "Avg Training Score", value: "82/100", change: "+5", period: "this month", trend: "up", icon: TrendingUp, color: "blue" },
-];
+interface GlobalStats {
+    totalCompanies: number;
+    totalEmployees: number;
+    plans: { plan: string; count: number }[];
+    companies: any[];
+}
 
-const colorMap: Record<string, string> = {
-    blue: "bg-blue-500/10 text-blue-500 border-blue-500/20",
-    purple: "bg-purple-500/10 text-purple-500 border-purple-500/20",
-    green: "bg-green-500/10 text-green-500 border-green-500/20",
-    yellow: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-    red: "bg-red-500/10 text-red-500 border-red-500/20",
-};
+export default function AdminGlobalDashboard() {
+    const { userInfo, token } = useAppSelector(s => s.auth);
+    const [stats, setStats] = useState<GlobalStats | null>(null);
+    const [loading, setLoading] = useState(true);
 
-const employees = [
-    { name: "Riya Patel", email: "riya@example.com", dept: "Engineering", score: 94, modules: "4/4", lastActive: "Today", risk: "low" },
-    { name: "Arjun Shah", email: "arjun@example.com", dept: "Sales", score: 72, modules: "3/4", lastActive: "Yesterday", risk: "medium" },
-    { name: "Meera Joshi", email: "meera@example.com", dept: "HR", score: 88, modules: "4/4", lastActive: "Today", risk: "low" },
-    { name: "Rahul Desai", email: "rahul@example.com", dept: "Finance", score: 41, modules: "1/4", lastActive: "5 days ago", risk: "high" },
-    { name: "Priya Modi", email: "priya@example.com", dept: "Marketing", score: 67, modules: "2/4", lastActive: "2 days ago", risk: "medium" },
-    { name: "Vivek Kumar", email: "vivek@example.com", dept: "IT", score: 98, modules: "4/4", lastActive: "Today", risk: "low" },
-];
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                // Fetch Global Stats and Companies in parallel
+                const [statsRes, companiesRes] = await Promise.all([
+                    adminGetGlobalStats(),
+                    adminGetCompanies()
+                ]);
 
-const simulations = [
-    { name: "Q1 Phishing Test", sent: 248, opened: 187, clicked: 43, date: "Mar 8, 2026", failRate: "17.3%" },
-    { name: "CEO Fraud Simulation", sent: 248, opened: 201, clicked: 28, date: "Feb 22, 2026", failRate: "11.3%" },
-    { name: "Invoice Scam Test", sent: 248, opened: 165, clicked: 61, date: "Feb 5, 2026", failRate: "24.6%" },
-    { name: "IT Support Pretexting", sent: 248, opened: 142, clicked: 19, date: "Jan 18, 2026", failRate: "7.7%" },
-];
+                if (statsRes.data.success && companiesRes.data.success) {
+                    setStats({
+                        ...statsRes.data.stats,
+                        companies: companiesRes.data.companies
+                    });
+                }
+            } catch (err) {
+                console.error("Dashboard stats fetch error:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-const riskBadge = (risk: string) => {
-    const map: Record<string, string> = {
-        low: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-        medium: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
-        high: "bg-red-500/10 text-red-500 border-red-500/20",
-    };
-    return <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${map[risk]}`}>{risk.charAt(0).toUpperCase() + risk.slice(1)}</span>;
-};
+        if (token) fetchStats();
+    }, [token]);
 
-export default function AdminDashboardPage() {
-    const { userInfo } = useAppSelector(s => s.auth);
+    if (loading) {
+        return (
+            <div className="flex h-[60vh] items-center justify-center">
+                <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            </div>
+        );
+    }
 
     return (
-        <div className="space-y-6">
-            {/* Page Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Welcome back, {userInfo?.firstName}. Here's your organisation's training overview.
-                    </p>
+        <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
+            {/* Header Section */}
+            <div className="relative overflow-hidden rounded-3xl bg-blue-600 p-8 text-white shadow-xl shadow-blue-500/20">
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <h1 className="text-3xl font-extrabold tracking-tight">Global Administrator Overview</h1>
+                        <p className="mt-2 text-blue-100 max-w-xl">
+                            Welcome back, {userInfo?.firstName}. Manage your entire ecosystem of {stats?.totalCompanies} companies and {stats?.totalEmployees} employees from this central hub.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-2xl px-5 py-3 border border-white/20">
+                        <Shield className="h-6 w-6 text-blue-200" />
+                        <span className="font-bold text-lg">CyberShield Admin</span>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-                    <Shield className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm font-medium text-blue-600">Admin Access</span>
-                </div>
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 -mt-8 -mr-8 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
+                <div className="absolute bottom-0 left-0 -mb-8 -ml-8 h-48 w-48 rounded-full bg-blue-400/10 blur-2xl" />
             </div>
 
-            {/* KPI Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                {kpis.map(kpi => {
-                    const Icon = kpi.icon;
-                    const isUp = kpi.trend === "up";
-                    return (
-                        <div key={kpi.title} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow">
-                            <div className="flex items-start justify-between mb-3">
-                                <p className="text-sm text-muted-foreground">{kpi.title}</p>
-                                <div className={`p-2 rounded-lg border ${colorMap[kpi.color]}`}>
-                                    <Icon className="h-4 w-4" />
-                                </div>
-                            </div>
-                            <p className="text-2xl font-bold mb-2">{kpi.value}</p>
-                            <div className={`flex items-center gap-1 text-xs font-medium ${
-                                kpi.color === "red" ? (isUp ? "text-emerald-600" : "text-red-500") :
-                                isUp ? "text-emerald-600" : "text-red-500"
-                            }`}>
-                                {isUp ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                                <span>{kpi.change}</span>
-                                <span className="text-muted-foreground font-normal">{kpi.period}</span>
-                            </div>
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="group bg-card border border-border rounded-2xl p-6 hover:shadow-lg transition-all hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                            <Building2 className="w-6 h-6" />
                         </div>
-                    );
-                })}
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">Active Portfolio</span>
+                    </div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Managed Companies</h3>
+                    <p className="text-3xl font-bold mt-1">{stats?.totalCompanies || 0}</p>
+                    <Link href="/admin/dashboard/companies" className="flex items-center gap-2 mt-4 text-xs font-semibold text-blue-600 hover:gap-3 transition-all">
+                        View all companies <ArrowRight className="w-3 h-3" />
+                    </Link>
+                </div>
+
+                <div className="group bg-card border border-border rounded-2xl p-6 hover:shadow-lg transition-all hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 rounded-xl bg-purple-500/10 text-purple-600 border border-purple-500/20 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                            <Users className="w-6 h-6" />
+                        </div>
+                        <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Total Reach</span>
+                    </div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Total Employees</h3>
+                    <p className="text-3xl font-bold mt-1">{stats?.totalEmployees || 0}</p>
+                    <div className="flex items-center gap-2 mt-4 text-xs font-semibold text-purple-600">
+                        <TrendingUp className="w-3 h-3" /> Across all regions
+                    </div>
+                </div>
+
+                <div className="group bg-card border border-border rounded-2xl p-6 hover:shadow-lg transition-all hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="p-3 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                            <Award className="w-6 h-6" />
+                        </div>
+                        <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Plan Distribution</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                        {stats?.plans && stats.plans.length > 0 ? stats.plans.map(p => (
+                            <div key={p.plan} className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-muted text-[10px] font-bold uppercase tracking-tighter border border-border">
+                                <span className="text-muted-foreground">{p.plan}:</span>
+                                <span>{p.count}</span>
+                            </div>
+                        )) : (
+                            <p className="text-sm text-muted-foreground italic">No active plans</p>
+                        )}
+                    </div>
+                    <div className="mt-6 pt-4 border-t border-border/50">
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase">Most Popular</p>
+                        <p className="text-xs font-bold mt-0.5">
+                            {stats?.plans?.sort((a,b) => b.count - a.count)[0]?.plan || "N/A"} Plan
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            {/* Employee Table */}
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                    <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-blue-500" />
-                        <h2 className="font-semibold text-lg">Employee Training Status</h2>
+            {/* Action Areas Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Companies Section */}
+                <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm flex flex-col">
+                    <div className="px-8 py-6 border-b border-border bg-muted/30 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                                <Building2 className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-xl font-bold tracking-tight">Portfolio Overview</h2>
+                        </div>
+                        <Link href="/admin/dashboard/companies" className="text-xs font-bold text-blue-600 hover:text-blue-700">View All →</Link>
                     </div>
-                    <span className="text-xs text-muted-foreground">{employees.length} employees</span>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-muted/30 border-b border-border">
-                            <tr>
-                                {["Employee", "Department", "Score", "Modules", "Last Active", "Risk Level", ""].map(h => (
-                                    <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {employees.map(emp => (
-                                <tr key={emp.email} className="hover:bg-muted/20 transition-colors group">
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-xs font-bold text-blue-600 shrink-0">
-                                                {emp.name.split(" ").map(n => n[0]).join("")}
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium">{emp.name}</p>
-                                                <p className="text-xs text-muted-foreground">{emp.email}</p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-md">{emp.dept}</span>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full ${emp.score >= 80 ? "bg-emerald-500" : emp.score >= 60 ? "bg-yellow-500" : "bg-red-400"}`}
-                                                    style={{ width: `${emp.score}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-sm font-semibold">{emp.score}%</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4 text-sm text-muted-foreground">{emp.modules}</td>
-                                    <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{emp.lastActive}</td>
-                                    <td className="px-5 py-4">{riskBadge(emp.risk)}</td>
-                                    <td className="px-5 py-4">
-                                        <button className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted rounded transition-all">
-                                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                                        </button>
-                                    </td>
+                    <div className="flex-1 overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground border-b border-border">
+                                <tr>
+                                    <th className="px-8 py-4">Company Name</th>
+                                    <th className="px-5 py-4">Plan</th>
+                                    <th className="px-5 py-4 text-center">Headcount</th>
+                                    <th className="px-8 py-4 text-right">Action</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Phishing Simulations Table */}
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                    <div className="flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-orange-500" />
-                        <h2 className="font-semibold text-lg">Phishing Simulations</h2>
-                    </div>
-                    <button className="text-xs text-blue-500 hover:text-blue-600 transition-colors">View All →</button>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
-                        <thead className="bg-muted/30 border-b border-border">
-                            <tr>
-                                {["Campaign", "Sent", "Opened", "Clicked", "Fail Rate", "Date"].map(h => (
-                                    <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {simulations.map(sim => {
-                                const failNum = parseInt(sim.failRate);
-                                const isHigh = failNum > 20;
-                                return (
-                                    <tr key={sim.name} className="hover:bg-muted/20 transition-colors">
-                                        <td className="px-5 py-4 font-medium text-sm">{sim.name}</td>
-                                        <td className="px-5 py-4 text-sm text-muted-foreground">{sim.sent}</td>
-                                        <td className="px-5 py-4 text-sm">{sim.opened} <span className="text-muted-foreground text-xs">({Math.round(sim.opened / sim.sent * 100)}%)</span></td>
-                                        <td className={`px-5 py-4 text-sm font-medium ${isHigh ? "text-red-500" : "text-foreground"}`}>{sim.clicked}</td>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {stats?.companies?.slice(0, 5).map(c => (
+                                    <tr key={c.id} className="group hover:bg-muted/30 transition-colors">
+                                        <td className="px-8 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center text-[10px] font-bold">
+                                                    {c.name.split(" ").map((n: string) => n[0]).join("")}
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-bold group-hover:text-blue-600 transition-colors">{c.name}</p>
+                                                    <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">{c.company_id}</p>
+                                                </div>
+                                            </div>
+                                        </td>
                                         <td className="px-5 py-4">
-                                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isHigh ? "bg-red-500/10 text-red-500" : "bg-emerald-500/10 text-emerald-600"}`}>
-                                                {sim.failRate}
+                                            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                                                c.plan === 'premium' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 
+                                                c.plan === 'standard' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' : 
+                                                'bg-slate-300/10 text-slate-500 border-slate-300/30'
+                                            }`}>
+                                                {c.plan}
                                             </span>
                                         </td>
-                                        <td className="px-5 py-4 text-sm text-muted-foreground whitespace-nowrap">{sim.date}</td>
+                                        <td className="px-5 py-4 text-center font-bold text-sm">
+                                            {c.num_employees || 0}
+                                        </td>
+                                        <td className="px-8 py-4 text-right">
+                                            <Link 
+                                                href={`/admin/dashboard/${c.id}`} 
+                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-white hover:shadow-md transition-all text-muted-foreground hover:text-blue-600 border border-transparent hover:border-border"
+                                            >
+                                                <ArrowRight className="w-4 h-4" />
+                                            </Link>
+                                        </td>
                                     </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        {!stats?.companies?.length && (
+                            <div className="p-20 text-center space-y-4">
+                                <div className="mx-auto w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                                    <Globe className="w-8 h-8" />
+                                </div>
+                                <div className="max-w-sm mx-auto">
+                                    <p className="text-sm text-muted-foreground">
+                                        No companies managed yet. Onboard new organizations to see them here.
+                                    </p>
+                                </div>
+                                <Link 
+                                    href="/admin/dashboard/companies" 
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
+                                >
+                                    Create First Company <Plus className="w-3.5 h-3.5" />
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Subscriptions & Billing */}
+                <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm flex flex-col">
+                    <div className="px-8 py-6 border-b border-border bg-muted/30 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+                                <CreditCard className="w-5 h-5" />
+                            </div>
+                            <h2 className="text-xl font-bold tracking-tight">License Overview</h2>
+                        </div>
+                    </div>
+                    <div className="p-8">
+                        <div className="space-y-4">
+                            {stats?.plans?.map(p => {
+                                const percentage = stats.totalCompanies ? (p.count / stats.totalCompanies) * 100 : 0;
+                                return (
+                                    <div key={p.plan} className="space-y-2">
+                                        <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                                            <span>{p.plan} Tier</span>
+                                            <span className="text-muted-foreground">{p.count} Entities</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full rounded-full transition-all duration-1000 ${
+                                                    p.plan === 'premium' ? 'bg-amber-500' : 
+                                                    p.plan === 'standard' ? 'bg-blue-500' : 'bg-slate-400'
+                                                }`}
+                                                style={{ width: `${percentage}%` }}
+                                            />
+                                        </div>
+                                    </div>
                                 );
                             })}
-                        </tbody>
-                    </table>
+                            {!stats?.plans?.length && (
+                                <div className="text-center py-8 text-muted-foreground italic text-sm">
+                                    No subscription data available
+                                </div>
+                            )}
+                        </div>
+                        <div className="mt-8">
+                            <p className="text-xs text-muted-foreground text-center">
+                                Detailed billing per company is available in the Company Portal.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
