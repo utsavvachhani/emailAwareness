@@ -121,6 +121,12 @@ export const signin = async (req, res) => {
         .status(403)
         .json({ success: false, message: "Account registration rejected." });
     }
+    if (user.status === "blocked") {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been blocked by the superadmin.",
+      });
+    }
 
     const { accessToken, refreshToken } = issueTokens(res, user);
     await pool.query("UPDATE admins SET last_login = NOW() WHERE id = $1", [

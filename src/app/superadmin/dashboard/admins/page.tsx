@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Clock, Loader2, User, Mail, RefreshCw, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Loader2, User, Mail, RefreshCw, AlertTriangle, Ban, Unlock, Eye, Calendar, Phone, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
 
@@ -17,6 +17,7 @@ interface UserData {
     role?: string;
     is_verified: boolean;
     created_at: string;
+    last_login?: string;
 }
 
 export default function AdminApprovalsPage() {
@@ -27,6 +28,8 @@ export default function AdminApprovalsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [tab, setTab] = useState<"pending" | "all" | "users">("pending");
+    const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
     // Filter/Sort States
     const [search, setSearch] = useState("");
@@ -67,18 +70,22 @@ export default function AdminApprovalsPage() {
 
     useEffect(() => { fetchAdmins(); }, [token]);
 
-    const handleAction = async (id: number, action: "approve" | "reject") => {
+    const handleAction = async (id: number, action: "approve" | "reject" | "block" | "unblock", role?: string) => {
         setProcessingId(id);
+        const type = (role || (tab === "users" ? "user" : "admin")) === 'user' ? "users" : "admins";
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/admins/${id}/${action}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/${type}/${id}/${action}`, {
                 method: "PATCH",
                 headers: { Authorization: `Bearer ${token}` },
                 credentials: "include",
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
-            toast.success(`Admin ${action === "approve" ? "approved" : "rejected"} successfully!`);
+            toast.success(`${type === "users" ? "User" : "Admin"} ${action === "approve" ? "approved" : action === "reject" ? "rejected" : action === "block" ? "blocked" : "unblocked"} successfully!`);
             fetchAdmins();
+            if (selectedUser?.id === id) {
+                setSelectedUser(prev => prev ? { ...prev, status: action === "block" ? "blocked" : "active" } : null);
+            }
         } catch (err: any) {
             toast.error(err.message || "Action failed");
         } finally {
@@ -111,12 +118,14 @@ export default function AdminApprovalsPage() {
             pending:  "bg-blue-500/10 text-blue-600 border-blue-500/20",
             active:   "bg-green-500/10 text-green-600 border-green-500/20",
             rejected: "bg-red-500/10 text-red-500 border-red-500/20",
+            blocked:  "bg-gray-500/10 text-gray-500 border-gray-500/20",
         };
         return (
             <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${styles[status] || ""}`}>
                 {status === "pending" && <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
                 {status === "active"  && <span className="w-1.5 h-1.5 rounded-full bg-green-600" />}
                 {status === "rejected" && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
+                {status === "blocked" && <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />}
                 {status.charAt(0).toUpperCase() + status.slice(1)}
             </span>
         );
@@ -206,6 +215,7 @@ export default function AdminApprovalsPage() {
                             <option value="active">Status: Active</option>
                             <option value="pending">Status: Pending</option>
                             <option value="rejected">Status: Rejected</option>
+                            <option value="blocked">Status: Blocked</option>
                         </select>
                     )}
 
@@ -253,12 +263,15 @@ export default function AdminApprovalsPage() {
                             {displayList.map(admin => (
                                 <tr key={admin.id} className="hover:bg-muted/20 transition-colors">
                                     <td className="px-5 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-sm font-semibold text-blue-600">
+                                        <div 
+                                            className="flex items-center gap-3 cursor-pointer group"
+                                            onClick={() => { setSelectedUser(admin); setIsViewModalOpen(true); }}
+                                        >
+                                            <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-sm font-semibold text-blue-600 group-hover:bg-blue-500/20 transition-all">
                                                 {admin.firstName[0]}{admin.lastName[0]}
                                             </div>
                                             <div>
-                                                <p className="font-medium text-sm">{admin.firstName} {admin.lastName}</p>
+                                                <p className="font-medium text-sm group-hover:text-blue-600 transition-colors">{admin.firstName} {admin.lastName}</p>
                                                 {!admin.is_verified && <span className="text-xs text-yellow-600">Email not verified</span>}
                                             </div>
                                         </div>
@@ -278,7 +291,7 @@ export default function AdminApprovalsPage() {
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-2">
                                                 <button
-                                                    onClick={() => handleAction(admin.id, "approve")}
+                                                    onClick={() => handleAction(admin.id, "approve", admin.role)}
                                                     disabled={processingId === admin.id}
                                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-600 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium disabled:opacity-50"
                                                 >
@@ -286,7 +299,7 @@ export default function AdminApprovalsPage() {
                                                     Approve
                                                 </button>
                                                 <button
-                                                    onClick={() => handleAction(admin.id, "reject")}
+                                                    onClick={() => handleAction(admin.id, "reject", admin.role)}
                                                     disabled={processingId === admin.id}
                                                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
                                                 >
@@ -298,26 +311,68 @@ export default function AdminApprovalsPage() {
                                     )}
                                     {tab === "all" && (
                                         <td className="px-5 py-4">
-                                            <button
-                                                onClick={() => handleDelete(admin.id, "admin")}
-                                                disabled={processingId === admin.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                            >
-                                                {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                                Delete
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                {admin.status === "active" ? (
+                                                    <button
+                                                        onClick={() => handleAction(admin.id, "block", admin.role)}
+                                                        disabled={processingId === admin.id}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-600 border border-orange-500/20 hover:bg-orange-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                                    >
+                                                        {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                                        Block
+                                                    </button>
+                                                ) : admin.status === "blocked" ? (
+                                                    <button
+                                                        onClick={() => handleAction(admin.id, "unblock", admin.role)}
+                                                        disabled={processingId === admin.id}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-600 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                                    >
+                                                        {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                                                        Unblock
+                                                    </button>
+                                                ) : null}
+                                                <button
+                                                    onClick={() => handleDelete(admin.id, "admin")}
+                                                    disabled={processingId === admin.id}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                                >
+                                                    {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </td>
                                     )}
                                     {tab === "users" && (
                                         <td className="px-5 py-4">
-                                            <button
-                                                onClick={() => handleDelete(admin.id, "user")}
-                                                disabled={processingId === admin.id}
-                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                            >
-                                                {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                                Delete
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                {admin.status === "active" ? (
+                                                    <button
+                                                        onClick={() => handleAction(admin.id, "block", admin.role)}
+                                                        disabled={processingId === admin.id}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-600 border border-orange-500/20 hover:bg-orange-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                                    >
+                                                        {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                                        Block
+                                                    </button>
+                                                ) : admin.status === "blocked" ? (
+                                                    <button
+                                                        onClick={() => handleAction(admin.id, "unblock", admin.role)}
+                                                        disabled={processingId === admin.id}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-600 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                                    >
+                                                        {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                                                        Unblock
+                                                    </button>
+                                                ) : null}
+                                                <button
+                                                    onClick={() => handleDelete(admin.id, "user")}
+                                                    disabled={processingId === admin.id}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
+                                                >
+                                                    {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                    Delete
+                                                </button>
+                                            </div>
                                         </td>
                                     )}
                                 </tr>
@@ -326,6 +381,111 @@ export default function AdminApprovalsPage() {
                     </table>
                 )}
             </div>
+            {/* Admin Details Modal */}
+            {isViewModalOpen && selectedUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+                            <h3 className="text-lg font-semibold">Admin Details</h3>
+                            <button 
+                                onClick={() => setIsViewModalOpen(false)}
+                                className="p-1 rounded-full hover:bg-muted transition-colors"
+                            >
+                                <XCircle className="w-6 h-6 text-muted-foreground" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-2xl font-bold text-blue-600">
+                                    {selectedUser.firstName[0]}{selectedUser.lastName[0]}
+                                </div>
+                                <div>
+                                    <h4 className="text-xl font-bold">{selectedUser.firstName} {selectedUser.lastName}</h4>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <StatusBadge status={selectedUser.status} />
+                                        {selectedUser.is_verified ? (
+                                            <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full border border-green-500/20 font-bold uppercase tracking-wider">Verified</span>
+                                        ) : (
+                                            <span className="text-[10px] bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded-full border border-yellow-500/20 font-bold uppercase tracking-wider">Unverified</span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
+                                        <Mail className="w-3 h-3" /> Email Address
+                                    </p>
+                                    <p className="text-sm font-medium">{selectedUser.email}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
+                                        <Phone className="w-3 h-3" /> Phone Number
+                                    </p>
+                                    <p className="text-sm font-medium">{selectedUser.mobile || "Not provided"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
+                                        <Calendar className="w-3 h-3" /> Joined On
+                                    </p>
+                                    <p className="text-sm font-medium">{new Date(selectedUser.created_at).toLocaleDateString("en-IN", { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
+                                        <Clock className="w-3 h-3" /> Last Login
+                                    </p>
+                                    <p className="text-sm font-medium">{selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleString("en-IN") : "Never"}</p>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-border flex flex-wrap gap-2">
+                                {selectedUser.status === 'pending' && (
+                                    <>
+                                        <button
+                                            onClick={() => handleAction(selectedUser.id, "approve", selectedUser.role)}
+                                            disabled={processingId === selectedUser.id}
+                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-all font-semibold disabled:opacity-50"
+                                        >
+                                            {processingId === selectedUser.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+                                            Approve Admin
+                                        </button>
+                                        <button
+                                            onClick={() => handleAction(selectedUser.id, "reject", selectedUser.role)}
+                                            disabled={processingId === selectedUser.id}
+                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all font-semibold disabled:opacity-50"
+                                        >
+                                            {processingId === selectedUser.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+                                            Reject
+                                        </button>
+                                    </>
+                                )}
+                                {selectedUser.status === 'active' && (
+                                    <button
+                                        onClick={() => handleAction(selectedUser.id, "block", selectedUser.role)}
+                                        disabled={processingId === selectedUser.id}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 transition-all font-semibold disabled:opacity-50"
+                                    >
+                                        {processingId === selectedUser.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                                        Block Account
+                                    </button>
+                                )}
+                                {selectedUser.status === 'blocked' && (
+                                    <button
+                                        onClick={() => handleAction(selectedUser.id, "unblock", selectedUser.role)}
+                                        disabled={processingId === selectedUser.id}
+                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-all font-semibold disabled:opacity-50"
+                                    >
+                                        {processingId === selectedUser.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                                        Unblock Account
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

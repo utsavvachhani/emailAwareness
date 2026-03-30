@@ -147,6 +147,10 @@ export const signin = async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
+    if (user.status === "blocked") {
+      return res.status(403).json({ success: false, message: "Your account has been blocked by the superadmin." });
+    }
+
     if (!user.is_verified) {
       return res.status(403).json({ success: false, message: "Email not verified", needsVerification: true, email: user.email });
     }

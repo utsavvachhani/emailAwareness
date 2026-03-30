@@ -106,7 +106,7 @@ export const getPendingAdmins = async (req, res) => {
 export const getAllAdmins = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, first_name AS "firstName", last_name AS "lastName", email, mobile, status, is_verified, created_at, last_login
+      `SELECT id, first_name AS "firstName", last_name AS "lastName", email, mobile, status, role, is_verified, created_at, last_login
        FROM admins WHERE role = 'admin' ORDER BY created_at DESC`
     );
     return res.status(200).json({ success: true, admins: result.rows });
@@ -141,6 +141,30 @@ export const rejectAdmin = async (req, res) => {
   } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
 };
 
+export const blockAdmin = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE admins SET status = 'blocked' WHERE id = $1 AND role = 'admin' RETURNING id, first_name AS "firstName", last_name AS "lastName", email, status`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: "Admin not found" });
+    return res.status(200).json({ success: true, message: "Admin blocked successfully", admin: result.rows[0] });
+  } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
+};
+
+export const unblockAdmin = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE admins SET status = 'active' WHERE id = $1 AND role = 'admin' RETURNING id, first_name AS "firstName", last_name AS "lastName", email, status`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: "Admin not found" });
+    return res.status(200).json({ success: true, message: "Admin unblocked successfully", admin: result.rows[0] });
+  } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
+};
+
 // ─── Management: Users ──────────────────────────────────────────────────────────
 export const getAllUsers = async (req, res) => {
   try {
@@ -160,6 +184,30 @@ export const deleteUser = async (req, res) => {
     const result = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [id]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: "User not found" });
     return res.status(200).json({ success: true, message: "User deleted successfully" });
+  } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
+};
+
+export const blockUser = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE users SET status = 'blocked' WHERE id = $1 AND role = 'user' RETURNING id, first_name AS "firstName", last_name AS "lastName", email, status`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: "User not found" });
+    return res.status(200).json({ success: true, message: "User blocked successfully", user: result.rows[0] });
+  } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
+};
+
+export const unblockUser = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `UPDATE users SET status = 'active' WHERE id = $1 AND role = 'user' RETURNING id, first_name AS "firstName", last_name AS "lastName", email, status`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: "User not found" });
+    return res.status(200).json({ success: true, message: "User unblocked successfully", user: result.rows[0] });
   } catch (error) { return res.status(500).json({ success: false, message: "Internal error" }); }
 };
 

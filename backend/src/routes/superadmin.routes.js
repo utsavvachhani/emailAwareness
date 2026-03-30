@@ -6,11 +6,15 @@ import {
   getAllAdmins,
   approveAdmin,
   rejectAdmin,
+  blockAdmin,
+  unblockAdmin,
   getAllUsers,
   getLoginAudit,
   getProfile,
   updateProfile,
   deleteUser,
+  blockUser,
+  unblockUser,
   deleteAdmin,
   refreshTokenController,
 } from "../controllers/superadmin.controller.js";
@@ -74,6 +78,18 @@ router.patch(
   requireRole("superadmin"),
   rejectAdmin,
 );
+router.patch(
+  "/admins/:id/block",
+  authMiddleware,
+  requireRole("superadmin"),
+  blockAdmin,
+);
+router.patch(
+  "/admins/:id/unblock",
+  authMiddleware,
+  requireRole("superadmin"),
+  unblockAdmin,
+);
 
 router.get(
   "/users/all",
@@ -86,6 +102,18 @@ router.delete(
   authMiddleware,
   requireRole("superadmin"),
   deleteUser,
+);
+router.patch(
+  "/users/:id/block",
+  authMiddleware,
+  requireRole("superadmin"),
+  blockUser,
+);
+router.patch(
+  "/users/:id/unblock",
+  authMiddleware,
+  requireRole("superadmin"),
+  unblockUser,
 );
 router.delete(
   "/admins/:id",
