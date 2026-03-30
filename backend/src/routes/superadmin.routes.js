@@ -17,6 +17,16 @@ import {
   unblockUser,
   deleteAdmin,
   refreshTokenController,
+  getAdminPortfolioStats,
+  getAdminCompaniesUnderSuperadmin,
+  getCompanyDetailsSuperadmin,
+  getCompanyStatsSuperadmin,
+  getCompanyEmployeesSuperadmin,
+  getCompanyCoursesSuperadmin,
+  updateCompanyBillingSuperadmin,
+  getModuleDetailsSuperadmin,
+  getCourseModulesSuperadmin,
+  getCourseDetailsSuperadmin,
 } from "../controllers/superadmin.controller.js";
 import {
   getAllCompanies,
@@ -89,6 +99,68 @@ router.patch(
   authMiddleware,
   requireRole("superadmin"),
   unblockAdmin,
+);
+router.get(
+  "/admins/:adminId/stats",
+  authMiddleware,
+  requireRole("superadmin"),
+  getAdminPortfolioStats,
+);
+router.get(
+  "/admins/:adminId/companies",
+  authMiddleware,
+  requireRole("superadmin"),
+  getAdminCompaniesUnderSuperadmin,
+);
+
+// Company Drill-Down (Superadmin)
+router.get(
+  "/companies/:companyId",
+  authMiddleware,
+  requireRole("superadmin"),
+  getCompanyDetailsSuperadmin,
+);
+router.get(
+  "/companies/:companyId/stats",
+  authMiddleware,
+  requireRole("superadmin"),
+  getCompanyStatsSuperadmin,
+);
+router.get(
+  "/companies/:companyId/employees",
+  authMiddleware,
+  requireRole("superadmin"),
+  getCompanyEmployeesSuperadmin,
+);
+router.get(
+  "/companies/:companyId/courses",
+  authMiddleware,
+  requireRole("superadmin"),
+  getCompanyCoursesSuperadmin,
+);
+router.patch(
+  "/companies/:companyId/billing",
+  authMiddleware,
+  requireRole("superadmin"),
+  updateCompanyBillingSuperadmin,
+);
+router.get(
+  "/modules/:moduleId",
+  authMiddleware,
+  requireRole("superadmin"),
+  getModuleDetailsSuperadmin,
+);
+router.get(
+  "/courses/:courseId/modules",
+  authMiddleware,
+  requireRole("superadmin"),
+  getCourseModulesSuperadmin,
+);
+router.get(
+  "/courses/:id",
+  authMiddleware,
+  requireRole("superadmin"),
+  getCourseDetailsSuperadmin,
 );
 
 router.get(

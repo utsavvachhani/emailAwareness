@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Clock, Loader2, User, Mail, RefreshCw, AlertTriangle, Ban, Unlock, Eye, Calendar, Phone, Shield } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Loader2, User, Mail, RefreshCw, AlertTriangle, Ban, Unlock, Eye, Calendar, Phone, Shield, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
+import Link from "next/link";
 
 import { Trash2 } from "lucide-react";
 
@@ -312,6 +313,13 @@ export default function AdminApprovalsPage() {
                                     {tab === "all" && (
                                         <td className="px-5 py-4">
                                             <div className="flex items-center gap-2">
+                                                <Link
+                                                    href={`/superadmin/dashboard/admins/${admin.id}`}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-sm font-medium"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    View
+                                                </Link>
                                                 {admin.status === "active" ? (
                                                     <button
                                                         onClick={() => handleAction(admin.id, "block", admin.role)}
@@ -441,6 +449,13 @@ export default function AdminApprovalsPage() {
                             </div>
 
                             <div className="pt-4 border-t border-border flex flex-wrap gap-2">
+                                <Link
+                                    href={`/superadmin/dashboard/admins/${selectedUser.id}`}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all font-semibold"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                    View Admin Dashboard
+                                </Link>
                                 {selectedUser.status === 'pending' && (
                                     <>
                                         <button

@@ -253,7 +253,7 @@ export const getAllCourses = async (req, res) => {
     const { status } = req.query;
     let query = `
       SELECT c.*,
-             comp.name AS "companyName", comp.plan AS "companyPlan",
+             comp.name AS "companyName", comp.plan AS "companyPlan", comp.company_id AS "companyStringId",
              a.first_name AS "adminFirstName", a.last_name AS "adminLastName", a.email AS "adminEmail"
       FROM courses c
       LEFT JOIN companies comp ON c.company_id = comp.id

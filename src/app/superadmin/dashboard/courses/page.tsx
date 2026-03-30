@@ -32,6 +32,8 @@ type Course = {
   adminFirstName: string;
   adminLastName: string;
   adminEmail: string;
+  admin_id: number;
+  companyStringId: string;
 };
 
 // ─── Config maps ───────────────────────────────────────────────────────────────
@@ -112,9 +114,9 @@ function CourseDetailModal({ course, onClose, onApprove, onReject, onReset, proc
             <button
               onClick={() => {
                  if (routerInstance) {
-                   routerInstance.push(`/superadmin/dashboard/courses/${course.id}`);
+                   routerInstance.push(`/superadmin/dashboard/admins/${course.admin_id}/companies/${course.companyStringId}/courses`);
                  } else {
-                   window.location.href = `/superadmin/dashboard/courses/${course.id}`;
+                   window.location.href = `/superadmin/dashboard/admins/${course.admin_id}/companies/${course.companyStringId}/courses`;
                  }
               }}
               className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 text-xs font-semibold hover:bg-blue-500/20 transition-colors mr-2"

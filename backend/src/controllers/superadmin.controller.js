@@ -261,3 +261,216 @@ export const updateProfile = async (req, res) => {
     return res.status(200).json({ success: true, message: "Profile updated" });
   } catch (err) { return res.status(500).json({ success: false, message: "Internal error" }); }
 };
+
+// ─── Superadmin: Admin Drill-Down ──────────────────────────────────────────────
+export const getAdminPortfolioStats = async (req, res) => {
+  const { adminId } = req.params;
+  try {
+    const companiesRes = await pool.query("SELECT count(*)::int as count, plan FROM companies WHERE admin_id=$1 GROUP BY plan", [adminId]);
+    const plans = companiesRes.rows.map(row => ({ plan: row.plan, count: row.count }));
+    const totalCompanies = plans.reduce((acc, p) => acc + p.count, 0);
+
+    const employeesRes = await pool.query(
+      "SELECT count(*)::int FROM employees e JOIN companies c ON e.company_id = c.id WHERE c.admin_id = $1",
+      [adminId]
+    );
+    const totalEmployees = parseInt(employeesRes.rows[0].count);
+
+    const adminDetails = await pool.query(`SELECT first_name AS "firstName", last_name AS "lastName", email FROM admins WHERE id = $1`, [adminId]);
+
+    return res.status(200).json({
+      success: true,
+      stats: { totalCompanies, totalEmployees, plans },
+      admin: adminDetails.rows[0]
+    });
+  } catch (err) {
+    console.error("getAdminPortfolioStats error:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const getAdminCompaniesUnderSuperadmin = async (req, res) => {
+  const { adminId } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT c.*, 
+              (SELECT COUNT(*)::int FROM employees WHERE company_id = c.id) AS num_employees
+       FROM companies c
+       WHERE c.admin_id = $1
+       ORDER BY c.created_at DESC`,
+      [adminId]
+    );
+    return res.status(200).json({ success: true, companies: result.rows });
+  } catch (err) {
+    console.error("getAdminCompaniesUnderSuperadmin:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const getCompanyDetailsSuperadmin = async (req, res) => {
+  const { companyId } = req.params;
+  try {
+    const isSerial = /^\d+$/.test(companyId);
+    const result = await pool.query(
+      `SELECT c.*, 
+              (SELECT COUNT(*)::int FROM employees WHERE company_id = c.id) AS num_employees 
+       FROM companies c 
+       WHERE (${isSerial ? 'c.id' : 'c.company_id'} = $1)`,
+      [companyId]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ success: false, message: "Company not found" });
+    return res.status(200).json({ success: true, company: result.rows[0] });
+  } catch (err) {
+    console.error("getCompanyDetailsSuperadmin:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const getCompanyStatsSuperadmin = async (req, res) => {
+  const { companyId } = req.params;
+  try {
+    const isSerial = /^\d+$/.test(companyId);
+    const companyRes = await pool.query(
+      `SELECT id FROM companies WHERE ${isSerial ? 'id' : 'company_id'} = $1`,
+      [companyId]
+    );
+    if (companyRes.rows.length === 0) return res.status(404).json({ success: false, message: "Company not found" });
+    const internalId = companyRes.rows[0].id;
+
+    const employeesCount = await pool.query("SELECT count(*) FROM employees WHERE company_id=$1", [internalId]);
+    const coursesCount = await pool.query("SELECT count(*) FROM company_courses WHERE company_id=$1", [internalId]);
+    
+    let progress = [];
+    try {
+      const progressRes = await pool.query(
+        `SELECT status, count(*)::int 
+         FROM employee_progress ep
+         JOIN employees e ON ep.employee_id = e.id
+         WHERE e.company_id = $1
+         GROUP BY status`,
+        [internalId]
+      );
+      progress = progressRes.rows || [];
+    } catch (e) {
+      console.error("Progress fetch inner error:", e.message);
+    }
+
+    return res.status(200).json({ 
+      success: true, 
+      stats: {
+        totalEmployees: parseInt(employeesCount.rows[0]?.count || "0"),
+        assignedCourses: parseInt(coursesCount.rows[0]?.count || "0"),
+        progress: progress
+      }
+    });
+  } catch (err) {
+    console.error("getCompanyStatsSuperadmin Error:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const getCompanyEmployeesSuperadmin = async (req, res) => {
+  const { companyId } = req.params;
+  try {
+    const isSerial = /^\d+$/.test(companyId);
+    const companyRes = await pool.query(`SELECT id FROM companies WHERE ${isSerial ? 'id' : 'company_id'} = $1`, [companyId]);
+    if (companyRes.rows.length === 0) return res.status(404).json({ success: false, message: "Company not found" });
+    const internalId = companyRes.rows[0].id;
+
+    const result = await pool.query("SELECT * FROM employees WHERE company_id = $1", [internalId]);
+    return res.status(200).json({ success: true, employees: result.rows });
+  } catch (err) {
+    console.error("getCompanyEmployeesSuperadmin:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const getCompanyCoursesSuperadmin = async (req, res) => {
+  const { companyId } = req.params;
+  try {
+    const isSerial = /^\d+$/.test(companyId);
+    const companyRes = await pool.query(`SELECT id FROM companies WHERE ${isSerial ? 'id' : 'company_id'} = $1`, [companyId]);
+    if (companyRes.rows.length === 0) return res.status(404).json({ success: false, message: "Company not found" });
+    const internalId = companyRes.rows[0].id;
+
+    const result = await pool.query(
+      `SELECT * FROM courses WHERE company_id = $1 ORDER BY created_at DESC`,
+      [internalId]
+    );
+    return res.status(200).json({ success: true, courses: result.rows });
+  } catch (err) {
+    console.error("getCompanyCoursesSuperadmin:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const updateCompanyBillingSuperadmin = async (req, res) => {
+  const { companyId } = req.params;
+  const { plan, is_paid } = req.body;
+  try {
+    const isSerial = /^\d+$/.test(companyId);
+    const result = await pool.query(
+      `UPDATE companies 
+       SET plan = COALESCE($1, plan), 
+           is_paid = $2 
+       WHERE ${isSerial ? 'id' : 'company_id'} = $3 
+       RETURNING *`,
+      [plan, is_paid, companyId]
+    );
+
+    if (result.rows.length === 0)
+      return res.status(404).json({ success: false, message: "Company not found" });
+    return res.status(200).json({ success: true, company: result.rows[0], message: "Billing updated" });
+  } catch (err) {
+    console.error("updateCompanyBillingSuperadmin:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const getCourseModulesSuperadmin = async (req, res) => {
+  const { courseId } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT * FROM course_modules WHERE course_id = $1 ORDER BY order_index ASC",
+      [courseId]
+    );
+    return res.status(200).json({ success: true, modules: result.rows });
+  } catch (err) {
+    console.error("getCourseModulesSuperadmin:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const getCourseDetailsSuperadmin = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT c.*, comp.name AS "companyName", comp.plan AS "companyPlan"
+       FROM courses c
+       JOIN companies comp ON c.company_id = comp.id
+       WHERE c.id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0)
+      return res.status(404).json({ success: false, message: "Course not found" });
+    return res.status(200).json({ success: true, course: result.rows[0] });
+  } catch (err) {
+    console.error("getCourseDetailsSuperadmin:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
+export const getModuleDetailsSuperadmin = async (req, res) => {
+  const { moduleId } = req.params;
+  try {
+    const result = await pool.query("SELECT * FROM course_modules WHERE id = $1", [moduleId]);
+    if (result.rows.length === 0)
+      return res.status(404).json({ success: false, message: "Module not found" });
+    return res.status(200).json({ success: true, module: result.rows[0] });
+  } catch (err) {
+    console.error("getModuleDetailsSuperadmin:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};

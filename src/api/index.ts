@@ -4,7 +4,6 @@ import { setToken, logout } from '@/lib/redux/authSlice';
 
 const API = axios.create({ 
     baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
-
     withCredentials: true, // required to send cookies if used
 });
 
@@ -150,13 +149,20 @@ export const adminUploadMedia = (formData: FormData) => API.post('/admin/upload-
     headers: { 'Content-Type': 'multipart/form-data' }
 });
 
-
-
 // ─── SUPERADMIN COURSE APIs ───────────────────────────────────────────────────
 export const superadminGetAllCourses = (status?: string) => API.get('/superadmin/courses', { params: status ? { status } : {} });
 export const superadminApproveCourse = (id: string) => API.patch(`/superadmin/courses/${id}/approve`);
 export const superadminRejectCourse = (id: string, data: { reason: string }) => API.patch(`/superadmin/courses/${id}/reject`, data);
 export const superadminResetCourse = (id: string) => API.patch(`/superadmin/courses/${id}/reset`);
-
+export const superadminGetAdminPortfolioStats = (adminId: string | number) => API.get(`/superadmin/admins/${adminId}/stats`);
+export const superadminGetAdminCompanies = (adminId: string | number) => API.get(`/superadmin/admins/${adminId}/companies`);
+export const superadminGetCompanyDetails = (companyId: string | number) => API.get(`/superadmin/companies/${companyId}`);
+export const superadminGetCompanyStats = (companyId: string | number) => API.get(`/superadmin/companies/${companyId}/stats`);
+export const superadminGetCompanyEmployees = (companyId: string | number) => API.get(`/superadmin/companies/${companyId}/employees`);
+export const superadminGetCompanyCourses = (companyId: string | number) => API.get(`/superadmin/companies/${companyId}/courses`);
+export const superadminUpdateCompanyBilling = (companyId: string | number, data: any) => API.patch(`/superadmin/companies/${companyId}/billing`, data);
+export const superadminGetModuleDetails = (moduleId: string | number) => API.get(`/superadmin/modules/${moduleId}`);
+export const superadminGetCourseModules = (courseId: string | number) => API.get(`/superadmin/courses/${courseId}/modules`);
+export const superadminGetCourseDetails = (courseId: string | number) => API.get(`/superadmin/courses/${courseId}`);
 
 export default API;
