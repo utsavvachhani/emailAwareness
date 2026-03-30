@@ -200,34 +200,29 @@
 
     /* Modules */
     .module-header {
-        @apply flex items-center justify-between pb-6 border-b mb-6;
+        @apply flex flex-col md:flex-row md:items-end md:justify-between pb-8 border-b border-white/[0.05] mb-8 gap-6;
     }
 
     .module-title {
-        @apply text-2xl font-semibold tracking-tight;
+        @apply text-4xl font-black italic tracking-tighter uppercase text-white leading-none;
     }
 
     .kpi-value {
-        @apply text-3xl font-semibold tracking-tight font-mono;
+        @apply text-3xl font-black italic tracking-tighter;
     }
 
     .kpi-label {
-        @apply text-sm mt-1;
-        color: hsl(var(--muted-foreground));
-    }
-
-    .kpi-trend {
-        @apply text-xs font-mono mt-2;
+        @apply text-[10px] font-black uppercase tracking-widest mt-1 opacity-20;
     }
 
     /* Forms */
     .input-field {
-        @apply w-full h-9 rounded-md border border-input bg-background px-3 text-sm outline-none
-               placeholder:text-muted-foreground focus:border-foreground transition-colors;
+        @apply w-full h-14 rounded-2xl bg-white/[0.03] border border-white/[0.08] px-6 text-sm font-bold text-white outline-none
+               placeholder:text-white/10 focus:border-blue-500/30 focus:bg-white/[0.05] transition-all;
     }
 
     textarea.input-field {
-        @apply h-auto py-2;
+        @apply h-auto py-4;
     }
 }
 
@@ -298,6 +293,25 @@
         }
     }
 
+    /* Scrollbar */
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    /* Glassmorphism */
+    .glass-panel {
+        @apply bg-white/[0.01] backdrop-blur-xl border border-white/[0.06] rounded-[2.5rem] shadow-2xl;
+    }
+
+    .glass-card {
+        @apply bg-white/[0.02] border border-white/[0.06] rounded-[2rem] hover:border-white/[0.12] transition-all shadow-xl;
+    }
+}
+
 /* =========================
    EDITOR.JS CUSTOM THEME
 ========================= */
@@ -343,5 +357,4 @@ h3.ce-header { font-size: 1.5rem; }
 .editorjs-view .ce-block__content { cursor: default; }
 .ce-block--selected .ce-block__content {
     background-color: transparent !important;
-}
 }

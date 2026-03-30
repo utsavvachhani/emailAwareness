@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle, XCircle, Clock, Loader2, User, Mail, RefreshCw, AlertTriangle, Ban, Unlock, Eye, Calendar, Phone, Shield, ExternalLink } from "lucide-react";
+import {
+    CheckCircle, XCircle, Clock, Loader2, User, Users, Mail,
+    RefreshCw, AlertTriangle, Ban, Unlock, Eye,
+    Calendar, Phone, Shield, ExternalLink, Search,
+    Filter, X, ChevronRight, ArrowRight, Trash2,
+    BadgeCheck, ShieldCheck
+} from "lucide-react";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
 import Link from "next/link";
-
-import { Trash2 } from "lucide-react";
 
 interface UserData {
     id: number;
@@ -21,6 +25,13 @@ interface UserData {
     last_login?: string;
 }
 
+const STATUS_STYLES: Record<string, string> = {
+    active: "bg-emerald-500/5 text-emerald-600 border-emerald-500/10",
+    pending: "bg-amber-500/5 text-amber-500 border-amber-500/10",
+    rejected: "bg-red-500/5 text-red-500 border-red-500/10",
+    blocked: "bg-gray-500/5 text-gray-500 border-gray-500/10",
+};
+
 export default function AdminApprovalsPage() {
     const token = useAppSelector(s => s.auth.token);
     const [admins, setAdmins] = useState<UserData[]>([]);
@@ -29,14 +40,11 @@ export default function AdminApprovalsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [tab, setTab] = useState<"pending" | "all" | "users">("pending");
-    const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [slideUser, setSlideUser] = useState<UserData | null>(null);
 
     // Filter/Sort States
     const [search, setSearch] = useState("");
     const [filterStatus, setFilterStatus] = useState<string>("all");
-    const [sortField, setSortField] = useState<"name" | "date">("name");
-    const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
     const fetchAdmins = async () => {
         setIsLoading(true);
@@ -63,7 +71,7 @@ export default function AdminApprovalsPage() {
                 setAllUsers(filteredUsers);
             }
         } catch {
-            toast.error("Failed to load data");
+            toast.error("Failed to load registry clusters");
         } finally {
             setIsLoading(false);
         }
@@ -82,20 +90,24 @@ export default function AdminApprovalsPage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
-            toast.success(`${type === "users" ? "User" : "Admin"} ${action === "approve" ? "approved" : action === "reject" ? "rejected" : action === "block" ? "blocked" : "unblocked"} successfully!`);
+            toast.success(`${type === "users" ? "User" : "Admin"} ${action} protocol complete`);
+
+            // Re-fetch to sync
             fetchAdmins();
-            if (selectedUser?.id === id) {
-                setSelectedUser(prev => prev ? { ...prev, status: action === "block" ? "blocked" : "active" } : null);
+
+            if (slideUser?.id === id) {
+                const newStatus = action === "approve" ? "active" : action === "reject" ? "rejected" : action === "block" ? "blocked" : "active";
+                setSlideUser(prev => prev ? { ...prev, status: newStatus } : null);
             }
         } catch (err: any) {
-            toast.error(err.message || "Action failed");
+            toast.error(err.message || "Protocol transmission failure");
         } finally {
             setProcessingId(null);
         }
     };
 
     const handleDelete = async (id: number, type: "admin" | "user") => {
-        if (!confirm(`Are you sure you want to delete this ${type}?`)) return;
+        if (!confirm(`Permanently de-authorize this ${type} node?`)) return;
         setProcessingId(id);
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/${type}s/${id}`, {
@@ -105,398 +117,397 @@ export default function AdminApprovalsPage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
-            toast.success(`${type === "admin" ? "Admin" : "User"} deleted successfully!`);
+            toast.success(`${type} entry purged from registry`);
             fetchAdmins();
+            if (slideUser?.id === id) setSlideUser(null);
         } catch (err: any) {
-            toast.error(err.message || "Delete failed");
+            toast.error(err.message || "De-authorization failed");
         } finally {
             setProcessingId(null);
         }
     };
 
-    const StatusBadge = ({ status }: { status: string }) => {
-        const styles: Record<string, string> = {
-            pending:  "bg-blue-500/10 text-blue-600 border-blue-500/20",
-            active:   "bg-green-500/10 text-green-600 border-green-500/20",
-            rejected: "bg-red-500/10 text-red-500 border-red-500/20",
-            blocked:  "bg-gray-500/10 text-gray-500 border-gray-500/20",
-        };
-        return (
-            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${styles[status] || ""}`}>
-                {status === "pending" && <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />}
-                {status === "active"  && <span className="w-1.5 h-1.5 rounded-full bg-green-600" />}
-                {status === "rejected" && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
-                {status === "blocked" && <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />}
-                {status.charAt(0).toUpperCase() + status.slice(1)}
-            </span>
-        );
-    };
-
     const displayList = (tab === "pending" ? admins : tab === "all" ? allAdmins : allUsers)
         .filter(admin => {
             const fullName = `${admin.firstName} ${admin.lastName}`.toLowerCase();
-            const matchesSearch = fullName.includes(search.toLowerCase()) || 
-                                 admin.email.toLowerCase().includes(search.toLowerCase());
-            
+            const matchesSearch = fullName.includes(search.toLowerCase()) ||
+                admin.email.toLowerCase().includes(search.toLowerCase());
             const matchesStatus = filterStatus === "all" || admin.status === filterStatus;
-            
             return matchesSearch && matchesStatus;
-        })
-        .sort((a, b) => {
-            let valA: string | number = "";
-            let valB: string | number = "";
-            
-            if (sortField === "name") {
-                valA = `${a.firstName} ${a.lastName}`.toLowerCase();
-                valB = `${b.firstName} ${b.lastName}`.toLowerCase();
-            } else {
-                valA = new Date(a.created_at).getTime();
-                valB = new Date(b.created_at).getTime();
-            }
-            
-            if (valA < valB) return sortOrder === "asc" ? -1 : 1;
-            if (valA > valB) return sortOrder === "asc" ? 1 : -1;
-            return 0;
         });
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5 relative">
+
+            {/* ── Header ───────────────────────────────────────────────── */}
             <div className="module-header">
                 <div>
-                    <h1 className="module-title">Admin Management</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Review and approve admin account requests</p>
+                    <h1 className="module-title !text-xl">Authorization Hub</h1>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">Global identity and access provision unit</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    {admins.length > 0 && (
-                        <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-1.5">
-                            <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                            <span className="text-sm font-medium text-yellow-600">{admins.length} pending</span>
-                        </div>
-                    )}
-                    <button onClick={fetchAdmins} disabled={isLoading} className="flex items-center gap-2 h-9 px-4 rounded-lg border border-border hover:bg-muted transition-colors text-sm">
-                        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                <div className="flex items-center gap-2">
+                    <div className="relative group/search">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40 group-focus-within/search:text-blue-500 transition-colors" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Find Identity..."
+                            className="h-8 w-44 pl-8 pr-3 text-[11px] bg-muted/40 border border-border rounded-lg outline-none focus:border-blue-500/30 transition-all font-medium"
+                        />
+                    </div>
+                    <button onClick={fetchAdmins} disabled={isLoading}
+                        className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border hover:bg-muted transition-colors text-[11px] font-medium">
+                        <RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`} />
                         Refresh
                     </button>
                 </div>
             </div>
 
-            {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/20 p-4 rounded-xl border border-border">
-                <div className="flex gap-2 items-center w-full sm:w-auto">
+            {/* ── Tabs / Filters ───────────────────────────────────────── */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-1 bg-card border border-border p-1 rounded-xl w-fit">
                     {(["pending", "all", "users"] as const).map(t => (
                         <button
                             key={t}
                             onClick={() => { setTab(t); setSearch(""); }}
-                            className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${
-                                tab === t 
-                                ? "bg-foreground text-background shadow-lg" 
-                                : "text-muted-foreground hover:bg-muted"
-                            }`}
+                            className={`px-4 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${tab === t
+                                    ? "bg-blue-600 text-white shadow-md shadow-blue-600/10"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                }`}
                         >
-                            {t === "pending" ? `Pending (${admins.length})` : t === "all" ? `Admins (${allAdmins.length})` : `Users (${allUsers.length})`}
+                            {t === "pending" ? `Requests [${admins.length}]` : t === "all" ? `Admins [${allAdmins.length}]` : `Final Users [${allUsers.length}]`}
                         </button>
                     ))}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                    <input
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search by name or email..."
-                        className="h-9 text-sm rounded-lg border border-input bg-background px-3 outline-none focus:ring-2 focus:ring-blue-500/20 w-48 transition-all"
-                    />
-
-                    {tab !== "users" && (
-                        <select
-                            value={filterStatus}
-                            onChange={e => setFilterStatus(e.target.value)}
-                            className="h-9 px-2 rounded-lg border border-input bg-background text-xs font-medium outline-none"
-                        >
-                            <option value="all">Status: All</option>
-                            <option value="active">Status: Active</option>
-                            <option value="pending">Status: Pending</option>
-                            <option value="rejected">Status: Rejected</option>
-                            <option value="blocked">Status: Blocked</option>
-                        </select>
-                    )}
-
-                    <div className="flex items-center gap-1 bg-background border border-input rounded-lg h-9 px-1">
-                        <select
-                            value={sortField}
-                            onChange={e => setSortField(e.target.value as any)}
-                            className="h-7 pl-1 text-[10px] font-black uppercase tracking-tight bg-transparent outline-none cursor-pointer"
-                        >
-                            <option value="name">Sort: Name</option>
-                            <option value="date">Sort: Joined</option>
-                        </select>
-                        <button
-                            onClick={() => setSortOrder(o => o === "asc" ? "desc" : "asc")}
-                            className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-muted transition-all"
-                        >
-                            <RefreshCw className={`h-3 w-3 ${sortOrder === "desc" ? "rotate-180" : ""} transition-transform`} />
-                        </button>
+                {tab !== "pending" && (
+                    <div className="flex items-center gap-1.5 bg-card border border-border p-1 rounded-xl w-fit">
+                        {['all', 'active', 'blocked'].map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => setFilterStatus(s)}
+                                className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${filterStatus === s
+                                        ? "bg-muted text-foreground border border-border shadow-sm"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                                    }`}
+                            >
+                                {s}
+                            </button>
+                        ))}
                     </div>
-                </div>
-            </div>
-
-
-            {/* Table */}
-            <div className="rounded-xl border border-border bg-card overflow-hidden">
-                {isLoading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-                    </div>
-                ) : displayList.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                        <User className="w-12 h-12 mb-3 opacity-30" />
-                        <p>{tab === "pending" ? "No pending admin requests" : "No admins found"}</p>
-                    </div>
-                ) : (
-                    <table className="w-full">
-                        <thead className="border-b border-border bg-muted/30">
-                            <tr>
-                                {["Name", "Email", "Mobile", "Status", "Registered", "Action"].map(h => (
-                                    <th key={h} className="text-left px-5 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">{h}</th>
-                                ))}
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                            {displayList.map(admin => (
-                                <tr key={admin.id} className="hover:bg-muted/20 transition-colors">
-                                    <td className="px-5 py-4">
-                                        <div 
-                                            className="flex items-center gap-3 cursor-pointer group"
-                                            onClick={() => { setSelectedUser(admin); setIsViewModalOpen(true); }}
-                                        >
-                                            <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-sm font-semibold text-blue-600 group-hover:bg-blue-500/20 transition-all">
-                                                {admin.firstName[0]}{admin.lastName[0]}
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-sm group-hover:text-blue-600 transition-colors">{admin.firstName} {admin.lastName}</p>
-                                                {!admin.is_verified && <span className="text-xs text-yellow-600">Email not verified</span>}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4">
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                            <Mail className="w-4 h-4" />
-                                            {admin.email}
-                                        </div>
-                                    </td>
-                                    <td className="px-5 py-4 text-sm text-muted-foreground">{admin.mobile || "—"}</td>
-                                    <td className="px-5 py-4"><StatusBadge status={admin.status} /></td>
-                                    <td className="px-5 py-4 text-sm text-muted-foreground">
-                                        {new Date(admin.created_at).toLocaleDateString("en-IN")}
-                                    </td>
-                                    {tab === "pending" && (
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    onClick={() => handleAction(admin.id, "approve", admin.role)}
-                                                    disabled={processingId === admin.id}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-600 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                                >
-                                                    {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                                                    Approve
-                                                </button>
-                                                <button
-                                                    onClick={() => handleAction(admin.id, "reject", admin.role)}
-                                                    disabled={processingId === admin.id}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                                >
-                                                    {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                                                    Reject
-                                                </button>
-                                            </div>
-                                        </td>
-                                    )}
-                                    {tab === "all" && (
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <Link
-                                                    href={`/superadmin/dashboard/admins/${admin.id}`}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-sm font-medium"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                    View
-                                                </Link>
-                                                {admin.status === "active" ? (
-                                                    <button
-                                                        onClick={() => handleAction(admin.id, "block", admin.role)}
-                                                        disabled={processingId === admin.id}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-600 border border-orange-500/20 hover:bg-orange-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                                    >
-                                                        {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
-                                                        Block
-                                                    </button>
-                                                ) : admin.status === "blocked" ? (
-                                                    <button
-                                                        onClick={() => handleAction(admin.id, "unblock", admin.role)}
-                                                        disabled={processingId === admin.id}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-600 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                                    >
-                                                        {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
-                                                        Unblock
-                                                    </button>
-                                                ) : null}
-                                                <button
-                                                    onClick={() => handleDelete(admin.id, "admin")}
-                                                    disabled={processingId === admin.id}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                                >
-                                                    {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    )}
-                                    {tab === "users" && (
-                                        <td className="px-5 py-4">
-                                            <div className="flex items-center gap-2">
-                                                {admin.status === "active" ? (
-                                                    <button
-                                                        onClick={() => handleAction(admin.id, "block", admin.role)}
-                                                        disabled={processingId === admin.id}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/10 text-orange-600 border border-orange-500/20 hover:bg-orange-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                                    >
-                                                        {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
-                                                        Block
-                                                    </button>
-                                                ) : admin.status === "blocked" ? (
-                                                    <button
-                                                        onClick={() => handleAction(admin.id, "unblock", admin.role)}
-                                                        disabled={processingId === admin.id}
-                                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-600 border border-green-500/20 hover:bg-green-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                                    >
-                                                        {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
-                                                        Unblock
-                                                    </button>
-                                                ) : null}
-                                                <button
-                                                    onClick={() => handleDelete(admin.id, "user")}
-                                                    disabled={processingId === admin.id}
-                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all text-sm font-medium disabled:opacity-50"
-                                                >
-                                                    {processingId === admin.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                                    Delete
-                                                </button>
-                                            </div>
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
                 )}
             </div>
-            {/* Admin Details Modal */}
-            {isViewModalOpen && selectedUser && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
-                            <h3 className="text-lg font-semibold">Admin Details</h3>
-                            <button 
-                                onClick={() => setIsViewModalOpen(false)}
-                                className="p-1 rounded-full hover:bg-muted transition-colors"
-                            >
-                                <XCircle className="w-6 h-6 text-muted-foreground" />
+
+            {/* ── Stats Overview ───────────────────────────────────────── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: "Pending Requests", value: admins.length, icon: Clock, color: "text-amber-500" },
+                    { label: "Active Admins", value: allAdmins.filter(a => a.status === 'active').length, icon: ShieldCheck, color: "text-blue-600" },
+                    { label: "Global Users", value: allUsers.length, icon: Users, color: "text-emerald-600" },
+                    { label: "System Blocks", value: allAdmins.filter(a => a.status === 'blocked').length + allUsers.filter(u => u.status === 'blocked').length, icon: Ban, color: "text-red-500" },
+                ].map(stat => (
+                    <div key={stat.label} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
+                            <stat.icon className={`h-3.5 w-3.5 ${stat.color} opacity-40`} />
+                        </div>
+                        <p className="text-xl font-black text-foreground">{stat.value}</p>
+                    </div>
+                ))}
+            </div>
+
+            {/* ── Table Container ──────────────────────────────────────── */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col shadow-sm">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : displayList.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                        <User className="w-10 h-10 mb-2 opacity-10" />
+                        <p className="text-[11px] font-medium opacity-60">Identity registry currently empty</p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left table-auto">
+                            <thead className="border-b border-border bg-muted/20">
+                                <tr>
+                                    {["Identity", "Email Access", "Registry Contact", "Status", "Joined", ""].map(h => (
+                                        <th key={h} className="px-5 py-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                            {h}
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/40">
+                                {displayList.map(admin => {
+                                    const isSelected = slideUser?.id === admin.id;
+                                    return (
+                                        <tr
+                                            key={admin.id}
+                                            onClick={() => setSlideUser(isSelected ? null : admin)}
+                                            className={`transition-all cursor-pointer group/row ${isSelected
+                                                    ? "bg-blue-500/5 border-l-2 border-l-blue-500 shadow-inner"
+                                                    : "hover:bg-muted/30 border-l-2 border-l-transparent"
+                                                }`}
+                                        >
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-[11px] font-black text-blue-600 transition-all group-hover/row:bg-blue-600/10">
+                                                        {admin.firstName[0]}{admin.lastName[0]}
+                                                    </div>
+                                                    <div className="min-w-0 pr-2">
+                                                        <p className={`font-bold text-[11px] truncate max-w-[150px] ${isSelected ? "text-blue-600" : "text-foreground group-hover/row:text-blue-600 transition-colors"}`}>
+                                                            {admin.firstName} {admin.lastName}
+                                                        </p>
+                                                        {!admin.is_verified && <p className="text-[9px] text-amber-600 font-bold uppercase tracking-tight">Unverified ID</p>}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4 max-w-[180px]">
+                                                <div className="flex items-center gap-2 text-[11px] text-muted-foreground group-hover/row:text-foreground transition-colors truncate">
+                                                    <Mail className="w-3.5 h-3.5 shrink-0 opacity-40" />
+                                                    <span className="truncate">{admin.email}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                    <Phone className="w-3 h-3 shrink-0 opacity-40" />
+                                                    {admin.mobile || "—"}
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${STATUS_STYLES[admin.status] || STATUS_STYLES.pending}`}>
+                                                    <div className="w-1 h-1 rounded-full bg-current opacity-40" />
+                                                    {admin.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                    <Calendar className="w-3 h-3 opacity-40" />
+                                                    {new Date(admin.created_at).toLocaleDateString("en-IN")}
+                                                </div>
+                                            </td>
+                                            <td className="px-5 py-4" onClick={e => e.stopPropagation()}>
+                                                <div className="flex items-center gap-1.5 justify-end">
+                                                    {admin.status === 'pending' ? (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleAction(admin.id, "approve", admin.role)}
+                                                                className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-emerald-600 transition-colors border border-transparent hover:border-emerald-500/20"
+                                                                title="Authorize Admin"
+                                                            >
+                                                                <CheckCircle className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleAction(admin.id, "reject", admin.role)}
+                                                                className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500 transition-colors border border-transparent hover:border-red-500/20"
+                                                                title="Deny Access"
+                                                            >
+                                                                <XCircle className="w-4 h-4" />
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            {admin.status === 'active' ? (
+                                                                <button
+                                                                    onClick={() => handleAction(admin.id, "block", admin.role)}
+                                                                    className="p-1.5 rounded-lg hover:bg-amber-500/10 text-amber-600 transition-colors border border-transparent hover:border-amber-500/20"
+                                                                    title="Block Registry Entry"
+                                                                >
+                                                                    <Ban className="w-4 h-4" />
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => handleAction(admin.id, "unblock", admin.role)}
+                                                                    className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-emerald-600 transition-colors border border-transparent hover:border-emerald-500/20"
+                                                                    title="Restore Entry"
+                                                                >
+                                                                    <Unlock className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleDelete(admin.id, tab === "users" ? "user" : "admin")}
+                                                                className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500 transition-colors border border-transparent hover:border-red-500/20"
+                                                                title="Purge Node"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    <button
+                                                        onClick={() => setSlideUser(isSelected ? null : admin)}
+                                                        className={`p-1.5 rounded-lg transition-all border ${isSelected
+                                                                ? "bg-blue-500/10 border-blue-500/20 text-blue-600"
+                                                                : "hover:bg-muted border-transparent hover:border-border text-muted-foreground"
+                                                            }`}
+                                                    >
+                                                        <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSelected ? "rotate-90" : ""}`} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* ── Slide-over Detail Panel ──────────────────────────────── */}
+            {slideUser && (
+                <div className="fixed inset-0 z-40 flex justify-end pointer-events-none">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto"
+                        onClick={() => setSlideUser(null)}
+                    />
+
+                    {/* Panel */}
+                    <div className="relative w-full max-w-sm bg-background border-l border-border shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-200 pointer-events-auto overflow-y-auto scrollbar-hide">
+
+                        {/* Panel Header */}
+                        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border px-5 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-[12px] font-black text-blue-600">
+                                    {slideUser.firstName[0]}{slideUser.lastName[0]}
+                                </div>
+                                <div className="min-w-0 pr-2">
+                                    <h2 className="font-bold text-[13px] tracking-tight truncate max-w-[150px] uppercase">{slideUser.firstName} {slideUser.lastName}</h2>
+                                    <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-[0.2em]">Identity Blueprint</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setSlideUser(null)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
-                        
-                        <div className="p-6 space-y-6">
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-2xl font-bold text-blue-600">
-                                    {selectedUser.firstName[0]}{selectedUser.lastName[0]}
+
+                        {/* Panel Body */}
+                        <div className="flex-1 p-5 space-y-6">
+
+                            {/* Verification Cluster */}
+                            <div className="grid grid-cols-2 gap-2.5">
+                                <div className="p-4 rounded-xl bg-muted/30 border border-border/40">
+                                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50 mb-1.5">Verification Status</p>
+                                    <div className="flex items-center gap-2">
+                                        <BadgeCheck className={`w-3.5 h-3.5 ${slideUser.is_verified ? "text-blue-500" : "text-muted-foreground/30"}`} />
+                                        <p className={`text-[10px] font-black uppercase ${slideUser.is_verified ? "text-blue-600" : "text-muted-foreground"}`}>
+                                            {slideUser.is_verified ? "Authenticated" : "Unverified"}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 className="text-xl font-bold">{selectedUser.firstName} {selectedUser.lastName}</h4>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <StatusBadge status={selectedUser.status} />
-                                        {selectedUser.is_verified ? (
-                                            <span className="text-[10px] bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full border border-green-500/20 font-bold uppercase tracking-wider">Verified</span>
-                                        ) : (
-                                            <span className="text-[10px] bg-yellow-500/10 text-yellow-600 px-2 py-0.5 rounded-full border border-yellow-500/20 font-bold uppercase tracking-wider">Unverified</span>
-                                        )}
+                                <div className="p-4 rounded-xl bg-muted/30 border border-border/40">
+                                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50 mb-1.5">Node Activity</p>
+                                    <div className="flex items-center gap-2">
+                                        <Clock className="w-3.5 h-3.5 text-muted-foreground/40" />
+                                        <p className="text-[10px] font-bold text-foreground">
+                                            {slideUser.last_login ? new Date(slideUser.last_login).toLocaleDateString() : "No record"}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
-                                        <Mail className="w-3 h-3" /> Email Address
-                                    </p>
-                                    <p className="text-sm font-medium">{selectedUser.email}</p>
+                            {/* Node Core Metrics */}
+                            <div className="p-5 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-blue-600/40 mb-2">Role Tier</p>
+                                    <p className="text-xl font-black text-blue-600 leading-none">ADMIN</p>
                                 </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
-                                        <Phone className="w-3 h-3" /> Phone Number
-                                    </p>
-                                    <p className="text-sm font-medium">{selectedUser.mobile || "Not provided"}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
-                                        <Calendar className="w-3 h-3" /> Joined On
-                                    </p>
-                                    <p className="text-sm font-medium">{new Date(selectedUser.created_at).toLocaleDateString("en-IN", { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1.5">
-                                        <Clock className="w-3 h-3" /> Last Login
-                                    </p>
-                                    <p className="text-sm font-medium">{selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleString("en-IN") : "Never"}</p>
-                                </div>
+                                <Shield className="w-8 h-8 text-blue-600/10" />
                             </div>
 
-                            <div className="pt-4 border-t border-border flex flex-wrap gap-2">
-                                <Link
-                                    href={`/superadmin/dashboard/admins/${selectedUser.id}`}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all font-semibold"
-                                >
-                                    <ExternalLink className="w-4 h-4" />
-                                    View Admin Dashboard
-                                </Link>
-                                {selectedUser.status === 'pending' && (
-                                    <>
-                                        <button
-                                            onClick={() => handleAction(selectedUser.id, "approve", selectedUser.role)}
-                                            disabled={processingId === selectedUser.id}
-                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-all font-semibold disabled:opacity-50"
-                                        >
-                                            {processingId === selectedUser.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-                                            Approve Admin
-                                        </button>
-                                        <button
-                                            onClick={() => handleAction(selectedUser.id, "reject", selectedUser.role)}
-                                            disabled={processingId === selectedUser.id}
-                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all font-semibold disabled:opacity-50"
-                                        >
-                                            {processingId === selectedUser.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                                            Reject
-                                        </button>
-                                    </>
-                                )}
-                                {selectedUser.status === 'active' && (
-                                    <button
-                                        onClick={() => handleAction(selectedUser.id, "block", selectedUser.role)}
-                                        disabled={processingId === selectedUser.id}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-500 text-white hover:bg-orange-600 transition-all font-semibold disabled:opacity-50"
-                                    >
-                                        {processingId === selectedUser.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
-                                        Block Account
-                                    </button>
-                                )}
-                                {selectedUser.status === 'blocked' && (
-                                    <button
-                                        onClick={() => handleAction(selectedUser.id, "unblock", selectedUser.role)}
-                                        disabled={processingId === selectedUser.id}
-                                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-all font-semibold disabled:opacity-50"
-                                    >
-                                        {processingId === selectedUser.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
-                                        Unblock Account
-                                    </button>
-                                )}
+                            {/* Access Channels */}
+                            <div className="space-y-4">
+                                <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40 ml-1">IDENTITY CHANNELS</p>
+                                <div className="space-y-2">
+                                    {[
+                                        { icon: Mail, label: "Registry Email", value: slideUser.email },
+                                        { icon: Phone, label: "Protocol Mobile", value: slideUser.mobile || "+00 NIL" },
+                                        { icon: Calendar, label: "Entry Timestamp", value: new Date(slideUser.created_at).toLocaleString() },
+                                        { icon: Shield, label: "Security Level", value: slideUser.role === "superadmin" ? "MASTER" : "ADMIN_HUB" },
+                                    ].map((item, idx) => (
+                                        <div key={idx} className="flex items-center gap-4 p-3.5 rounded-xl border border-border/40 hover:bg-muted/30 transition-all group/item">
+                                            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground/40 group-hover/item:text-blue-500 group-hover/item:bg-blue-500/5 transition-all">
+                                                <item.icon className="w-3.5 h-3.5" />
+                                            </div>
+                                            <div className="flex-1 min-w-0 pr-2">
+                                                <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40 mb-0.5">{item.label}</p>
+                                                <p className="text-[11px] font-bold text-foreground/80 truncate">
+                                                    {item.value}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
+                        </div>
+
+                        {/* Panel Footer — Node Control */}
+                        <div className="sticky bottom-0 bg-background/95 backdrop-blur-md border-t border-border p-5 space-y-3">
+                            {tab !== "users" && (
+                                <Link
+                                    href={`/superadmin/dashboard/admins/${slideUser.id}`}
+                                    className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all group"
+                                >
+                                    Deploy Node Override <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                </Link>
+                            )}
+
+                            {slideUser.status === 'pending' ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={() => handleAction(slideUser.id, "approve", slideUser.role)}
+                                        className="h-10 rounded-lg bg-emerald-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <CheckCircle className="w-3.5 h-3.5" /> Authorize
+                                    </button>
+                                    <button
+                                        onClick={() => handleAction(slideUser.id, "reject", slideUser.role)}
+                                        className="h-10 rounded-lg bg-red-600 text-white text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <XCircle className="w-3.5 h-3.5" /> Deny
+                                    </button>
+                                </div>
+                            ) : slideUser.status === 'active' ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={() => handleAction(slideUser.id, "block", slideUser.role)}
+                                        className="h-10 rounded-lg border border-amber-500/20 bg-amber-500/5 text-amber-600 text-[10px] font-black uppercase tracking-widest hover:bg-amber-500/10 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Ban className="w-3.5 h-3.5" /> Block
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(slideUser.id, tab === "users" ? "user" : "admin")}
+                                        className="h-10 rounded-lg border border-red-500/20 bg-red-500/5 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                                    </button>
+                                </div>
+                            ) : slideUser.status === 'blocked' ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={() => handleAction(slideUser.id, "unblock", slideUser.role)}
+                                        className="h-10 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-600 text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/10 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Unlock className="w-3.5 h-3.5" /> Restore
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(slideUser.id, tab === "users" ? "user" : "admin")}
+                                        className="h-10 rounded-lg border border-red-500/20 bg-red-500/5 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                                    </button>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => handleDelete(slideUser.id, tab === "users" ? "user" : "admin")}
+                                    className="w-full h-10 rounded-lg border border-red-500/20 bg-red-500/5 text-red-500 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" /> Purge Identity Record
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
