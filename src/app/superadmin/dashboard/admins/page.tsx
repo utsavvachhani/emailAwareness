@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAppSelector } from "@/lib/redux/hooks";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 interface UserData {
@@ -41,6 +42,14 @@ export default function AdminApprovalsPage() {
     const [processingId, setProcessingId] = useState<number | null>(null);
     const [tab, setTab] = useState<"pending" | "all" | "users">("pending");
     const [slideUser, setSlideUser] = useState<UserData | null>(null);
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    const router = useRouter();
+
+    const handleDeployOverride = async (id: number) => {
+        setIsRedirecting(true);
+        await new Promise(r => setTimeout(r, 700));
+        router.push(`/superadmin/dashboard/admins/${id}`);
+    };
 
     // Filter/Sort States
     const [search, setSearch] = useState("");
@@ -447,12 +456,22 @@ export default function AdminApprovalsPage() {
                         {/* Panel Footer — Node Control */}
                         <div className="sticky bottom-0 bg-background/95 backdrop-blur-md border-t border-border p-5 space-y-3">
                             {tab !== "users" && (
-                                <Link
-                                    href={`/superadmin/dashboard/admins/${slideUser.id}`}
-                                    className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all group"
+                                <button
+                                    onClick={() => handleDeployOverride(slideUser.id)}
+                                    disabled={isRedirecting}
+                                    className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all group disabled:opacity-70"
                                 >
-                                    Deploy Node Override <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                                </Link>
+                                    {isRedirecting ? (
+                                        <>
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            Establishing Link
+                                        </>
+                                    ) : (
+                                        <>
+                                            Deploy Node Override <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
+                                </button>
                             )}
 
                             {slideUser.status === 'pending' ? (

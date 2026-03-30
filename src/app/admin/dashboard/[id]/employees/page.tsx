@@ -382,15 +382,6 @@ export default function CompanyEmployeesPage() {
                         />
                     </div>
 
-                    <select
-                        value={filterStatus}
-                        onChange={e => setFilterStatus(e.target.value as any)}
-                        className="h-10 px-3 rounded-xl border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer min-w-[120px]"
-                    >
-                        <option value="all">All Status</option>
-                        <option value="active">Active Only</option>
-                        <option value="inactive">Inactive Only</option>
-                    </select>
 
                     <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-xl border border-border">
                         <select
@@ -460,6 +451,7 @@ export default function CompanyEmployeesPage() {
                         icon: Users,
                         color: "text-blue-600",
                         bg: "bg-blue-500/5 border-blue-500/10",
+                        filter: "all",
                     },
                     {
                         label: "Active",
@@ -467,6 +459,7 @@ export default function CompanyEmployeesPage() {
                         icon: UserCheck,
                         color: "text-emerald-600",
                         bg: "bg-emerald-500/5 border-emerald-500/10",
+                        filter: "active",
                     },
                     {
                         label: "Inactive",
@@ -474,6 +467,7 @@ export default function CompanyEmployeesPage() {
                         icon: UserX,
                         color: "text-red-500",
                         bg: "bg-red-500/5 border-red-500/10",
+                        filter: "inactive",
                     },
                     {
                         label: search ? "Filtered Results" : "Designations",
@@ -483,18 +477,31 @@ export default function CompanyEmployeesPage() {
                         icon: Search,
                         color: "text-purple-600",
                         bg: "bg-purple-500/5 border-purple-500/10",
+                        filter: null,
                     },
-                ].map(stat => (
-                    <div key={stat.label} className={`rounded-2xl border p-4 flex items-center gap-4 ${stat.bg}`}>
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-white/60 dark:bg-black/20 border border-current/10 shrink-0`}>
-                            <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                        </div>
-                        <div>
-                            <p className={`text-2xl font-black italic tracking-tighter ${stat.color}`}>{stat.value}</p>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">{stat.label}</p>
-                        </div>
-                    </div>
-                ))}
+                ].map(stat => {
+                    const isActive = stat.filter && filterStatus === stat.filter;
+                    return (
+                        <button
+                            key={stat.label}
+                            onClick={() => stat.filter && setFilterStatus(stat.filter as any)}
+                            disabled={!stat.filter}
+                            className={`rounded-2xl border p-4 flex items-center gap-4 transition-all text-left group ${stat.bg} ${
+                                stat.filter ? "cursor-pointer hover:shadow-lg hover:-translate-y-1" : "cursor-default"
+                            } ${isActive ? "ring-2 ring-blue-500 border-transparent shadow-xl scale-[1.02]" : "hover:border-blue-500/30"}`}
+                        >
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-white/60 dark:bg-black/20 border border-current/10 shrink-0 transition-transform group-hover:scale-110 ${isActive ? "bg-white shadow-inner" : ""}`}>
+                                <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className={`text-2xl font-black italic tracking-tighter transition-all ${stat.color} ${isActive ? "scale-110 origin-left" : ""}`}>
+                                    {stat.value}
+                                </p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60 truncate">{stat.label}</p>
+                            </div>
+                        </button>
+                    );
+                })}
             </div>
 
             {/* ── Plan limit bar ───────────────────────────────────────── */}

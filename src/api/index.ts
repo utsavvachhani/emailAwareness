@@ -164,5 +164,11 @@ export const superadminUpdateCompanyBilling = (companyId: string | number, data:
 export const superadminGetModuleDetails = (moduleId: string | number) => API.get(`/superadmin/modules/${moduleId}`);
 export const superadminGetCourseModules = (courseId: string | number) => API.get(`/superadmin/courses/${courseId}/modules`);
 export const superadminGetCourseDetails = (courseId: string | number) => API.get(`/superadmin/courses/${courseId}`);
+export const superadminDeleteCourse = (id: string | number) => API.delete(`/superadmin/courses/${id}`);
+export const superadminCreateCourse = (companyId: string, data: any) => API.post(`/superadmin/companies/${companyId}/courses`, data);
+export const superadminGetCompanyPlanInfo = (companyId: string) => API.get(`/superadmin/companies/${companyId}/plan-info`);
+export const superadminCreateModule = (courseId: string, data: any) => API.post(`/superadmin/courses/${courseId}/modules`, data);
+export const superadminUpdateModule = (id: string, data: any) => API.put(`/superadmin/modules/${id}`, data);
+export const superadminDeleteModule = (id: string) => API.delete(`/superadmin/modules/${id}`);
 
 export default API;

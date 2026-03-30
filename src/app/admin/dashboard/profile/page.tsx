@@ -102,7 +102,7 @@ export default function AdminProfilePage() {
                             <div>
                                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Email</label>
                                 <input value={userInfo?.email || ""} disabled
-                                    className="input-field bg-neutral-900 text-gray-400 cursor-not-allowed border-border" />
+                                    className="input-field bg-muted/30 text-muted-foreground cursor-not-allowed border-border/50" />
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Mobile</label>
@@ -129,7 +129,7 @@ export default function AdminProfilePage() {
                                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Bio</label>
                                 <textarea value={form.bio} onChange={e => setForm(f => ({ ...f, bio: e.target.value }))}
                                     placeholder="A short bio about yourself..." rows={3}
-                                    className="input-field resize-none bg-black text-white" />
+                                    className="input-field resize-none h-auto py-3" />
                             </div>
                         </div>
                     </div>

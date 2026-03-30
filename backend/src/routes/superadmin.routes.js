@@ -28,6 +28,14 @@ import {
   getCourseModulesSuperadmin,
   getCourseDetailsSuperadmin,
 } from "../controllers/superadmin.controller.js";
+import { uploadMedia } from "../controllers/upload.controller.js";
+import multer from "multer";
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+});
 import {
   getAllCompanies,
   deleteCompany,
@@ -36,13 +44,23 @@ import {
 import {
   getAllEmployees,
   deleteEmployee,
+  createEmployee,
+  updateEmployee,
 } from "../controllers/employees.controller.js";
 import {
   getAllCourses,
   approveCourse,
   rejectCourse,
   resetCourseToPending,
+  deleteCourse as deleteCourseSuperadmin,
+  createCourse as createCourseSuperadmin,
+  getCompanyPlanInfo as getCompanyPlanInfoSuperadmin,
 } from "../controllers/courses.controller.js";
+import {
+  createModule as createModuleSuperadmin,
+  updateModule as updateModuleSuperadmin,
+  deleteModule as deleteModuleSuperadmin,
+} from "../controllers/modules.controller.js";
 
 import { authMiddleware, requireRole } from "../middleware/auth.middleware.js";
 
@@ -138,6 +156,18 @@ router.get(
   requireRole("superadmin"),
   getCompanyCoursesSuperadmin,
 );
+router.get(
+  "/companies/:company_id/plan-info",
+  authMiddleware,
+  requireRole("superadmin"),
+  getCompanyPlanInfoSuperadmin,
+);
+router.post(
+  "/companies/:company_id/courses",
+  authMiddleware,
+  requireRole("superadmin"),
+  createCourseSuperadmin,
+);
 router.patch(
   "/companies/:companyId/billing",
   authMiddleware,
@@ -155,6 +185,24 @@ router.get(
   authMiddleware,
   requireRole("superadmin"),
   getCourseModulesSuperadmin,
+);
+router.post(
+  "/courses/:course_id/modules",
+  authMiddleware,
+  requireRole("superadmin"),
+  createModuleSuperadmin,
+);
+router.put(
+  "/modules/:id",
+  authMiddleware,
+  requireRole("superadmin"),
+  updateModuleSuperadmin,
+);
+router.delete(
+  "/modules/:id",
+  authMiddleware,
+  requireRole("superadmin"),
+  deleteModuleSuperadmin,
 );
 router.get(
   "/courses/:id",
@@ -207,6 +255,18 @@ router.delete(
   requireRole("superadmin"),
   deleteEmployee,
 );
+router.put(
+  "/employees/:employeeId",
+  authMiddleware,
+  requireRole("superadmin"),
+  updateEmployee,
+);
+router.post(
+  "/companies/:id/employees",
+  authMiddleware,
+  requireRole("superadmin"),
+  createEmployee,
+);
 
 // Company routes (superadmin)
 
@@ -253,6 +313,20 @@ router.patch(
   authMiddleware,
   requireRole("superadmin"),
   resetCourseToPending,
+);
+router.delete(
+  "/courses/:id",
+  authMiddleware,
+  requireRole("superadmin"),
+  deleteCourseSuperadmin,
+);
+
+router.post(
+  "/upload-media",
+  authMiddleware,
+  requireRole("superadmin"),
+  upload.single("media"),
+  uploadMedia,
 );
 
 export default router;

@@ -59,7 +59,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         { label: "Global Overview", href: "/admin/dashboard", icon: Home },
         { label: "Company Dashboard", href: `/admin/dashboard/${id}`, icon: LayoutDashboard },
         { label: "Employees", href: `/admin/dashboard/${id}/employees`, icon: Users },
-        { label: "My Curriculum", href: `/admin/dashboard/${id}/courses`, icon: BookOpen },
+        { label: "My Courses", href: `/admin/dashboard/${id}/courses`, icon: BookOpen },
         { label: "Billing & Plans", href: `/admin/dashboard/${id}/bills`, icon: CreditCard },
         { label: "Switch Company", href: "/admin/dashboard/companies", icon: Building2 },
     ];

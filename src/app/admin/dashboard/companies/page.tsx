@@ -55,9 +55,16 @@ export default function AdminCompaniesPage() {
 
     // Slide-over state
     const [slideCompany, setSlideCompany] = useState<Company | null>(null);
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
     const apiBase = `${process.env.NEXT_PUBLIC_API_URL}/admin/companies`;
     const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+
+    const handleDeployNode = async (companyId: string) => {
+        setIsRedirecting(true);
+        await new Promise(r => setTimeout(r, 700));
+        router.push(`/admin/dashboard/${companyId}`);
+    };
 
     const fetchCompanies = async () => {
         setIsLoading(true);
@@ -127,7 +134,7 @@ export default function AdminCompaniesPage() {
             {/* ── Header ───────────────────────────────────────────────── */}
             <div className="module-header">
                 <div>
-                    <h1 className="module-title !text-xl">My Companies</h1>
+                    <h1 className="module-title  !text-xl">My Companies</h1>
                     <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">Manage companies registered under your account</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -438,12 +445,22 @@ export default function AdminCompaniesPage() {
                         {/* Panel Footer — Node Deployment */}
                         <div className="sticky bottom-0 bg-background/95 backdrop-blur-md border-t border-border p-5 space-y-3">
                             {slideCompany.status === "approved" ? (
-                                <Link
-                                    href={`/admin/dashboard/${slideCompany.company_id}`}
-                                    className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase tracking-[0.25em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all group"
+                                <button
+                                    onClick={() => handleDeployNode(slideCompany.company_id)}
+                                    disabled={isRedirecting}
+                                    className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase tracking-[0.25em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all group disabled:opacity-70"
                                 >
-                                    Deploy Node Console <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                                </Link>
+                                    {isRedirecting ? (
+                                        <>
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            Establishing Link
+                                        </>
+                                    ) : (
+                                        <>
+                                            Deploy Node Console <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
+                                </button>
                             ) : (
                                 <div className="w-full h-11 rounded-xl bg-muted text-muted-foreground text-[10px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-2 cursor-not-allowed opacity-60">
                                     <Lock className="w-3.5 h-3.5" />

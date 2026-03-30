@@ -204,7 +204,7 @@
     }
 
     .module-title {
-        @apply text-4xl font-black italic tracking-tighter uppercase text-white leading-none;
+        @apply text-4xl font-black italic tracking-tighter uppercase text-black leading-none;
     }
 
     .kpi-value {
@@ -217,6 +217,10 @@
 
     /* Forms */
     .input-field {
+        @apply w-full h-12 rounded-xl bg-white border border-border px-4 text-sm font-bold text-black outline-none placeholder:text-black/20 focus:border-pink-300/50 focus:bg-pink-50/50 transition-all shadow-sm;
+    }
+
+    .input-field-admin {
         @apply w-full h-14 rounded-2xl bg-white/[0.03] border border-white/[0.08] px-6 text-sm font-bold text-white outline-none placeholder:text-white/10 focus:border-blue-500/30 focus:bg-white/[0.05] transition-all;
     }
 
@@ -379,8 +383,4 @@ h3.ce-header {
 
 .ce-block--selected .ce-block__content {
     background-color: transparent !important;
-}
-
-.input-field {
-    @apply w-full px-3 py-2 rounded-lg border border-border bg-black text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
 }

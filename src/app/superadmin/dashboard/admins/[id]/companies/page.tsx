@@ -29,6 +29,13 @@ export default function SuperadminAdminCompaniesPage() {
     const [search, setSearch] = useState("");
     const [filterStatus, setFilterStatus] = useState<string>("all");
     const [slideCompany, setSlideCompany] = useState<any | null>(null);
+    const [isRedirecting, setIsRedirecting] = useState(false);
+
+    const handleDeployNode = async (id: string, cid: string) => {
+        setIsRedirecting(true);
+        await new Promise(r => setTimeout(r, 700));
+        router.push(`/superadmin/dashboard/admins/${id}/companies/${cid}`);
+    };
 
     const fetchCompanies = async () => {
         setIsLoading(true);
@@ -126,7 +133,7 @@ export default function SuperadminAdminCompaniesPage() {
             {/* ── Header ───────────────────────────────────────────────── */}
             <div className="module-header">
                 <div>
-                    <h1 className="module-title !text-xl">Managed Entities</h1>
+                    <h1 className="module-title text-black !text-xl">Managed Entities</h1>
                     <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">Registry oversight for controller node {adminId}</p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -193,7 +200,7 @@ export default function SuperadminAdminCompaniesPage() {
                         <table className="w-full text-left table-auto">
                             <thead className="border-b border-border bg-muted/20">
                                 <tr>
-                                    {["Organization", "Pointer", "Uplink", "Force", "Status Protocol", ""].map(h => (
+                                    {["Company", "ID", "Email", "Phone", "Employees", "Plan", "Status", ""].map(h => (
                                         <th key={h} className="px-4 py-2.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                                             {h}
                                         </th>
@@ -203,6 +210,7 @@ export default function SuperadminAdminCompaniesPage() {
                             <tbody className="divide-y divide-border/40">
                                 {filtered.map(c => {
                                     const isSelected = slideCompany?.id === c.id;
+                                    const planLabel = c.plan && c.plan !== "none" ? c.plan : null;
 
                                     return (
                                         <tr
@@ -245,6 +253,13 @@ export default function SuperadminAdminCompaniesPage() {
                                                 </div>
                                             </td>
 
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                                    <Phone className="w-2.5 h-2.5 shrink-0 opacity-40" />
+                                                    {c.phone || "—"}
+                                                </div>
+                                            </td>
+
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-1.5 text-[11px] font-bold text-foreground">
                                                     <Users className="w-3 h-3 text-blue-600" />
@@ -252,48 +267,54 @@ export default function SuperadminAdminCompaniesPage() {
                                                 </div>
                                             </td>
 
+                                            <td className="px-4 py-3 whitespace-nowrap">
+                                                {planLabel ? (
+                                                    <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider border ${
+                                                        c.is_paid
+                                                            ? planLabel === "premium"
+                                                                ? "bg-purple-500/5 text-purple-600 border-purple-500/10"
+                                                                : planLabel === "standard"
+                                                                ? "bg-blue-500/5 text-blue-600 border-blue-500/10"
+                                                                : "bg-emerald-500/5 text-emerald-600 border-emerald-500/10"
+                                                            : "bg-amber-500/5 text-amber-600 border-amber-500/10"
+                                                    }`}>
+                                                        {planLabel}{c.is_paid ? "" : " ⏳"}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[9px] text-muted-foreground/30 uppercase tracking-[0.2em] font-black">NIL</span>
+                                                )}
+                                            </td>
+
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2">
                                                     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${STATUS_STYLES[c.status] || STATUS_STYLES.pending}`}>
-                                                        <div className={`w-1 h-1 rounded-full ${
-                                                            c.status === 'approved' ? "bg-emerald-500" :
-                                                            c.status === 'rejected' ? "bg-red-500" : "bg-amber-500"
-                                                        }`} />
                                                         {c.status}
                                                     </span>
-                                                    {/* Toggle Actions */}
-                                                    <div className="flex items-center gap-1 opacity-10 group-hover/row:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                                                        <button
-                                                            disabled={processingId === c.id}
-                                                            onClick={() => handleStatusUpdate(c.id, 'approved')}
-                                                            className={`p-1 rounded-md transition-all border ${c.status === 'approved' ? 'bg-emerald-600 text-white' : 'hover:bg-emerald-500/10 text-emerald-600 border-transparent hover:border-emerald-500/20'}`}
-                                                        >
-                                                            {processingId === c.id && c.status !== 'approved' ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
-                                                        </button>
-                                                        <button
-                                                            disabled={processingId === c.id}
-                                                            onClick={() => handleStatusUpdate(c.id, 'rejected')}
-                                                            className={`p-1 rounded-md transition-all border ${c.status === 'rejected' ? 'bg-red-600 text-white' : 'hover:bg-red-500/10 text-red-500 border-transparent hover:border-red-500/20'}`}
-                                                        >
-                                                            {processingId === c.id && c.status === 'rejected' ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
-                                                        </button>
-                                                    </div>
                                                 </div>
                                             </td>
 
                                             <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                                                 <div className="flex items-center gap-1 justify-end">
-                                                    <button
-                                                        onClick={e => handleDelete(c.id, e)}
-                                                        disabled={processingId === c.id}
-                                                        className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500 transition-all border border-transparent hover:border-red-500/20 disabled:opacity-40"
-                                                        title="Decommission"
-                                                    >
-                                                        {processingId === c.id
-                                                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                                            : <Trash2 className="w-3.5 h-3.5" />
-                                                        }
-                                                    </button>
+                                                    {c.status !== "approved" && (
+                                                        <button
+                                                            disabled={processingId === c.id}
+                                                            onClick={() => handleStatusUpdate(c.id, 'approved')}
+                                                            className="flex items-center gap-1 px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                                        >
+                                                            {processingId === c.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <CheckCircle className="w-2.5 h-2.5" />}
+                                                            Approve
+                                                        </button>
+                                                    )}
+                                                    {c.status !== "rejected" && (
+                                                        <button
+                                                            disabled={processingId === c.id}
+                                                            onClick={() => handleStatusUpdate(c.id, 'rejected')}
+                                                            className="flex items-center gap-1 px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                                                        >
+                                                            {processingId === c.id ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <XCircle className="w-2.5 h-2.5" />}
+                                                            Revoked
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => setSlideCompany(isSelected ? null : c)}
                                                         className={`p-1.5 rounded-lg transition-all border ${
@@ -415,12 +436,22 @@ export default function SuperadminAdminCompaniesPage() {
 
                             {/* Panel Footer */}
                             <div className="sticky bottom-0 bg-background/95 backdrop-blur-md border-t border-border p-5 space-y-3">
-                                <Link
-                                    href={`/superadmin/dashboard/admins/${adminId}/companies/${slideCompany.company_id}`}
-                                    className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase tracking-[0.25em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all group"
+                                <button
+                                    onClick={() => handleDeployNode(adminId as string, slideCompany.company_id)}
+                                    disabled={isRedirecting}
+                                    className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase tracking-[0.25em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all group disabled:opacity-70"
                                 >
-                                    Deploy Node Console <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                                </Link>
+                                    {isRedirecting ? (
+                                        <>
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            Establishing Link
+                                        </>
+                                    ) : (
+                                        <>
+                                            Deploy Node Console <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                        </>
+                                    )}
+                                </button>
                                 
                                 <div className="grid grid-cols-2 gap-2">
                                     <button

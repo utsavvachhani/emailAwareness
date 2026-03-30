@@ -15,10 +15,6 @@ import {
   adminCreateCourse,
   adminDeleteCourse,
   adminGetCompanyPlanInfo,
-  adminGetCourseModules,
-  adminCreateModule,
-  adminUpdateModule,
-  adminDeleteModule,
 } from "@/api";
 
 
