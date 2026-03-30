@@ -1,25 +1,37 @@
 "use client";
 
 import { useAppSelector } from "@/lib/redux/hooks";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 import {
-    Users, Building2, CreditCard, Shield, 
-    TrendingUp, ArrowRight, Loader2, Globe, Award, Plus, ArrowLeft, Mail, BookOpen, RefreshCw, Phone, CheckCircle, XCircle, Trash2
+    Users, Building2, CreditCard, Shield,
+    TrendingUp, ArrowRight, Loader2, Globe, Award, Plus, ArrowLeft, Mail, BookOpen, RefreshCw, Phone, CheckCircle, XCircle, Trash2,
+    Zap, Activity, PieChart, BarChart3, Search, Clock, X, ChevronRight, MapPin, Briefcase, Pencil, ExternalLink, FileText, Lock, Hash
 } from "lucide-react";
 import { superadminGetAdminCompanies } from "@/api";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { toast } from "sonner";
 
+const STATUS_STYLES: Record<string, string> = {
+    approved: "bg-emerald-500/5 text-emerald-600 border-emerald-500/10",
+    rejected: "bg-red-500/5 text-red-500 border-red-500/10",
+    pending: "bg-amber-500/5 text-amber-500 border-amber-500/10",
+};
+
 export default function SuperadminAdminCompaniesPage() {
     const { id: adminId } = useParams();
+    const router = useRouter();
     const token = useAppSelector(s => s.auth.token);
     const [companies, setCompanies] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(true);
     const [processingId, setProcessingId] = useState<number | null>(null);
+    const [search, setSearch] = useState("");
+    const [filterStatus, setFilterStatus] = useState<string>("all");
+    const [slideCompany, setSlideCompany] = useState<any | null>(null);
 
     const fetchCompanies = async () => {
-        setLoading(true);
+        setIsLoading(true);
         try {
             const res = await superadminGetAdminCompanies(adminId as string);
             if (res.data.success) {
@@ -29,7 +41,7 @@ export default function SuperadminAdminCompaniesPage() {
             console.error("Superadmin fetch admin companies error:", err);
             toast.error("Failed to load managed entities");
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -42,194 +54,395 @@ export default function SuperadminAdminCompaniesPage() {
         try {
             const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/companies/${id}/status`, {
                 method: "PATCH",
-                headers: { 
+                headers: {
                     "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}` 
+                    Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({ status }),
                 credentials: "include",
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message);
-            toast.success(`Entity ${status}`);
-            fetchCompanies();
+            toast.success(`Entity updated to ${status}`);
+            
+            // Update local state
+            setCompanies(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+            if (slideCompany?.id === id) setSlideCompany({ ...slideCompany, status });
         } catch (err: any) { toast.error(err.message || "Update failed"); }
         finally { setProcessingId(null); }
     };
 
+    const handleDelete = async (id: number, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm("Decommission this registry node? This action is irreversible.")) return;
+        setProcessingId(id);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/superadmin/companies/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (res.ok) {
+                toast.success("Entity decommissioned");
+                setSlideCompany(null);
+                fetchCompanies();
+            } else {
+                throw new Error("Decommissioning failed");
+            }
+        } catch (err: any) {
+            toast.error(err.message);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const filtered = companies.filter(c => {
+        const matchesSearch = c.name.toLowerCase().includes(search.toLowerCase()) ||
+            c.company_id.toLowerCase().includes(search.toLowerCase()) ||
+            c.email.toLowerCase().includes(search.toLowerCase());
+        const matchesStatus = filterStatus === "all" || c.status === filterStatus;
+        return matchesSearch && matchesStatus;
+    });
+
+    const stats = {
+        total: companies.length,
+        staff: companies.reduce((acc, c) => acc + (c.num_employees || 0), 0),
+        industries: new Set(companies.map(c => c.industry).filter(Boolean)).size,
+        activePlans: companies.filter(c => c.plan && c.plan !== "none" && c.is_paid).length,
+    };
+
     return (
-        <div className="space-y-10 max-w-[1400px] mx-auto pb-12">
-            {/* Contextual Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-border/80">
-                <div className="space-y-5">
-                    <div className="flex items-center gap-3">
-                         <div className="w-14 h-14 bg-black rounded-2xl flex items-center justify-center shadow-lg shadow-black/20 border border-white/10">
-                             <Building2 className="w-7 h-7 text-white" />
-                         </div>
-                         <div>
-                             <h1 className="text-4xl font-black tracking-tight flex items-center gap-3">
-                                 Managed <span className="text-blue-600">Entities</span>
-                             </h1>
-                             <p className="text-muted-foreground font-medium flex items-center gap-2 mt-1">
-                                 Showing companies assigned to Admin #[<span className="text-foreground mono uppercase text-xs">{adminId}</span>]
-                             </p>
-                         </div>
-                    </div>
-                </div>
-                <button 
-                    onClick={fetchCompanies}
-                    disabled={loading}
-                    className="flex items-center gap-2 h-11 px-6 rounded-xl border border-border hover:bg-muted transition-all text-xs font-black uppercase tracking-widest disabled:opacity-50"
+        <div className="space-y-5 relative">
+            {/* ── Contextual Navigation ─────────────────────────── */}
+            <div className="flex items-center justify-between mb-2">
+                <Link
+                    href={`/superadmin/dashboard/admins/${adminId}`}
+                    className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground hover:text-blue-600 transition-colors group px-4 py-1.5 bg-muted/60 rounded-xl border border-border/40"
                 >
-                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    Sync Records
-                </button>
+                    <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+                    CONTROLLER PORTFOLIO / {adminId}
+                </Link>
             </div>
 
-            {/* Statistics Row */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="stat-card border-blue-600/10 bg-blue-600/[0.01]">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Entity Portfolio</p>
-                    <p className="text-3xl font-black tracking-tighter">{companies.length} Companies</p>
-                    <div className="mt-3 flex items-center gap-2">
-                         <div className="w-2 h-2 rounded-full bg-blue-500" />
-                         <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Active Monitoring</span>
-                    </div>
+            {/* ── Header ───────────────────────────────────────────────── */}
+            <div className="module-header">
+                <div>
+                    <h1 className="module-title !text-xl">Managed Entities</h1>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">Registry oversight for controller node {adminId}</p>
                 </div>
-                <div className="stat-card border-purple-600/10 bg-purple-600/[0.01]">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Total Workforce</p>
-                    <p className="text-3xl font-black tracking-tighter">{companies.reduce((acc, c) => acc + (c.num_employees || 0), 0)} Staff</p>
-                    <div className="mt-3 flex items-center gap-2">
-                         <div className="w-2 h-2 rounded-full bg-purple-500" />
-                         <span className="text-[10px] font-bold text-purple-600 uppercase tracking-widest">Global Headcount</span>
+                <div className="flex items-center gap-2">
+                    <div className="relative group/search mr-2">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/40 group-focus-within/search:text-blue-500 transition-colors" />
+                        <input
+                            type="text"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="Find node..."
+                            className="h-8 w-40 pl-8 pr-3 text-[10px] bg-muted/40 border border-border rounded-lg outline-none focus:border-blue-500/30 transition-all font-bold"
+                        />
                     </div>
-                </div>
-                <div className="stat-card border-emerald-600/10 bg-emerald-600/[0.01]">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">Portfolio Tier</p>
-                    <p className="text-3xl font-black tracking-tighter capitalize">{companies.filter(c => c.plan === 'enterprise').length} Ent.</p>
-                    <div className="mt-3 flex items-center gap-2">
-                         <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                         <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Enterprise Share</span>
-                    </div>
+                    <button onClick={fetchCompanies} disabled={isLoading}
+                        className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border hover:bg-muted transition-colors text-[11px] font-medium">
+                        <RefreshCw className={`h-3 w-3 ${isLoading ? "animate-spin" : ""}`} />
+                        Sync Registry
+                    </button>
+                    {/* Filter Dropdown */}
+                    <select 
+                        value={filterStatus} 
+                        onChange={e => setFilterStatus(e.target.value)}
+                        className="h-8 px-2 border border-border rounded-lg bg-background text-[10px] font-bold outline-none focus:border-blue-500/30"
+                    >
+                        <option value="all">ALL NODES</option>
+                        <option value="approved">APPROVED</option>
+                        <option value="pending">PENDING</option>
+                        <option value="rejected">REJECTED</option>
+                    </select>
                 </div>
             </div>
 
-            {/* Entities Table */}
-            <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
-                {loading ? (
-                    <div className="flex h-[30vh] items-center justify-center">
-                        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            {/* ── Stats Row ────────────────────────────────────────────── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                    { label: "Total Registries", value: stats.total, icon: Building2 },
+                    { label: "Total Workforce", value: stats.staff, icon: Users },
+                    { label: "Industrial Sectors", value: stats.industries, icon: Hash },
+                    { label: "Strategic Tier", value: stats.activePlans, icon: Shield },
+                ].map(stat => (
+                    <div key={stat.label} className="rounded-xl border border-border bg-card p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
+                            <stat.icon className="h-3.5 w-3.5 text-muted-foreground opacity-30" />
+                        </div>
+                        <p className="text-xl font-black text-foreground">{stat.value}</p>
                     </div>
-                ) : companies.length === 0 ? (
-                    <div className="flex h-[30vh] flex-col items-center justify-center text-center opacity-30 select-none">
-                        <Building2 className="w-16 h-16 mb-4" />
-                        <p className="text-sm font-black uppercase tracking-widest">No entities assigned to this admin</p>
+                ))}
+            </div>
+
+            {/* ── Table Container ──────────────────────────────────────── */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col shadow-sm">
+                {isLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+                        <Building2 className="w-10 h-10 mb-2 opacity-10" />
+                        <p className="text-[11px] font-medium opacity-60">No organizations found attached to this registry pointer</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-muted/30 border-b border-border">
+                        <table className="w-full text-left table-auto">
+                            <thead className="border-b border-border bg-muted/20">
                                 <tr>
-                                    <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Entity Portfolio</th>
-                                    <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Staffing</th>
-                                    <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Subscription</th>
-                                    <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Compliance</th>
-                                    <th className="px-8 py-5 text-left text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Oversight</th>
+                                    {["Organization", "Pointer", "Uplink", "Force", "Status Protocol", ""].map(h => (
+                                        <th key={h} className="px-4 py-2.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                            {h}
+                                        </th>
+                                    ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-border">
-                                {companies.map((company) => (
-                                    <tr key={company.id} className="hover:bg-muted/10 transition-colors group cursor-default">
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center font-black group-hover:scale-105 transition-transform duration-300">
-                                                    {company.name[0]}
-                                                </div>
-                                                <div>
-                                                    <p className="font-black text-sm">{company.name}</p>
-                                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                                        <Mail className="w-3 h-3 text-muted-foreground" />
-                                                        <p className="text-[10px] text-muted-foreground font-medium">{company.email}</p>
+                            <tbody className="divide-y divide-border/40">
+                                {filtered.map(c => {
+                                    const isSelected = slideCompany?.id === c.id;
+
+                                    return (
+                                        <tr
+                                            key={c.id}
+                                            onClick={() => setSlideCompany(isSelected ? null : c)}
+                                            className={`transition-all cursor-pointer group/row ${
+                                                isSelected
+                                                    ? "bg-blue-500/5 border-l-2 border-l-blue-500 shadow-inner"
+                                                    : "hover:bg-muted/30 border-l-2 border-l-transparent"
+                                            }`}
+                                        >
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 border ${
+                                                        c.status === "approved"
+                                                            ? "bg-blue-600 text-white border-blue-600"
+                                                            : "bg-muted border-border text-muted-foreground/60"
+                                                    }`}>
+                                                        {c.status === "approved" ? c.name.slice(0, 2).toUpperCase() : <Lock className="w-3 h-3" />}
+                                                    </div>
+                                                    <div className="min-w-0 pr-2">
+                                                        <p className={`font-bold text-[11px] truncate max-w-[120px] ${isSelected ? "text-blue-600" : "text-foreground group-hover/row:text-blue-600 transition-colors"}`}>
+                                                            {c.name}
+                                                        </p>
+                                                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-medium mt-0.5 truncate">{c.industry || "General Node"}</p>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="flex flex-col gap-1.5">
+                                            </td>
+
+                                            <td className="px-4 py-3">
+                                                <span className="text-[10px] font-mono font-bold bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded border border-border/40 whitespace-nowrap">
+                                                    #{c.company_id}
+                                                </span>
+                                            </td>
+
+                                            <td className="px-4 py-3 max-w-[150px]">
+                                                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground group-hover/row:text-foreground transition-colors truncate">
+                                                    <Mail className="w-3 h-3 shrink-0 opacity-40" />
+                                                    <span className="truncate">{c.email}</span>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-foreground">
+                                                    <Users className="w-3 h-3 text-blue-600" />
+                                                    {c.num_employees.toLocaleString()}
+                                                </div>
+                                            </td>
+
+                                            <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2">
-                                                    <Users className="w-3.5 h-3.5 text-blue-600" />
-                                                    <span className="text-sm font-black tracking-tight">{company.num_employees} Users</span>
-                                                </div>
-                                                <div className="w-32 h-1 bg-muted rounded-full overflow-hidden">
-                                                    <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.min(100, (company.num_employees / 50) * 100)}%` }} />
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${company.plan === 'enterprise' ? 'bg-purple-500' : 'bg-blue-500'}`} />
-                                                <span className="text-xs font-black uppercase tracking-widest">{company.plan || 'Free'}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border uppercase tracking-widest whitespace-nowrap ${
-                                                company.status === 'approved' 
-                                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' 
-                                                : company.status === 'rejected'
-                                                ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                                                : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                                            }`}>
-                                                {company.status || 'pending'}
-                                            </span>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-3">
-                                                <Link 
-                                                    href={`/superadmin/dashboard/admins/${adminId}/companies/${company.company_id}`}
-                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-colors shadow-lg shadow-black/10"
-                                                >
-                                                    Oversight <ArrowRight className="w-3 h-3" />
-                                                </Link>
-                                                {company.status === 'pending' ? (
-                                                     <div className="flex items-center gap-1.5">
-                                                        <button 
-                                                            onClick={() => handleStatusUpdate(company.id, 'approved')}
-                                                            disabled={processingId === company.id}
-                                                            className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500 transition-colors hover:text-white"
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${STATUS_STYLES[c.status] || STATUS_STYLES.pending}`}>
+                                                        <div className={`w-1 h-1 rounded-full ${
+                                                            c.status === 'approved' ? "bg-emerald-500" :
+                                                            c.status === 'rejected' ? "bg-red-500" : "bg-amber-500"
+                                                        }`} />
+                                                        {c.status}
+                                                    </span>
+                                                    {/* Toggle Actions */}
+                                                    <div className="flex items-center gap-1 opacity-10 group-hover/row:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                                                        <button
+                                                            disabled={processingId === c.id}
+                                                            onClick={() => handleStatusUpdate(c.id, 'approved')}
+                                                            className={`p-1 rounded-md transition-all border ${c.status === 'approved' ? 'bg-emerald-600 text-white' : 'hover:bg-emerald-500/10 text-emerald-600 border-transparent hover:border-emerald-500/20'}`}
                                                         >
-                                                            <CheckCircle className="w-4 h-4" />
+                                                            {processingId === c.id && c.status !== 'approved' ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
                                                         </button>
-                                                        <button 
-                                                            onClick={() => handleStatusUpdate(company.id, 'rejected')}
-                                                            disabled={processingId === company.id}
-                                                            className="p-2 rounded-lg bg-red-500/10 text-red-600 border border-red-500/20 hover:bg-red-500 transition-colors hover:text-white"
+                                                        <button
+                                                            disabled={processingId === c.id}
+                                                            onClick={() => handleStatusUpdate(c.id, 'rejected')}
+                                                            className={`p-1 rounded-md transition-all border ${c.status === 'rejected' ? 'bg-red-600 text-white' : 'hover:bg-red-500/10 text-red-500 border-transparent hover:border-red-500/20'}`}
                                                         >
-                                                            <XCircle className="w-4 h-4" />
+                                                            {processingId === c.id && c.status === 'rejected' ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
                                                         </button>
-                                                     </div>
-                                                ) : (
-                                                    <button 
-                                                        onClick={() => handleStatusUpdate(company.id, company.status === 'approved' ? 'rejected' : 'approved')}
-                                                        disabled={processingId === company.id}
-                                                        className={`p-2 rounded-lg border transition-colors ${
-                                                            company.status === 'approved' 
-                                                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500 hover:text-white'
-                                                            : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500 hover:text-white'
-                                                        }`}
-                                                        title={company.status === 'approved' ? 'Revoke Approval' : 'Grant Approval'}
+                                                    </div>
+                                                </div>
+                                            </td>
+
+                                            <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                                                <div className="flex items-center gap-1 justify-end">
+                                                    <button
+                                                        onClick={e => handleDelete(c.id, e)}
+                                                        disabled={processingId === c.id}
+                                                        className="p-1.5 rounded-lg hover:bg-red-500/10 text-red-500 transition-all border border-transparent hover:border-red-500/20 disabled:opacity-40"
+                                                        title="Decommission"
                                                     >
-                                                        {company.status === 'approved' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                                                        {processingId === c.id
+                                                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            : <Trash2 className="w-3.5 h-3.5" />
+                                                        }
                                                     </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
+                                                    <button
+                                                        onClick={() => setSlideCompany(isSelected ? null : c)}
+                                                        className={`p-1.5 rounded-lg transition-all border ${
+                                                            isSelected
+                                                                ? "bg-blue-500/10 border-blue-500/20 text-blue-600"
+                                                                : "hover:bg-muted border-transparent hover:border-border text-muted-foreground"
+                                                        }`}
+                                                    >
+                                                        <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isSelected ? "rotate-90" : ""}`} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 )}
             </div>
+
+            {/* ── Slide-over Detail Panel ──────────────────────────────── */}
+            <AnimatePresence>
+                {slideCompany && (
+                    <div className="fixed inset-0 z-50 flex justify-end pointer-events-none">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/10 backdrop-blur-[1px] pointer-events-auto"
+                            onClick={() => setSlideCompany(null)}
+                        />
+
+                        {/* Panel */}
+                        <motion.div 
+                            initial={{ x: "100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "100%" }}
+                            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                            className="relative w-full max-w-sm bg-background border-l border-border shadow-2xl h-full flex flex-col pointer-events-auto overflow-y-auto"
+                        >
+
+                            {/* Panel Header */}
+                            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md border-b border-border px-5 py-4 flex items-center justify-between">
+                                <div className="flex items-center gap-2.5">
+                                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center text-[10px] font-black border ${
+                                        slideCompany.status === "approved"
+                                            ? "bg-blue-600 text-white border-blue-600"
+                                            : "bg-muted border-border text-muted-foreground/60"
+                                    }`}>
+                                        {slideCompany.name.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0 pr-2">
+                                        <h2 className="font-bold text-[13px] tracking-tight truncate max-w-[150px] uppercase">{slideCompany.name}</h2>
+                                        <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-[0.2em]">Registry Insights</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setSlideCompany(null)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+
+                            {/* Panel Body */}
+                            <div className="flex-1 p-5 space-y-6">
+
+                                {/* Metadata Cluster */}
+                                <div className="grid grid-cols-2 gap-2.5">
+                                    <div className="p-4 rounded-xl bg-muted/30 border border-border/40">
+                                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50 mb-1.5">Registry Pointer</p>
+                                        <p className="font-mono font-bold text-[11px] text-foreground">#{slideCompany.company_id}</p>
+                                    </div>
+                                    <div className="p-4 rounded-xl bg-muted/30 border border-border/40">
+                                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50 mb-1.5">Initialized</p>
+                                        <p className="text-[10px] font-bold text-foreground">
+                                            {new Date(slideCompany.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Force Multiplier */}
+                                <div className="p-5 rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-600/10">
+                                    <Users className="w-4 h-4 opacity-40 mb-3" />
+                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">Total Force</p>
+                                    <p className="text-2xl font-black leading-none">{slideCompany.num_employees.toLocaleString()}</p>
+                                </div>
+
+                                {/* Communication channels */}
+                                <div className="space-y-3">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-muted-foreground/40 ml-1">Protocol Matrix</p>
+                                    <div className="space-y-2">
+                                        {[
+                                            { icon: Mail, label: "Registry Email", value: slideCompany.email },
+                                            { icon: Phone, label: "Registry Channel", value: slideCompany.phone || "+00 NIL" },
+                                            { icon: Globe, label: "Digital Horizon", value: slideCompany.website || "LOCAL NODE", link: slideCompany.website },
+                                            { icon: MapPin, label: "Deployment Zone", value: slideCompany.address || "GLOBAL HUB" },
+                                            { icon: Briefcase, label: "Industrial Sector", value: slideCompany.industry || "GENERAL" },
+                                        ].map((item, idx) => (
+                                            <div key={idx} className="flex items-center gap-3.5 p-3 rounded-xl border border-border/40 bg-card">
+                                                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground/30">
+                                                    <item.icon className="w-3.5 h-3.5" />
+                                                </div>
+                                                <div className="flex-1 min-w-0 pr-2">
+                                                    <p className="text-[8px] font-bold uppercase tracking-[0.2em] text-muted-foreground/40 mb-0.5">{item.label}</p>
+                                                    {item.link ? (
+                                                        <a href={item.link} target="_blank" rel="noopener noreferrer"
+                                                            className="text-[11px] font-bold text-blue-500 hover:underline truncate">
+                                                            {item.value} <ExternalLink className="w-2.5 h-2.5 opacity-40 inline" />
+                                                        </a>
+                                                    ) : (
+                                                        <p className="text-[11px] font-bold text-foreground/80 truncate">{item.value}</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Panel Footer */}
+                            <div className="sticky bottom-0 bg-background/95 backdrop-blur-md border-t border-border p-5 space-y-3">
+                                <Link
+                                    href={`/superadmin/dashboard/admins/${adminId}/companies/${slideCompany.company_id}`}
+                                    className="w-full h-11 rounded-xl bg-blue-600 text-white font-black uppercase tracking-[0.25em] text-[10px] flex items-center justify-center gap-2 hover:bg-blue-700 shadow-xl shadow-blue-500/20 transition-all group"
+                                >
+                                    Deploy Node Console <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                                </Link>
+                                
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        onClick={() => handleStatusUpdate(slideCompany.id, slideCompany.status === 'approved' ? 'rejected' : 'approved')}
+                                        className="h-10 rounded-lg border border-border hover:bg-muted text-[10px] font-bold transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                        <RefreshCw className="w-3.5 h-3.5" /> Protocol Reset
+                                    </button>
+                                    <button
+                                        onClick={e => handleDelete(slideCompany.id, e)}
+                                        disabled={processingId === slideCompany.id}
+                                        className="h-10 rounded-lg border border-red-500/10 bg-red-500/5 text-red-500 text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
+                                    >
+                                        {processingId === slideCompany.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                                        Decommission
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

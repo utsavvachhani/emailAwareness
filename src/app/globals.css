@@ -217,8 +217,7 @@
 
     /* Forms */
     .input-field {
-        @apply w-full h-14 rounded-2xl bg-white/[0.03] border border-white/[0.08] px-6 text-sm font-bold text-white outline-none
-               placeholder:text-white/10 focus:border-blue-500/30 focus:bg-white/[0.05] transition-all;
+        @apply w-full h-14 rounded-2xl bg-white/[0.03] border border-white/[0.08] px-6 text-sm font-bold text-white outline-none placeholder:text-white/10 focus:border-blue-500/30 focus:bg-white/[0.05] transition-all;
     }
 
     textarea.input-field {
@@ -297,6 +296,7 @@
     .scrollbar-hide::-webkit-scrollbar {
         display: none;
     }
+
     .scrollbar-hide {
         -ms-overflow-style: none;
         scrollbar-width: none;
@@ -319,21 +319,33 @@
     max-width: 900px;
     margin: 0 auto;
 }
+
 .ce-toolbar__content {
     max-width: 900px;
     margin: 0 auto;
 }
+
 .codex-editor--narrow .ce-block__content {
     max-width: 900px;
 }
+
 .ce-header {
     font-weight: 800;
     margin-bottom: 0.5em;
     line-height: 1.1;
 }
-h1.ce-header { font-size: 2.5rem; }
-h2.ce-header { font-size: 2rem; }
-h3.ce-header { font-size: 1.5rem; }
+
+h1.ce-header {
+    font-size: 2.5rem;
+}
+
+h2.ce-header {
+    font-size: 2rem;
+}
+
+h3.ce-header {
+    font-size: 1.5rem;
+}
 
 .ce-paragraph {
     line-height: 1.8;
@@ -346,15 +358,29 @@ h3.ce-header { font-size: 1.5rem; }
     margin-top: 1rem;
     margin-bottom: 1rem;
 }
+
 .cdx-list__item {
     padding: 0.5rem 0;
     line-height: 1.6;
 }
 
 /* Prevent toolbar artifacts in read-only mode */
-.editorjs-view .ce-toolbar { display: none !important; }
-.editorjs-view .ce-block--selected .ce-block__content { background: transparent !important; }
-.editorjs-view .ce-block__content { cursor: default; }
+.editorjs-view .ce-toolbar {
+    display: none !important;
+}
+
+.editorjs-view .ce-block--selected .ce-block__content {
+    background: transparent !important;
+}
+
+.editorjs-view .ce-block__content {
+    cursor: default;
+}
+
 .ce-block--selected .ce-block__content {
     background-color: transparent !important;
+}
+
+.input-field {
+    @apply w-full px-3 py-2 rounded-lg border border-border bg-black text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors;
 }
