@@ -61,7 +61,9 @@ export default function UserQuizDedicatedPage() {
 
     setSubmitting(true);
     try {
-      const qData = JSON.parse(module.contentextra || '{"questions":[]}');
+      const qData = typeof module.contentextra === 'string' 
+        ? JSON.parse(module.contentextra || '{"questions":[]}') 
+        : (module.contentextra || { questions: [] });
       const questions = qData.questions || [];
       let finalScore = 0;
       questions.forEach((q: any, i: number) => {
@@ -104,7 +106,9 @@ export default function UserQuizDedicatedPage() {
     );
   }
 
-  const qData = JSON.parse(module?.contentextra || '{"questions":[]}');
+  const qData = typeof module.contentextra === 'string' 
+    ? JSON.parse(module.contentextra || '{"questions":[]}') 
+    : (module.contentextra || { questions: [] });
   const questions = qData.questions || [];
 
   if (finished) {

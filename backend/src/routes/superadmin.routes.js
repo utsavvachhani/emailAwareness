@@ -46,6 +46,7 @@ import {
   deleteEmployee,
   createEmployee,
   updateEmployee,
+  getEmployeeProgressDetail,
 } from "../controllers/employees.controller.js";
 import {
   getAllCourses,
@@ -260,6 +261,12 @@ router.put(
   authMiddleware,
   requireRole("superadmin"),
   updateEmployee,
+);
+router.get(
+  "/employees/:employeeId/progress",
+  authMiddleware,
+  requireRole("superadmin"),
+  getEmployeeProgressDetail,
 );
 router.post(
   "/companies/:id/employees",

@@ -132,6 +132,7 @@ export const adminGetCoursesByCompany = (companyId: string) => API.get(`/admin/c
 export const adminCreateCourse = (companyId: string, data: any) => API.post(`/admin/companies/${companyId}/courses-create`, data);
 export const adminGetCourseDetails = (id: string) => API.get(`/admin/my-courses/${id}`);
 export const adminDeleteCourse = (id: string) => API.delete(`/admin/my-courses/${id}`);
+export const adminGetEmployeeProgress = (employeeId: string | number) => API.get(`/admin/employees/${employeeId}/progress`);
 export const adminGetCompanyPlanInfo = (companyId: string) => API.get(`/admin/companies/${companyId}/plan-info`);
 export const adminGetCompanyStats = (companyId: string) => API.get(`/admin/companies/${companyId}/stats`);
 export const adminGetCompanyDetails = (companyId: string) => API.get(`/admin/companies/${companyId}`);
@@ -167,6 +168,7 @@ export const superadminRejectCourse = (id: string, data: { reason: string }) => 
 export const superadminResetCourse = (id: string) => API.patch(`/superadmin/courses/${id}/reset`);
 export const superadminGetAdminPortfolioStats = (adminId: string | number) => API.get(`/superadmin/admins/${adminId}/stats`);
 export const superadminGetAdminCompanies = (adminId: string | number) => API.get(`/superadmin/admins/${adminId}/companies`);
+export const superadminGetEmployeeProgress = (employeeId: string | number) => API.get(`/superadmin/employees/${employeeId}/progress`);
 export const superadminGetCompanyDetails = (companyId: string | number) => API.get(`/superadmin/companies/${companyId}`);
 export const superadminGetCompanyStats = (companyId: string | number) => API.get(`/superadmin/companies/${companyId}/stats`);
 export const superadminGetCompanyEmployees = (companyId: string | number) => API.get(`/superadmin/companies/${companyId}/employees`);

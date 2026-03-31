@@ -71,7 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <AuthGuard requiredRole="superadmin">
             <div className="min-h-screen bg-background flex text-foreground">
                 {/* Sidebar */}
-                <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-white/10">
+                <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-white/10 print:hidden">
                     <div className="flex h-full flex-col bg-black">
                         {/* Logo */}
                         <div className="flex h-16 items-center border-b border-white/10 px-4">
@@ -131,8 +131,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                 </aside>
 
-                <div className="pl-64 flex-1 flex flex-col min-h-screen">
-                    <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur flex items-center justify-between px-6">
+                <div className="pl-64 flex-1 flex flex-col min-h-screen print:pl-0">
+                    <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur flex items-center justify-between px-6 print:hidden">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
                                 <span>Superadmin</span>

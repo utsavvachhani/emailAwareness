@@ -409,7 +409,9 @@ export default function ModuleViewPage() {
                 <div className="grid grid-cols-1 gap-4">
                   {(() => {
                     try {
-                      const qData = JSON.parse(module.contentextra || '{"questions":[]}');
+                      const qData = typeof module.contentextra === 'string' 
+                        ? JSON.parse(module.contentextra || '{"questions":[]}') 
+                        : (module.contentextra || { questions: [] });
                       const questions = qData.questions || [];
                       if (questions.length === 0) return <div className="p-20 text-center italic text-muted-foreground border-2 border-dashed border-border rounded-3xl">No questions configured.</div>;
                       

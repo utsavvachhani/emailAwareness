@@ -179,3 +179,54 @@ export const deleteEmployee = async (req, res) => {
     return res.status(500).json({ success: false, message: "Internal server error" });
   }
 };
+
+// ─── Get Detailed Employee Progress (Reporting) ───────────────────────────────
+export const getEmployeeProgressDetail = async (req, res) => {
+  const { employeeId } = req.params;
+  try {
+    // 1. Get Employee info
+    const empRes = await pool.query("SELECT * FROM employees WHERE id = $1", [employeeId]);
+    if (empRes.rows.length === 0) return res.status(404).json({ success: false, message: "Employee not found" });
+    const employee = empRes.rows[0];
+
+    // 2. Get User ID by email
+    const userRes = await pool.query("SELECT id, assigned_courses FROM users WHERE email = $1", [employee.email]);
+    if (userRes.rows.length === 0) {
+       // Return basic info even if user hasn't logged in yet
+       return res.status(200).json({ success: true, employee, courses: [], progress: [] });
+    }
+    const user = userRes.rows[0];
+    const assignedIds = user.assigned_courses || [];
+
+    // 3. Get Course Details
+    let courses = [];
+    if (assignedIds.length > 0) {
+       const coursesRes = await pool.query(
+         `SELECT c.id, c.title, c.description, c.difficulty,
+                 (SELECT COUNT(*)::int FROM course_modules WHERE course_id = c.id AND status = 'published') as total_modules
+          FROM courses c WHERE c.id = ANY($1)`,
+         [assignedIds]
+       );
+       courses = coursesRes.rows;
+    }
+
+    // 4. Get Module Progress
+    const progressRes = await pool.query(
+      `SELECT ep.*, m.title as module_title, m.type as module_type 
+       FROM employee_progress ep 
+       JOIN course_modules m ON ep.module_id = m.id 
+       WHERE ep.user_id = $1`,
+      [user.id]
+    );
+
+    return res.status(200).json({
+      success: true,
+      employee,
+      courses,
+      progress: progressRes.rows
+    });
+  } catch (err) {
+    console.error("getEmployeeProgressDetail error:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};

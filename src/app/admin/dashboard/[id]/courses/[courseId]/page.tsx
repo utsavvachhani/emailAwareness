@@ -330,7 +330,7 @@ export default function CourseModulesPage() {
 
       {/* Stats Cards */}
       {!showForm && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600">

@@ -87,7 +87,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         <AuthGuard requiredRole="admin">
             <div className="min-h-screen bg-background flex">
                 {/* Sidebar */}
-                <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border">
+                <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-sidebar-border print:hidden">
                     <div className="flex h-full flex-col bg-black">
                         {/* Logo */}
                         <div className="flex h-20 items-center border-b border-white/10 px-6">
@@ -164,10 +164,10 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                 </aside>
 
                 {/* Main content */}
-                <div className="ml-64 flex-1 flex flex-col min-h-screen">
+                <div className="ml-64 flex-1 flex flex-col min-h-screen print:ml-0">
 
                     {/* Topbar */}
-                    <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur">
+                    <header className="sticky top-0 z-30 h-16 border-b border-border bg-background/95 backdrop-blur print:hidden">
                         <div className="flex h-full items-center justify-between px-6">
                             {/* Breadcrumb */}
                             <div className="flex items-center gap-4">

@@ -6,7 +6,7 @@ import {
   Shield, List, ArrowLeft, Loader2, 
   Video, FileText, CheckCircle2, Clock, 
   ShieldCheck, RefreshCcw, ChevronRight, Zap, Info, XCircle, AlertTriangle, X, PlayCircle,
-  Plus, Search, Filter, Trash2, MoreVertical, LayoutList, Eye, EyeOff
+  Plus, Search, Filter, Trash2, MoreVertical, LayoutList, Eye, EyeOff, Target
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -20,14 +20,14 @@ import {
   superadminUpdateModule,
   superadminDeleteModule,
   superadminGetCompanyPlanInfo,
-  adminUploadMedia
+  superadminUploadMedia
 } from "@/api";
 
 type Module = {
   id: number;
   course_id: number;
   title: string;
-  type: "docs" | "video";
+  type: "docs" | "video" | "quiz";
   content?: string;
   contentextra?: string;
   video_url?: string;
@@ -59,7 +59,7 @@ export default function SuperadminCourseModulesOversight() {
   const [editModule, setEditModule] = useState<Module | null>(null);
   const [form, setForm] = useState({
       title: "",
-      type: "docs" as "docs" | "video",
+      type: "docs" as "docs" | "video" | "quiz",
       content: "",
       contentextra: "",
       video_url: "",
@@ -73,6 +73,7 @@ export default function SuperadminCourseModulesOversight() {
 
   const videoModules = modules.filter(m => m.type === 'video');
   const docModules = modules.filter(m => m.type === 'docs');
+  const quizModules = modules.filter(m => m.type === 'quiz');
   const courseTitle = course?.title;
   const courseStatus = course?.status;
 
@@ -96,7 +97,7 @@ export default function SuperadminCourseModulesOversight() {
     } finally {
       setIsLoading(false);
     }
-  }, [courseId, token]);
+  }, [courseId, token, companyId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -143,14 +144,14 @@ export default function SuperadminCourseModulesOversight() {
 
     setUploading(true);
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("media", file);
 
     try {
-      const res = await adminUploadMedia(formData);
+      const res = await superadminUploadMedia(formData);
       if (res.data.success) {
         setForm(f => ({ 
           ...f, 
-          video_url: res.data.url,
+          video_url: res.data.secure_url,
           duration: res.data.duration ? `${Math.ceil(res.data.duration / 60)} mins` : f.duration
         }));
         toast.success("Media asset processed successfully");
@@ -166,17 +167,21 @@ export default function SuperadminCourseModulesOversight() {
       e.preventDefault();
       if (!form.title.trim()) return toast.error("Module title is mandatory");
       if (form.type === 'video' && !form.video_url) return toast.error("Please upload a video first");
+      if (form.type === 'quiz' && !form.contentextra) {
+         setForm(f => ({ ...f, contentextra: JSON.stringify({ questions: [] }) }));
+      }
       
       setSaving(true);
       try {
           const res = editModule 
             ? await superadminUpdateModule(String(editModule.id), form)
-            : await superadminCreateModule(courseId, form);
+            : await superadminCreateModule(courseId, { ...form, order_index: modules.length });
 
           if (res.data.success) {
               toast.success(editModule ? "Instructional node updated" : "New instructional node added");
               setShowForm(false);
               setEditModule(null);
+              setForm({ title: "", type: "docs", content: "", contentextra: "", video_url: "", image_url: "", duration: "", status: "published" });
               fetchData();
           }
       } catch (err: any) {
@@ -239,6 +244,7 @@ export default function SuperadminCourseModulesOversight() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
+                if (courseStatus !== 'approved') return toast.error("Course is under review and cannot be modified.");
                 if (planInfo && modules.length >= planInfo.module_limit) {
                    return toast.error(`Total limit reached: max ${planInfo.module_limit} modules allowed.`);
                 }
@@ -246,12 +252,36 @@ export default function SuperadminCourseModulesOversight() {
                 setForm({ title: "", type: "docs", content: "", contentextra: "", video_url: "", image_url: "", duration: "", status: "published" });
                 setShowForm(true);
               }}
-              className="flex items-center gap-2 px-6 h-11 rounded-xl bg-orange-500 text-white text-sm font-bold transition-all shadow-lg hover:bg-orange-400 shadow-orange-500/20"
+              disabled={courseStatus !== 'approved'}
+              className={`flex items-center gap-2 px-6 h-11 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${
+                courseStatus === 'approved' 
+                  ? "bg-orange-500 hover:bg-orange-400 shadow-orange-500/20" 
+                  : "bg-slate-400 cursor-not-allowed opacity-60"
+              }`}
             >
               <FileText className="w-4 h-4" /> Add Document
             </button>
             <button
               onClick={() => {
+                if (courseStatus !== 'approved') return toast.error("Course is under review.");
+                if (planInfo && modules.length >= planInfo.module_limit) return toast.error("Total limit reached.");
+                setEditModule(null);
+                setForm({ title: "", type: "quiz", content: "Knowledge Assessment", contentextra: JSON.stringify({ questions: [] }), video_url: "", image_url: "", duration: "10 mins", status: "published" });
+                setShowForm(true);
+              }}
+              disabled={courseStatus !== 'approved'}
+              className={`flex items-center gap-2 px-6 h-11 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${
+                courseStatus === 'approved' 
+                  ? "bg-purple-600 hover:bg-purple-500 shadow-purple-500/20" 
+                  : "bg-slate-400 cursor-not-allowed opacity-60"
+              }`}
+            >
+              <Target className="w-4 h-4" /> Add Quiz
+            </button>
+
+            <button
+              onClick={() => {
+                if (courseStatus !== 'approved') return toast.error("Course is under review and cannot be modified.");
                 if (planInfo) {
                   if (modules.length >= planInfo.module_limit) {
                     return toast.error(`Total limit reached: max ${planInfo.module_limit} modules allowed.`);
@@ -264,7 +294,12 @@ export default function SuperadminCourseModulesOversight() {
                 setForm({ title: "", type: "video", content: "", contentextra: "", video_url: "", image_url: "", duration: "", status: "published" });
                 setShowForm(true);
               }}
-              className="flex items-center gap-2 px-6 h-11 rounded-xl bg-blue-600 text-white text-sm font-bold transition-all shadow-lg hover:bg-blue-500 shadow-blue-500/20"
+              disabled={courseStatus !== 'approved'}
+              className={`flex items-center gap-2 px-6 h-11 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${
+                courseStatus === 'approved' 
+                  ? "bg-blue-600 hover:bg-blue-500 shadow-blue-500/20" 
+                  : "bg-slate-400 cursor-not-allowed opacity-60"
+              }`}
             >
               <Video className="w-4 h-4" /> Add Video
             </button>
@@ -296,10 +331,10 @@ export default function SuperadminCourseModulesOversight() {
            <div className="flex items-center gap-2 shrink-0">
               <button 
                 onClick={handleApprove}
-                disabled={processingId === course.id}
+                disabled={processingId === course?.id}
                 className="h-10 px-6 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
               >
-                {processingId === course.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                {processingId === course?.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                 Authorize Protocol
               </button>
               <button 
@@ -315,7 +350,7 @@ export default function SuperadminCourseModulesOversight() {
 
       {/* Stats Cards */}
       {!showForm && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
             <div className="flex items-center gap-2 mb-2">
               <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600">
@@ -371,6 +406,22 @@ export default function SuperadminCourseModulesOversight() {
                <div className="h-full bg-orange-500 transition-all" style={{ width: '100%' }} />
             </div>
           </div>
+
+          <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600">
+                <Target className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Quizzes / Assessments</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <span className="text-2xl font-bold">{quizModules.length}</span>
+              <span className="text-[10px] font-bold text-muted-foreground">Verification System</span>
+            </div>
+            <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+               <div className="h-full bg-purple-600 transition-all" style={{ width: '100%' }} />
+            </div>
+          </div>
         </div>
       )}
 
@@ -379,7 +430,7 @@ export default function SuperadminCourseModulesOversight() {
           <div className="px-6 py-5 border-b border-border bg-secondary/10 flex items-center justify-between">
             <h3 className="font-bold text-sm">{editModule ? "Edit Lesson Details" : "New Lesson Creation"}</h3>
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-background border border-border shadow-sm">
-               <div className={`w-2 h-2 rounded-full ${form.type === 'video' ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'}`} />
+               <div className={`w-2 h-2 rounded-full ${form.type === 'video' ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]' : form.type === 'quiz' ? 'bg-purple-600 shadow-[0_0_8px_rgba(147,51,234,0.4)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'}`} />
                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{form.type} Module</span>
             </div>
           </div>
@@ -481,6 +532,30 @@ export default function SuperadminCourseModulesOversight() {
                     </div>
                   </div>
                 </>
+              ) : form.type === 'quiz' ? (
+                 <div className="md:col-span-2 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Assessment Description</label>
+                    <textarea
+                      placeholder="Brief overview of what this quiz covers..."
+                      value={form.content}
+                      onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                      rows={3}
+                      className="w-full p-4 rounded-xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm resize-none leading-relaxed"
+                    />
+                  </div>
+                  <div className="bg-purple-50 border border-purple-100 p-4 rounded-xl flex items-start gap-3">
+                     <div className="p-2 rounded-lg bg-white text-purple-600 shadow-sm shrink-0">
+                       <Target className="w-4 h-4" />
+                     </div>
+                     <div>
+                       <p className="text-xs font-bold text-purple-900">Setting up an interactive assessment...</p>
+                       <p className="text-[10px] text-purple-700/80 font-medium mt-1 leading-relaxed">
+                          After creation, click on the quiz in the list below to build your 5-question audit and specify correct answers.
+                       </p>
+                     </div>
+                  </div>
+                </div>
               ) : (
                 <div className="md:col-span-2 space-y-4">
                   <div className="space-y-2">
@@ -600,13 +675,28 @@ export default function SuperadminCourseModulesOversight() {
                     </div>
                     {m.content && (
                       <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed opacity-80 mb-2">
-                        Node details pending further inspection...
+                        {(() => {
+                           if (!m.content) return "Node details pending further inspection...";
+                           try {
+                             const parsed = JSON.parse(m.content);
+                             if (Array.isArray(parsed) && parsed.length > 0) {
+                               return parsed[0].headline || parsed[0].description || "Untitled Section";
+                             }
+                             return m.content;
+                           } catch {
+                             return m.content;
+                           }
+                        })()}
                       </p>
                     )}
                     <div className="flex flex-wrap items-center gap-3 mt-3">
                       {m.type === 'video' ? (
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20 shadow-sm shadow-blue-500/10">
                           <Video className="w-3.5 h-3.5" /> Video Lesson
+                        </div>
+                      ) : m.type === 'quiz' ? (
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-purple-600 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20 shadow-sm shadow-purple-500/10">
+                          <Target className="w-3.5 h-3.5" /> Interactive Quiz
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-600 bg-orange-500/10 px-2.5 py-1 rounded-lg border border-orange-500/20 shadow-sm shadow-orange-500/10">

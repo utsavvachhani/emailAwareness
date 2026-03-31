@@ -30,6 +30,7 @@ import {
   createEmployee as createNewEmployee,
   updateEmployee,
   deleteEmployee,
+  getEmployeeProgressDetail,
 } from "../controllers/employees.controller.js";
 import {
   createCourse,
@@ -176,6 +177,13 @@ router.delete(
   requireRole("admin"),
   requireApproved,
   deleteEmployee,
+);
+router.get(
+  "/employees/:employeeId/progress",
+  authMiddleware,
+  requireRole("admin"),
+  requireApproved,
+  getEmployeeProgressDetail,
 );
 router.get(
   "/companies/:id/courses",

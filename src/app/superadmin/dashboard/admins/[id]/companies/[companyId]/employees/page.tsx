@@ -593,14 +593,17 @@ export default function SuperadminCompanyEmployeesReview() {
                                     <tr key={emp.id} className="hover:bg-muted/20">
 
                                         <td className="px-5 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center text-xs font-bold">
+                                            <Link 
+                                                href={`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/employees/${emp.id}`}
+                                                className="flex items-center gap-3 group/link hover:opacity-80 transition-opacity"
+                                            >
+                                                <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center text-xs font-bold group-hover/link:scale-110 transition-transform">
                                                     {emp.first_name[0]}{emp.last_name[0]}
                                                 </div>
-                                                <p className="text-sm font-medium">
+                                                <p className="text-sm font-medium border-b border-transparent group-hover/link:border-blue-500/30 transition-all">
                                                     {emp.first_name} {emp.last_name}
                                                 </p>
-                                            </div>
+                                            </Link>
                                         </td>
 
                                         <td className="px-5 py-4 text-sm text-muted-foreground flex items-center gap-1">

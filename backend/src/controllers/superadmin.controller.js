@@ -437,7 +437,7 @@ export const getCourseModulesSuperadmin = async (req, res) => {
               d.contentextra as doc_content, d.image_url,
               v.video_url
        FROM course_modules m
-       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND (m.type = 'docs' OR m.type = 'quiz')
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
        WHERE m.course_id = $1 
        ORDER BY m.order_index ASC, m.created_at ASC`,
@@ -483,7 +483,7 @@ export const getModuleDetailsSuperadmin = async (req, res) => {
               d.contentextra as doc_contentextra, d.image_url,
               v.video_url
        FROM course_modules m
-       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND (m.type = 'docs' OR m.type = 'quiz')
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
        WHERE m.id = $1`,
       [moduleId]
