@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   BookOpen, Plus, List, Trash2, ArrowLeft, Loader2, 
-  Video, FileText, CheckCircle2, XCircle, Clock, Save,
+  Video, FileText, CheckCircle2, XCircle, Clock, Target,
   Eye, EyeOff, LayoutList, X, Image as ImageIcon
 } from "lucide-react";
 
@@ -24,7 +24,7 @@ type Module = {
   id: number;
   course_id: number;
   title: string;
-  type: "docs" | "video";
+  type: "docs" | "video" | "quiz";
   content: string | null;
   contentextra: string | null;
   video_url: string | null;
@@ -58,12 +58,12 @@ export default function CourseModulesPage() {
   const [editModule, setEditModule] = useState<Module | null>(null);
   const [form, setForm] = useState({ 
     title: "", 
-    type: "docs" as "docs" | "video",
+    type: "docs" as "docs" | "video" | "quiz",
     content: "", 
     contentextra: "",
     video_url: "", 
     image_url: "",
-    duration: "",
+    duration: "10 mins",
     status: "published" as "draft" | "published" 
   });
 
@@ -274,6 +274,24 @@ export default function CourseModulesPage() {
             </button>
             <button
               onClick={() => {
+                if (courseStatus !== 'approved') return toast.error("Course is under review.");
+                if (planInfo && modules.length >= planInfo.module_limit) return toast.error("Total limit reached.");
+                setEditModule(null);
+                setForm({ title: "", type: "quiz", content: "Knowledge Assessment", contentextra: JSON.stringify({ questions: [] }), video_url: "", image_url: "", duration: "10 mins", status: "published" });
+                setShowForm(true);
+              }}
+              disabled={courseStatus !== 'approved'}
+              className={`flex items-center gap-2 px-6 h-11 rounded-xl text-white text-sm font-bold transition-all shadow-lg ${
+                courseStatus === 'approved' 
+                  ? "bg-purple-600 hover:bg-purple-500 shadow-purple-500/20" 
+                  : "bg-slate-400 cursor-not-allowed opacity-60"
+              }`}
+            >
+              <Target className="w-4 h-4" /> Add Quiz
+            </button>
+
+            <button
+              onClick={() => {
                 if (courseStatus !== 'approved') return toast.error("Course is under review and cannot be modified.");
                 if (planInfo) {
                   if (modules.length >= planInfo.module_limit) {
@@ -369,6 +387,21 @@ export default function CourseModulesPage() {
             </div>
           </div>
 
+          <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-purple-500/10 text-purple-600">
+                <Target className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Quizzes / Assessments</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <span className="text-2xl font-bold">{modules.filter(m => m.type === 'quiz').length}</span>
+              <span className="text-[10px] font-bold text-muted-foreground">Verification System</span>
+            </div>
+            <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+               <div className="h-full bg-purple-600 transition-all" style={{ width: '100%' }} />
+            </div>
+          </div>
         </div>
       )}
 
@@ -377,7 +410,7 @@ export default function CourseModulesPage() {
           <div className="px-6 py-5 border-b border-border bg-secondary/10 flex items-center justify-between">
             <h3 className="font-bold text-sm">{editModule ? "Edit Lesson Details" : "New Lesson Creation"}</h3>
             <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-background border border-border shadow-sm">
-               <div className={`w-2 h-2 rounded-full ${form.type === 'video' ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'}`} />
+               <div className={`w-2 h-2 rounded-full ${form.type === 'video' ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]' : form.type === 'quiz' ? 'bg-purple-600 shadow-[0_0_8px_rgba(147,51,234,0.4)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'}`} />
                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{form.type} Module</span>
             </div>
 
@@ -624,6 +657,10 @@ export default function CourseModulesPage() {
                       {m.type === 'video' ? (
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20 shadow-sm shadow-blue-500/10">
                           <Video className="w-3.5 h-3.5" /> Video Lesson
+                        </div>
+                      ) : m.type === 'quiz' ? (
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-purple-600 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20 shadow-sm shadow-purple-500/10">
+                          <Target className="w-3.5 h-3.5" /> Interactive Quiz
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-600 bg-orange-500/10 px-2.5 py-1 rounded-lg border border-orange-500/20 shadow-sm shadow-orange-500/10">

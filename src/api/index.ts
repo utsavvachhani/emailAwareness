@@ -149,6 +149,17 @@ export const adminUploadMedia = (formData: FormData) => API.post('/admin/upload-
     headers: { 'Content-Type': 'multipart/form-data' }
 });
 
+export const adminGetEmployeesByCompany = (companyId: string) => API.get(`/admin/companies/${companyId}/employees`);
+
+export const adminAssignCourseToEmployees = (courseId: string | number, employeeIds: number[]) => 
+    API.post(`/admin/courses/${courseId}/assign`, { employeeIds });
+
+export const userGetAssignedCourses = () => API.get('/users/assigned-courses');
+export const userGetCourseModules = (courseId: string | number) => API.get(`/users/courses/${courseId}/modules`);
+export const userGetProgress = () => API.get('/users/progress');
+export const userMarkModuleComplete = (moduleId: string | number, quizData?: { score: number; responses: any }) => API.patch(`/users/modules/${moduleId}/complete`, quizData);
+export const userUnmarkModuleComplete = (moduleId: string | number) => API.delete(`/users/modules/${moduleId}/uncomplete`);
+
 // ─── SUPERADMIN COURSE APIs ───────────────────────────────────────────────────
 export const superadminGetAllCourses = (status?: string) => API.get('/superadmin/courses', { params: status ? { status } : {} });
 export const superadminApproveCourse = (id: string) => API.patch(`/superadmin/courses/${id}/approve`);

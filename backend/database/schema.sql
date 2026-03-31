@@ -7,16 +7,6 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- ─── CRITICAL COLUMN GUARDS ──────────────────────────────────────────────────
--- (Ensure these columns exist before triggers try to use them)
-ALTER TABLE users        ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE admins       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE superadmins  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE companies    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE employees    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE courses      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
-ALTER TABLE profiles     ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
-
 -- ─── NORMAL USERS ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
     id            SERIAL PRIMARY KEY,
@@ -186,6 +176,7 @@ CREATE TABLE IF NOT EXISTS employees (
     company_id        INTEGER REFERENCES companies(id) ON DELETE CASCADE,
     designation       VARCHAR(100),
     status            VARCHAR(20) NOT NULL DEFAULT 'active',
+    assigned_courses  INTEGER[]    DEFAULT ARRAY[]::INTEGER[],
     created_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -280,3 +271,39 @@ DROP TRIGGER IF EXISTS update_video_updated_at ON course_modules_video;
 CREATE TRIGGER update_video_updated_at
     BEFORE UPDATE ON course_modules_video
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ─── EMPLOYEE PROGRESS ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS employee_progress (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    employee_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
+    course_id INTEGER REFERENCES courses(id) ON DELETE CASCADE,
+    module_id INTEGER REFERENCES course_modules(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'not_started', -- 'not_started', 'completed'
+    completed_at TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, module_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_progress_user ON employee_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_progress_module ON employee_progress(module_id);
+
+DROP TRIGGER IF EXISTS update_progress_updated_at ON employee_progress;
+CREATE TRIGGER update_progress_updated_at
+    BEFORE UPDATE ON employee_progress
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ─── QUIZ ENHANCEMENTS (Trainee Assessments) ───────────────────────────────────
+ALTER TABLE employee_progress ADD COLUMN IF NOT EXISTS quiz_score INTEGER;
+ALTER TABLE employee_progress ADD COLUMN IF NOT EXISTS quiz_responses JSONB;
+
+-- ─── FINAL ENSURE COLUMNS EXIST ──────────────────────────────────────────────
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_courses INTEGER[] DEFAULT ARRAY[]::INTEGER[];
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE employees ADD COLUMN IF NOT EXISTS assigned_courses INTEGER[] DEFAULT ARRAY[]::INTEGER[];
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE superadmins ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE admins ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;

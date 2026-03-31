@@ -45,6 +45,7 @@ import {
   deleteModule,
   getModuleDetails,
 } from "../controllers/modules.controller.js";
+import { assignCourseToEmployees } from "../controllers/assignment.controller.js";
 
 import { uploadMedia } from "../controllers/upload.controller.js";
 
@@ -258,6 +259,14 @@ router.get(
   requireRole("admin"),
   requireApproved,
   getCompanyPlanInfo,
+);
+
+router.post(
+  "/courses/:courseId/assign",
+  authMiddleware,
+  requireRole("admin"),
+  requireApproved,
+  assignCourseToEmployees,
 );
 
 // Media Upload

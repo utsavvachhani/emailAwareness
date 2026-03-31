@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import {
   ArrowLeft, Edit3, XCircle, Plus, BookOpen, Loader2, Save, X,
   Video, FileText, Image as ImageIcon, CheckCircle2,
-  Clock, Eye, EyeOff, Type, AlignLeft
+  Clock, Eye, EyeOff, Type, AlignLeft, Target, Trash2, List
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -17,14 +17,14 @@ import {
 // Dynamically import EditorJS to avoid SSR issues
 const EditorJSComponent = dynamic(() => import("@/components/EditorJSComponent"), { 
   ssr: false,
-  loading: () => <div className="h-40 flex items-center justify-center bg-secondary/20 rounded-2xl animate-pulse text-xs font-bold text-muted-foreground uppercase tracking-widest">Initialising Editor...</div>
+  loading: () => <div className="h-40 flex items-center justify-center bg-secondary/20 rounded-2xl animate-pulse text-xs font-bold text-muted-foreground uppercase tracking-widest text-center">Initialising Editor...</div>
 });
 
 type Module = {
   id: number;
   course_id: number;
   title: string;
-  type: "docs" | "video";
+  type: "docs" | "video" | "quiz";
   content: string | null;
   contentextra: string | null;
   video_url: string | null;
@@ -51,9 +51,9 @@ export default function ModuleViewPage() {
   // Form state
   const [form, setForm] = useState({
     title: "",
-    type: "docs" as "docs" | "video",
+    type: "docs" as "docs" | "video" | "quiz",
     content: "", 
-    contentextra: "", // For EditorJS rich content
+    contentextra: "", 
     video_url: "",
     image_url: "",
     duration: "",
@@ -121,8 +121,8 @@ export default function ModuleViewPage() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!form.title.trim()) return toast.error("Title is required");
 
     setSaving(true);
@@ -130,9 +130,9 @@ export default function ModuleViewPage() {
       const payload = {
         ...form,
         order_index: module?.order_index ?? 0,
-        // Ensure only type-related fields are sent
         video_url: form.type === 'video' ? form.video_url : null,
         image_url: form.type === 'docs' ? (form.image_url || null) : null,
+        duration: form.type === 'quiz' ? '10 mins' : form.duration,
       };
       
       const res = await adminUpdateModule(moduleId, payload);
@@ -149,20 +149,13 @@ export default function ModuleViewPage() {
     }
   };
 
-  // Convert old content to EditorJS format if needed
   const editorData = useMemo(() => {
-    // Check contentextra first, then fallback to content for legacy support
     const rawData = form.contentextra || form.content;
     if (!rawData) return { blocks: [] };
     
     try {
       const parsed = JSON.parse(rawData);
-      // Valid EditorJS format has a 'blocks' array
-      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
-        return parsed;
-      }
-      
-      // If it's the old 5-section array format, migrate it!
+      if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) return parsed;
       if (Array.isArray(parsed)) {
         const blocks = parsed.flatMap((s: any) => {
           const b = [];
@@ -172,11 +165,8 @@ export default function ModuleViewPage() {
         });
         return { blocks };
       }
-
-      // If it's just a string, wrap in paragraph
       return { blocks: [{ type: 'paragraph', data: { text: String(parsed) } }] };
     } catch {
-      // It's raw text
       return { blocks: [{ type: 'paragraph', data: { text: rawData } }] };
     }
   }, [form.contentextra, form.content]);
@@ -185,7 +175,7 @@ export default function ModuleViewPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading curriculum details...</p>
+        <p className="text-sm font-medium text-muted-foreground animate-pulse tracking-widest text-center uppercase">Initialising Curriculum...</p>
       </div>
     );
   }
@@ -215,7 +205,7 @@ export default function ModuleViewPage() {
           </button>
           <div>
             <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              {module.type === 'video' ? <Video className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+              {module.type === 'video' ? <Video className="w-3 h-3 text-blue-600" /> : module.type === 'quiz' ? <Target className="w-3 h-3 text-purple-600" /> : <FileText className="w-3 h-3 text-orange-600" />}
               {module.type} Module
             </div>
             <h1 className="text-xl font-bold tracking-tight">{module.title}</h1>
@@ -223,19 +213,10 @@ export default function ModuleViewPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => { fetchDetails(); toast.success("Lesson data refreshed!"); }}
-            disabled={loading}
-            className="p-2.5 rounded-xl border border-border bg-card hover:bg-secondary transition-all shadow-sm group"
-            title="Reload Module Data"
-          >
-            <Loader2 className={`w-4 h-4 text-muted-foreground group-hover:text-blue-600 transition-colors ${loading ? 'animate-spin' : ''}`} />
-          </button>
-
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-background border border-border shadow-sm">
-               <div className={`w-2 h-2 rounded-full ${form.type === 'video' ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'}`} />
-               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{form.type} Module</span>
-            </div>
+          <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-background border border-border shadow-sm">
+            <div className={`w-2 h-2 rounded-full ${form.type === 'video' ? 'bg-blue-600' : form.type === 'quiz' ? 'bg-purple-600' : 'bg-orange-500'}`} />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{form.type}</span>
+          </div>
           <button
             onClick={() => setIsEditing(!isEditing)}
             className={`flex items-center gap-2 px-5 h-11 rounded-xl text-sm font-bold transition-all shadow-lg ${isEditing
@@ -251,269 +232,234 @@ export default function ModuleViewPage() {
 
       {isEditing ? (
         <form onSubmit={handleSave} className="bg-card border border-border rounded-3xl overflow-hidden shadow-2xl p-8 md:p-12 space-y-10">
-          <div className="flex items-center gap-2 px-5 py-2 rounded-2xl bg-secondary/50 border border-border/50 mx-auto mb-6">
-             <div className={`w-2.5 h-2.5 rounded-full ${form.type === 'video' ? 'bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.3)]' : 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.3)]'}`} />
-             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{form.type} Lesson Content</span>
+          <div className="space-y-3">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Main Title</label>
+            <input
+              value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Module Title"
+              className="w-full h-14 px-6 rounded-2xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-xl font-black"
+            />
           </div>
 
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-            <div className="md:col-span-2 space-y-3">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Main Title</label>
-              <input
-                value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                className="w-full h-14 px-6 rounded-2xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-xl font-black"
-              />
+          {form.type === 'video' ? (
+            <div className="space-y-8">
+              {form.video_url && (
+                <div className="rounded-3xl overflow-hidden border border-border bg-black aspect-video shadow-2xl">
+                  <video src={form.video_url} controls className="w-full h-full" />
+                </div>
+              )}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Video Description</label>
+                <textarea
+                  value={form.content}
+                  onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                  rows={6}
+                  placeholder="Describe the video content"
+                  className="w-full p-6 rounded-2xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm"
+                />
+              </div>
+              <div className="group relative">
+                <input type="file" accept="video/*" onChange={handleMediaUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <div className="w-full h-14 border-2 border-dashed border-border rounded-2xl flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground group-hover:bg-secondary">
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                  {uploading ? "Uploading..." : "Click to Upload Video"}
+                </div>
+              </div>
             </div>
+          ) : form.type === 'quiz' ? (
+            <div className="space-y-10">
+              <div className="bg-purple-50 border border-purple-100 p-8 rounded-3xl">
+                <h3 className="text-lg font-black text-purple-900">Quiz Designer (5 Questions)</h3>
+                <p className="text-sm text-purple-800/70 mt-1">Create multiple choice questions with verified answers.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-6">
+                {(() => {
+                  let quizData: any = { questions: [] };
+                  try { if (form.contentextra) quizData = JSON.parse(form.contentextra); } 
+                  catch (e) { console.error("Parse error", e); }
+                  
+                  const qList = quizData.questions || [];
 
-            {form.type === 'video' ? (
-              <div className="md:col-span-2 space-y-8">
-                {form.video_url && (
-                  <div className="rounded-3xl overflow-hidden border border-border bg-black aspect-video shadow-2xl">
-                    <video src={form.video_url} controls className="w-full h-full" />
-                  </div>
-                )}
-                
-                <div className="space-y-3">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Video Description</label>
-                  <textarea
-                    value={form.content}
-                    onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                    rows={6}
-                    className="w-full p-6 rounded-2xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm leading-relaxed"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      Duration (Mins) {form.type === 'video' && <span className="text-blue-500 ml-1">(Auto-detected)</span>}
-                    </label>
-                    <div className="relative">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <input 
-                        type="number"
-                        min="1"
-                        readOnly={form.type === 'video'}
-                        value={form.duration.replace(/\D/g, '')} 
-                        onChange={e => setForm(f => ({ ...f, duration: e.target.value ? `${e.target.value} mins` : "" }))} 
-                        className={`w-full h-14 pl-12 pr-12 rounded-2xl border border-input outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-bold ${
-                          form.type === 'video' ? 'bg-secondary/40 text-muted-foreground cursor-not-allowed border-dashed' : 'bg-background'
-                        }`} 
-                      />
-                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase opacity-50">MINS</span>
-                    </div>
-                  </div>
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Video Asset</label>
-                    <div className="group relative">
-                      <input type="file" accept="video/*" onChange={handleMediaUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                      <div className="w-full h-14 border-2 border-dashed border-border rounded-2xl flex items-center justify-center gap-2 text-xs font-bold text-muted-foreground group-hover:bg-secondary">
-                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
-                        {uploading ? "Uploading..." : "Click to Upload Video"}
+                  const updateQuestion = (idx: number, field: string, val: any) => {
+                    const newQs = Array.isArray(qList) ? [...qList] : [];
+                    for(let k=0; k<=idx; k++) {
+                       if(!newQs[k]) newQs[k] = { id: Date.now() + k, question: "", options: ["", "", "", ""], answer: 0 };
+                    }
+
+                    if (field === 'option') {
+                      const newOpts = [...newQs[idx].options];
+                      newOpts[val.oIdx] = val.text;
+                      newQs[idx].options = newOpts;
+                    } else {
+                      newQs[idx][field] = val;
+                    }
+                    setForm(f => ({ ...f, contentextra: JSON.stringify({ ...quizData, questions: newQs }) }));
+                  };
+
+                  return Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="p-8 rounded-3xl border border-border bg-background shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-4 mb-4">
+                        <span className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center font-black text-xs shrink-0">{i + 1}</span>
+                        <input
+                          placeholder={`Question ${i + 1} text`}
+                          value={qList[i]?.question || ""}
+                          onChange={e => updateQuestion(i, 'question', e.target.value)}
+                          className="flex-1 bg-transparent border-none outline-none font-bold text-lg"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {Array.from({ length: 4 }).map((__, j) => (
+                          <div key={j} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${qList[i]?.answer === j ? 'bg-purple-600 border-purple-600 text-white' : 'bg-secondary/30 border-border'}`}>
+                            <input
+                              type="radio"
+                              name={`q-${i}`}
+                              checked={qList[i]?.answer === j}
+                              onChange={() => updateQuestion(i, 'answer', j)}
+                              className="w-4 h-4 accent-white cursor-pointer"
+                            />
+                            <input
+                              placeholder={`Option ${j + 1}`}
+                              value={qList[i]?.options?.[j] || ""}
+                              onChange={e => updateQuestion(i, 'option', { oIdx: j, text: e.target.value })}
+                              className="flex-1 bg-transparent border-none outline-none text-xs font-medium placeholder:text-muted-foreground/50"
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
+                  ));
+                })()}
+              </div>
+
+              <div className="flex justify-end pt-8 border-t border-border/50">
+                <button
+                  type="button"
+                  onClick={() => handleSave()}
+                  disabled={saving}
+                  className="h-12 px-8 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 transition-all shadow-xl shadow-purple-600/20 flex items-center gap-2"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Audit Configuration
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-10">
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Module Summary</label>
+                <textarea
+                  value={form.content}
+                  onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                  rows={3}
+                  placeholder="Summary text"
+                  className="w-full p-4 rounded-2xl border border-input bg-background outline-none text-sm"
+                />
+              </div>
+              <div className="min-h-[400px] p-6 rounded-3xl bg-secondary/10 border border-border">
+                <EditorJSComponent 
+                  holder="editorjs-edit" 
+                  data={editorData} 
+                  onChange={(data) => setForm(f => ({ ...f, contentextra: JSON.stringify(data) }))}
+                />
+              </div>
+              <div className="group relative">
+                <input type="file" accept="image/*" onChange={handleMediaUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <div className="w-full aspect-video border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center gap-2 text-xs font-bold text-muted-foreground group-hover:bg-secondary overflow-hidden">
+                  {form.image_url ? <img src={form.image_url} alt="Cover" className="w-full h-full object-cover" /> : <ImageIcon className="w-8 h-8 opacity-20" />}
+                  {!form.image_url && "Upload Cover Image"}
                 </div>
               </div>
-            ) : (
+            </div>
+          )}
 
-              <div className="md:col-span-2 space-y-12">
-                <div className="space-y-8">
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Short Module Summary</label>
-                    <textarea
-                      value={form.content}
-                      onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
-                      rows={3}
-                      placeholder="A brief overview for students..."
-                      className="w-full p-6 rounded-2xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm leading-relaxed"
-                    />
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 mb-2 underline-offset-8 decoration-blue-500 underline decoration-2">
-                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Rich Curriculum Editor</span>
-                    </div>
-                    
-                    <div className="min-h-[400px] p-10 rounded-[32px] bg-secondary/10 border border-border shadow-inner">
-                      <EditorJSComponent 
-                        holder="editorjs-edit" 
-                        data={editorData} 
-                        onChange={(data) => setForm(f => ({ ...f, contentextra: JSON.stringify(data) }))}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                   <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Visual Asset (One per module)</label>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                      <div className="group relative">
-                        <input type="file" accept="image/*" onChange={handleMediaUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                        <div className="w-full aspect-video md:aspect-[21/9] border-2 border-dashed border-border rounded-3xl flex flex-col items-center justify-center gap-4 text-xs font-bold text-muted-foreground group-hover:border-blue-500/40 group-hover:bg-blue-500/5 transition-all overflow-hidden bg-background">
-                           {form.image_url ? (
-                             <img src={form.image_url} alt="Preview" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                           ) : (
-                             <>
-                               {uploading ? <Loader2 className="w-10 h-10 animate-spin text-blue-500" /> : <ImageIcon className="w-10 h-10 opacity-20" />}
-                               <span>{uploading ? "Processing Image..." : "Click to select Cover Image"}</span>
-                             </>
-                           )}
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="bg-orange-50 border border-orange-100 p-6 rounded-2xl">
-                          <h4 className="text-sm font-bold text-orange-900 mb-2">Design Recommendation</h4>
-                          <p className="text-xs text-orange-800/80 leading-relaxed">
-                            Use a high-resolution horizontal image (16:9). This image will appear at the top of the module as a header to engage your students.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 px-6 h-14 rounded-2xl bg-secondary/50 border border-border relative">
-                           <Clock className="w-4 h-4 text-muted-foreground" />
-                           <input 
-                             type="number"
-                             min="1"
-                             placeholder="20" 
-                             value={form.duration.replace(/\D/g, '')} 
-                             onChange={e => setForm(f => ({ ...f, duration: e.target.value ? `${e.target.value} mins` : "" }))}
-                             className="bg-transparent border-none outline-none text-sm font-bold flex-1"
-                           />
-                           <span className="text-[10px] font-bold text-muted-foreground uppercase opacity-50">MINS</span>
-                        </div>
-                      </div>
-                   </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex gap-4 pt-10 border-t border-border">
+          <div className="flex gap-4 pt-8 border-t border-border">
             <button
               type="submit"
-              disabled={saving || uploading || (form.type === 'video' && !form.video_url)}
-              className="flex-1 h-16 rounded-2xl bg-blue-600 text-white font-bold text-base hover:bg-blue-500 transition-all flex items-center justify-center gap-3 shadow-2xl shadow-blue-600/30 disabled:opacity-50"
+              disabled={saving || uploading}
+              className="flex-1 h-14 rounded-2xl bg-blue-600 text-white font-black text-sm uppercase tracking-widest hover:bg-blue-500 transition-all flex items-center justify-center gap-2 shadow-xl shadow-blue-600/20"
             >
-              {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
-              {uploading ? "Waiting for upload..." : "Publish Curriculum Updates"}
+              {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              Publish Curriculum Updates
             </button>
           </div>
         </form>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2 space-y-12">
-            {/* Main Visual Content */}
             {module.type === 'video' ? (
-              <div className="space-y-10">
-                <div className="aspect-video rounded-3xl overflow-hidden bg-black border border-border shadow-2xl relative group">
-                  {module.video_url ? (
-                    <video src={module.video_url} controls className="w-full h-full" />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-white/40 gap-4">
-                      <Video className="w-12 h-12" />
-                      <p className="font-bold text-sm">No video uploaded yet</p>
-                    </div>
-                  )}
+              <div className="space-y-8">
+                <div className="aspect-video rounded-3xl overflow-hidden bg-black border border-border shadow-2xl">
+                  {module.video_url ? <video src={module.video_url} controls className="w-full h-full" /> : <div className="h-full flex items-center justify-center text-white/20">No Video Available</div>}
                 </div>
-                <div className="bg-card border border-border rounded-3xl p-10 shadow-sm">
-                   <h2 className="text-xl font-black mb-6 flex items-center gap-3">
-                     <AlignLeft className="w-5 h-5 text-blue-500" />
-                     Training Overview
-                   </h2>
-                   <div className="text-foreground/80 leading-relaxed font-medium whitespace-pre-wrap">
-                      {module.content || "No description provided for this video training."}
-                   </div>
+                <div className="bg-card border border-border rounded-3xl p-8">
+                  <h2 className="text-xl font-black mb-4">Training Overview</h2>
+                  <p className="text-foreground/80 leading-relaxed whitespace-pre-wrap">{module.content || "No description provided."}</p>
+                </div>
+              </div>
+            ) : module.type === 'quiz' ? (
+              <div className="space-y-8">
+                <div className="bg-purple-600 rounded-[40px] p-10 text-white shadow-xl relative overflow-hidden">
+                  <div className="relative z-10">
+                    <h2 className="text-3xl font-black mb-2">Knowledge Assessment</h2>
+                    <p className="opacity-80">Verify learning retention with this 5-question logic audit.</p>
+                  </div>
+                  <Target className="absolute -right-10 -bottom-10 w-48 h-48 opacity-10" />
+                </div>
+                <div className="grid grid-cols-1 gap-4">
+                  {(() => {
+                    try {
+                      const qData = JSON.parse(module.contentextra || '{"questions":[]}');
+                      const questions = qData.questions || [];
+                      if (questions.length === 0) return <div className="p-20 text-center italic text-muted-foreground border-2 border-dashed border-border rounded-3xl">No questions configured.</div>;
+                      
+                      return questions.map((q: any, i: number) => (
+                        <div key={i} className="p-8 rounded-3xl border border-border bg-card shadow-sm">
+                          <h4 className="text-lg font-black mb-4 flex items-center gap-3">
+                            <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px]">{i + 1}</span>
+                            {q.question}
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {q.options.map((o: string, j: number) => (
+                              <div key={j} className={`p-3 rounded-xl border text-xs font-bold flex justify-between items-center ${q.answer === j ? 'bg-emerald-50 border-emerald-500/20 text-emerald-700' : 'bg-secondary/20 border-border text-muted-foreground'}`}>
+                                {o}
+                                {q.answer === j && <span className="text-[8px] uppercase bg-emerald-500 text-white px-2 py-0.5 rounded-full">Correct</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ));
+                    } catch { return <div className="p-10 text-center italic text-muted-foreground border-2 border-dashed border-border rounded-3xl">Incomplete assessment data.</div>; }
+                  })()}
                 </div>
               </div>
             ) : (
               <div className="space-y-12">
-                {module.image_url && (
-                  <div className="aspect-video md:aspect-[21/9] rounded-[40px] overflow-hidden border border-border shadow-2xl relative">
-                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                     <img src={module.image_url} alt={module.title} className="w-full h-full object-cover" />
-                  </div>
-                )}
-                
-                <div className="space-y-12">
-                   {module.content && (
-                     <div className="bg-secondary/20 border-l-4 border-orange-500 p-10 rounded-2xl">
-                        <p className="text-lg font-medium text-foreground/80 italic leading-relaxed">
-                           "{module.content}"
-                        </p>
-                     </div>
-                   )}
-
-                   <div className="min-h-[500px]">
-                      {module.contentextra || module.content ? (
-                         <div className="editorjs-view animate-in fade-in slide-in-from-left-4 duration-700">
-                            <EditorJSComponent 
-                              holder="editorjs-view" 
-                              data={editorData} 
-                              readOnly={true}
-                              onChange={() => {}}
-                            />
-                         </div>
-                      ) : (
-                        <div className="bg-card border-2 border-dashed border-border rounded-3xl p-20 text-center">
-                           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-                           <h3 className="font-bold text-lg">No Curriculum Content</h3>
-                           <p className="text-sm text-muted-foreground mt-2">Start building your rich training module with EditorJS.</p>
-                        </div>
-                      )}
-                   </div>
+                {module.image_url && <div className="aspect-[21/9] rounded-[40px] overflow-hidden border border-border shadow-xl"><img src={module.image_url} alt="Cover" className="w-full h-full object-cover" /></div>}
+                <div className="min-h-[400px]">
+                  <EditorJSComponent holder="editor-view" data={editorData} readOnly={true} onChange={() => {}} />
                 </div>
               </div>
             )}
           </div>
 
           <div className="space-y-6">
-            <div className="sticky top-8 space-y-6">
-              <div className="bg-card border border-border rounded-3xl p-8 shadow-sm">
-                <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-6 border-b border-border pb-4">Curriculum Pulse</h3>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
-                      <Clock className="w-5 h-5 text-blue-500" /> Lesson Duration
-                    </div>
-                    <span className="text-xs font-black px-4 py-1.5 bg-secondary rounded-xl">{module.duration || "Self-Paced"}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
-                      {module.status === 'published' ? <Eye className="w-5 h-5 text-emerald-500" /> : <EyeOff className="w-5 h-5 text-amber-500" />} visibility
-                    </div>
-                    <span className={`text-[10px] font-black uppercase px-4 py-1.5 rounded-full border shadow-sm ${module.status === 'published' ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                      }`}>
-                      {module.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
-                      <CheckCircle2 className="w-5 h-5 text-blue-500" /> Content Type
-                    </div>
-                    <span className="text-xs font-black capitalize flex items-center gap-2">
-                       {module.type === 'video' ? <Video className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
-                       {module.type}
-                    </span>
-                  </div>
-                </div>
+            <div className="bg-card border border-border rounded-3xl p-8 shadow-sm space-y-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground border-b border-border pb-4">Curriculum Pulse</h3>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground">Duration</span>
+                <span className="text-xs font-black px-3 py-1 bg-secondary rounded-lg">{module.duration || "N/A"}</span>
               </div>
-
-              <div className="bg-foreground rounded-3xl p-8 text-background shadow-2xl relative overflow-hidden group">
-                <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-white/5 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
-                <div className="relative z-10 flex flex-col gap-6">
-                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center">
-                    <BookOpen className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-lg font-black tracking-tight">Security Training</h4>
-                    <p className="text-xs opacity-60 mt-2 leading-relaxed">This lesson is part of your company's core compliance curriculum. Please keep content up-to-date.</p>
-                  </div>
-                  <div className="pt-4 border-t border-white/10">
-                    <p className="text-[10px] font-black uppercase tracking-tighter opacity-40">Created on {new Date(module.created_at).toLocaleDateString()}</p>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-muted-foreground">Visibility</span>
+                <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${module.status === 'published' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>{module.status}</span>
+              </div>
+              <div className="flex items-center justify-between border-t border-border pt-4">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-tighter">Type</span>
+                <span className="text-xs font-black capitalize flex items-center gap-2">
+                  {module.type === 'video' ? <Video className="w-3 h-3 text-blue-600" /> : module.type === 'quiz' ? <Target className="w-3 h-3 text-purple-600" /> : <FileText className="w-3 h-3 text-orange-600" />}
+                  {module.type}
+                </span>
               </div>
             </div>
           </div>

@@ -22,7 +22,7 @@ export const getCourseModules = async (req, res) => {
               d.contentextra as doc_content, d.image_url,
               v.video_url
        FROM course_modules m
-       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND (m.type = 'docs' OR m.type = 'quiz')
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
        WHERE m.course_id = $1 
        ORDER BY m.order_index ASC, m.created_at ASC`,
@@ -222,7 +222,7 @@ export const getModuleDetails = async (req, res) => {
               d.contentextra as doc_contentextra, d.image_url,
               v.video_url
        FROM course_modules m
-       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND (m.type = 'docs' OR m.type = 'quiz')
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
        JOIN courses c ON m.course_id = c.id
        JOIN companies comp ON c.company_id = comp.id
@@ -247,3 +247,41 @@ export const getModuleDetails = async (req, res) => {
   }
 };
 
+// ─── USER: Get modules for an assigned course ─────────────────────────────────
+export const userGetCourseModules = async (req, res) => {
+  const { course_id } = req.params;
+  const user_id = req.user.id;
+
+  try {
+    const checkRes = await pool.query(
+      `SELECT id FROM users WHERE id = $1 AND $2::integer = ANY(assigned_courses)`,
+      [user_id, course_id]
+    );
+
+    if (checkRes.rows.length === 0) {
+      return res.status(403).json({ success: false, message: "Course not assigned or unauthorized" });
+    }
+
+    const result = await pool.query(
+      `SELECT m.*, 
+              d.contentextra as doc_content, d.image_url,
+              v.video_url
+       FROM course_modules m
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND (m.type = 'docs' OR m.type = 'quiz')
+       LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
+       WHERE m.course_id = $1 AND m.status = 'published'
+       ORDER BY m.order_index ASC, m.created_at ASC`,
+      [course_id]
+    );
+
+    const modules = result.rows.map(m => ({
+      ...m,
+      contentextra: m.doc_content,
+    }));
+
+    return res.status(200).json({ success: true, modules });
+  } catch (err) {
+    console.error("userGetCourseModules error:", err);
+    return res.status(500).json({ success: false, message: err.message || "Internal server error" });
+  }
+};

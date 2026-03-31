@@ -252,3 +252,47 @@ export const sendCompanyStatusUpdate = async (
     `,
   });
 };
+
+// ─── Course Assignment Notification ───────────────────────────────────────────
+export const sendCourseAssignmentEmail = async (
+  email,
+  name,
+  courseTitle,
+  password,
+) => {
+  return send({
+    from: FROM,
+    to: email,
+    subject: `🎓 New Training Assigned: "${courseTitle}" — CyberShield Guard`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:1px solid #6366f1;border-radius:12px;background:#fff;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <h2 style="margin:0;color:#6366f1;font-size:20px;">🎓 Training Assignment</h2>
+        </div>
+        <p>Dear <strong>${name}</strong>,</p>
+        <p>A new cybersecurity training course has been assigned to you: <strong>"${courseTitle}"</strong>.</p>
+        
+        <div style="background:#f5f3ff;border:1px solid #ddd6fe;padding:20px;border-radius:12px;margin:24px 0;">
+          <h3 style="margin-top:0;color:#5b21b6;font-size:16px;">🔑 Your Access Credentials</h3>
+          <p style="margin:8px 0;font-size:14px;color:#4c1d95;">Login ID: <strong>${email}</strong></p>
+          <p style="margin:8px 0;font-size:14px;color:#4c1d95;">Initial Password: <code style="background:#fff;padding:4px 8px;border-radius:4px;border:1px solid #ddd6fe;font-weight:bold;">${password}</code></p>
+        </div>
+
+        <p style="color:#4b5563;font-size:14px;line-height:1.6;">Please log in to your dashboard to begin your training. We recommend changing your password after your first login.</p>
+        
+        <div style="text-align:center;margin-top:32px;">
+          <a href="${process.env.FRONTEND_URL || "http://localhost:3000"}/user/signin" 
+             style="background:#6366f1;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;display:inline-block;box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.4);">
+             Access Training Dashboard
+          </a>
+        </div>
+        
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0;">
+        <p style="font-size:11px;color:#9ca3af;text-align:center;line-height:1.4;">
+          This is an automated security notification from CyberShield Guard.<br/>
+          If you believe this was sent in error, please contact your company's IT administrator.
+        </p>
+      </div>
+    `,
+  });
+};
