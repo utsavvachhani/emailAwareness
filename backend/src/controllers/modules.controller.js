@@ -127,7 +127,7 @@ export const updateModule = async (req, res) => {
 
     // 1. Verify & check current assets
     const checkRes = await client.query(
-      `SELECT m.*, d.image_url as old_image, v.video_url as old_video
+      `SELECT m.*, d.image_url as old_image, d.contentextra as old_contentextra, v.video_url as old_video
        FROM course_modules m
        LEFT JOIN course_modules_docs d ON m.id = d.course_module_id
        LEFT JOIN course_modules_video v ON m.id = v.course_module_id
@@ -167,7 +167,7 @@ export const updateModule = async (req, res) => {
     } else {
       await client.query(
         `UPDATE course_modules_docs SET image_url = $1, contentextra = $2, updated_at = CURRENT_TIMESTAMP WHERE course_module_id = $3`,
-        [image_url ?? old.old_image, contentextra ?? old.contentextra, id]
+        [image_url ?? old.old_image, contentextra ?? old.old_contentextra, id]
       );
     }
 

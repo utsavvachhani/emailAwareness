@@ -170,5 +170,8 @@ export const superadminGetCompanyPlanInfo = (companyId: string) => API.get(`/sup
 export const superadminCreateModule = (courseId: string, data: any) => API.post(`/superadmin/courses/${courseId}/modules`, data);
 export const superadminUpdateModule = (id: string, data: any) => API.put(`/superadmin/modules/${id}`, data);
 export const superadminDeleteModule = (id: string) => API.delete(`/superadmin/modules/${id}`);
+export const superadminUploadMedia = (formData: FormData) => API.post('/superadmin/upload-media', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+});
 
 export default API;

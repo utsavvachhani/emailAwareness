@@ -7,7 +7,8 @@ import {
   Filter, MoreVertical, Trash2, Calendar, 
   Clock, AlertCircle, CheckCircle2, ChevronRight, 
   RefreshCcw, Loader2, Info, X, Zap, 
-  ArrowLeft, CheckCircle, BarChart3, Settings2, HelpCircle
+  ArrowLeft, CheckCircle, BarChart3, Settings2, HelpCircle,
+  Lock, Sparkles, Crown
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -31,9 +32,15 @@ type Course = {
 
 type PlanInfo = {
   plan: string;
+  is_paid?: boolean;
   course_count: number;
   course_limit: number;
   can_create: boolean;
+};
+
+const PLAN_ICONS: Record<string, React.ElementType> = { basic: Zap, standard: Sparkles, premium: Crown };
+const PLAN_COLORS: Record<string, string> = {
+  basic: "text-emerald-600", standard: "text-blue-600", premium: "text-purple-600",
 };
 
 export default function SuperadminCompanyCourses() {
@@ -48,6 +55,11 @@ export default function SuperadminCompanyCourses() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [planInfo, setPlanInfo] = useState<PlanInfo | null>(null);
+
+  const PlanIcon = PLAN_ICONS[planInfo?.plan ?? ""] ?? Zap;
+  const planColor = PLAN_COLORS[planInfo?.plan ?? ""] ?? "text-muted-foreground";
+  const canCreate = planInfo?.can_create ?? false;
+  const noSubscription = !isLoading && planInfo && (!planInfo.is_paid || !planInfo.plan || planInfo.plan === "none");
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,154 +133,152 @@ export default function SuperadminCompanyCourses() {
   return (
     <div className="max-w-[1400px] mx-auto p-4 space-y-10 bg-white min-h-screen font-sans">
       {/* Superadmin Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-4">
-        <div className="flex items-start gap-4">
-          <button 
-            onClick={() => router.push(`/superadmin/dashboard/admins/${adminId}/companies/${companyId}`)}
-            className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-200 hover:bg-slate-100 transition-all shrink-0 group shadow-sm"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-400 group-hover:-translate-x-1 transition-transform" />
-          </button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 mb-1">
-                <Shield className="w-3.5 h-3.5 text-blue-500 fill-blue-500" /> Organizational Curriculum
+            <div className="flex items-center gap-2.5 mb-1">
+              <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <BookOpen className="w-4 h-4 text-blue-600" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight">Training Courses</h1>
             </div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Training Courses</h1>
-            <p className="text-sm text-slate-500 font-medium tracking-tight mt-1 opacity-60 italic leading-relaxed">
-                Create and manage cybersecurity training courses for your employees
+            <p className="text-sm text-muted-foreground">
+              Create and manage cybersecurity training courses for your employees
             </p>
           </div>
-        </div>
 
-        <div className="flex items-center flex-wrap gap-4">
-             <button onClick={fetchData} className="h-11 px-6 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-all flex items-center gap-2 text-sm font-semibold text-slate-700 shadow-sm">
-                <RefreshCcw className={`w-4 h-4 ${isLoading && "animate-spin"}`} /> Refresh
-             </button>
-             
-             {planInfo && (
-                <div className="h-11 px-5 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center gap-4 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-emerald-600 fill-emerald-600" />
-                    <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-tight">{planInfo.plan} Plan</span>
-                  </div>
-                  <div className="h-4 w-[1px] bg-emerald-200" />
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold text-emerald-600/60 uppercase">{planInfo.course_count}/{planInfo.course_limit} courses</span>
-                    <div className="w-16 h-1.5 bg-emerald-200/50 rounded-full overflow-hidden">
-                        <div 
-                            className="h-full bg-emerald-500 transition-all duration-1000" 
-                            style={{ width: `${(planInfo.course_count / planInfo.course_limit) * 100}%` }}
-                        />
-                    </div>
-                  </div>
-                </div>
-             )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchData}
+              disabled={isLoading}
+              className="flex items-center gap-2 h-9 px-4 rounded-xl border border-border bg-card text-xs font-semibold hover:bg-secondary transition-all disabled:opacity-50"
+            >
+              <RefreshCcw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
+              Refresh
+            </button>
 
-             <button 
-                onClick={() => setIsModalOpen(true)}
-                className="h-11 px-8 rounded-2xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-500/20 flex items-center gap-2"
-             >
-                <Plus className="w-4 h-4" /> Create Course
-             </button>
-        </div>
-      </div>
+            {/* Plan badge */}
 
-      {/* Global Oversight Analytics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-slate-100 rounded-3xl p-8 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-                  <BarChart3 className="w-24 h-24" />
+            {planInfo && planInfo.plan && planInfo.plan !== "none" && (
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold ${planColor}`}
+                   style={{ backgroundColor: "var(--background)", borderColor: "currentColor", opacity: 0.9 }}>
+                <PlanIcon className="w-3.5 h-3.5" />
+                <span className="capitalize">{planInfo.plan} Plan</span>
+                <span className="text-muted-foreground font-normal ml-1">
+                  {planInfo.course_count}/{planInfo.course_limit} courses
+                </span>
               </div>
-              <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Global Assets</p>
-                  <p className="text-4xl font-bold text-slate-900 tracking-tight">{courses.length}</p>
-              </div>
-              <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100">
-                  <BookOpen className="w-7 h-7" />
-              </div>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-3xl p-8 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-                  <CheckCircle2 className="w-24 h-24" />
-              </div>
-              <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Authorized</p>
-                  <p className="text-4xl font-bold text-slate-900 tracking-tight">{courses.filter(c => c.status === 'approved').length}</p>
-              </div>
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500 border border-emerald-100">
-                  <CheckCircle2 className="w-7 h-7" />
-              </div>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-3xl p-8 flex items-center justify-between shadow-sm hover:shadow-md transition-all group overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none group-hover:scale-110 transition-transform duration-700">
-                  <Clock className="w-24 h-24" />
-              </div>
-              <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Awaiting Auth</p>
-                  <p className="text-4xl font-bold text-slate-900 tracking-tight">{courses.filter(c => c.status === 'pending').length}</p>
-              </div>
-              <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500 border border-amber-100">
-                  <Clock className="w-7 h-7" />
-              </div>
+            )}
+
+            {/* Create / Lock button */}
+            <button
+              onClick={() => {
+                if (noSubscription) { toast.error("Subscribe to a plan first (Billing page)."); return; }
+                if (!canCreate)     { toast.error(`Plan limit reached. Upgrade to create more courses.`); return; }
+                setIsModalOpen(true);
+              }}
+              className={`flex items-center gap-2 h-9 px-4 rounded-lg text-sm font-semibold transition-all ${
+                canCreate
+                  ? "bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-500/20 hover:shadow-blue-500/30"
+                  : "bg-secondary text-muted-foreground cursor-not-allowed"
+              }`}
+            >
+              {canCreate ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+              {canCreate ? "Create Course" : (noSubscription ? "No Plan" : "Limit Reached")}
+            </button>
           </div>
       </div>
 
-      {/* Oversight Registry Header */}
-      <div className="bg-slate-50 border border-slate-200 rounded-[2.5rem] p-3 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-inner">
-          <div className="flex bg-white rounded-2xl p-1 gap-1 border border-slate-200">
-              {(["all", "pending", "approved", "rejected"] as const).map((s) => (
-                <button
-                    key={s}
-                    onClick={() => setFilterStatus(s)}
-                    className={`h-11 px-8 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${
-                    filterStatus === s 
-                        ? "bg-slate-900 text-white shadow-lg" 
-                        : "text-slate-500 hover:bg-slate-50"
-                    }`}
-                >
-                    {s}
-                </button>
-              ))}
+      {noSubscription && (
+          <div className="flex items-center gap-4 p-5 bg-amber-500/5 border border-amber-500/20 rounded-2xl">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-sm text-amber-800">No Active Subscription</p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Select and pay for a plan from the Billing page to start creating courses.
+              </p>
+            </div>
+            <a
+              href={`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/billing`}
+              className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-xl hover:bg-amber-600 transition-colors"
+            >
+              Go to Billing <ChevronRight className="w-3.5 h-3.5" />
+            </a>
+          </div>
+      )}
+
+      {/* Stats */}
+      {!isLoading && courses.length > 0 && (
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Total",    value: courses.length,                                     color: "text-foreground" },
+            { label: "Approved", value: courses.filter(c => c.status === "approved").length, color: "text-emerald-600" },
+            { label: "Pending",  value: courses.filter(c => c.status === "pending").length,  color: "text-amber-600"  },
+          ].map(s => (
+            <div key={s.label} className="rounded-xl border border-border bg-card p-4 text-center">
+              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-xs text-muted-foreground mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filter tabs */}
+      {courses.length > 0 && (
+        <div className="flex gap-4 items-center justify-between">
+          <div className="flex gap-1 p-1 bg-secondary rounded-xl w-fit">
+            {(["all", "pending", "approved", "rejected"] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFilterStatus(f)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all ${
+                  filterStatus === f ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
           </div>
 
-          <div className="relative flex-1 max-w-sm ml-auto mr-1">
+          <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input 
                   type="text"
                   placeholder="Identify specific curriculum protocol..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="w-full h-11 bg-white rounded-xl border border-slate-200 px-12 text-sm font-medium outline-none focus:ring-4 focus:ring-blue-500/10 placeholder:text-slate-400 transition-all font-bold italic"
+                  className="w-full h-9 bg-card rounded-lg border border-border pl-10 pr-4 text-xs outline-none focus:border-blue-500/60 transition-colors"
               />
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           </div>
-      </div>
+        </div>
+      )}
 
-      {/* Curriculum Protocol Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20">
+      {/* Course Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-20">
           {filteredCourses.length === 0 ? (
-            <div className="col-span-full py-40 text-center space-y-6">
-                <div className="w-24 h-24 rounded-[2.5rem] bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center mx-auto shadow-inner">
-                    <BookOpen className="w-10 h-10 text-slate-300" />
+            <div className="col-span-full py-24 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-secondary border border-border flex items-center justify-center mb-4 mx-auto">
+                    <BookOpen className="w-7 h-7 text-muted-foreground" />
                 </div>
-                <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Curriculum Asset Void</h3>
-                    <p className="text-sm text-slate-500 max-w-sm mx-auto font-medium opacity-60 italic">No courses found matching your current oversight parameters.</p>
-                </div>
+                <h3 className="font-semibold text-sm mb-1 uppercase tracking-tight">Curriculum Asset Void</h3>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">No courses found matching your current oversight parameters.</p>
             </div>
           ) : (
             filteredCourses.map((c) => (
               <div 
                 key={c.id} 
-                className="bg-white border border-slate-100 rounded-[2.5rem] p-8 space-y-8 hover:shadow-2xl hover:shadow-slate-200/50 transition-all group relative overflow-hidden flex flex-col"
+                className="rounded-xl border border-border bg-card p-5 flex flex-col gap-3 hover:border-blue-500/30 hover:shadow-sm transition-all duration-200 group cursor-pointer"
+                onClick={() => router.push(`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/courses/${c.id}`)}
               >
-                <div className="flex items-start justify-between relative z-10">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50 transition-all shadow-sm shrink-0">
-                        <BookOpen className="w-7 h-7" />
+                <div className="flex items-start justify-between gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:bg-blue-500/15 transition-colors">
+                        <BookOpen className="w-5 h-5 text-blue-600" />
                     </div>
-                    <div className={`flex items-center gap-1.5 px-4 h-8 rounded-full text-[10px] font-bold uppercase tracking-tight shadow-sm border ${
-                        c.status === 'approved' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
-                        c.status === 'pending' ? "bg-amber-50 text-amber-600 border-amber-100" :
-                        "bg-red-50 text-red-600 border-red-100"
+                    <span className={`flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-full border ${
+                        c.status === 'approved' ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20" :
+                        c.status === 'pending' ? "bg-amber-500/10 text-amber-700 border-amber-500/20" :
+                        "bg-red-500/10 text-red-600 border-red-500/20"
                     }`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${
                              c.status === 'approved' ? "bg-emerald-600" :
@@ -276,44 +286,42 @@ export default function SuperadminCompanyCourses() {
                              "bg-red-600"
                         }`} />
                         {c.status}
-                    </div>
+                    </span>
                 </div>
 
-                <div className="space-y-3 flex-1 relative z-10">
-                    <h3 className="font-bold text-xl tracking-tight text-slate-900 group-hover:text-blue-600 transition-colors leading-tight uppercase truncate">{c.title}</h3>
-                    <p className="text-sm text-slate-500 font-medium leading-relaxed line-clamp-2 opacity-70 italic">{c.description || "Instructional components pending detailed description..."}</p>
+                <div className="flex-1">
+                    <h3 className="font-semibold text-sm leading-tight group-hover:text-blue-600 transition-colors uppercase truncate">{c.title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{c.description || "Instructional components pending detailed description..."}</p>
                 </div>
 
-                <div className="space-y-6 pt-6 border-t border-slate-50 relative z-10">
+                <div className="flex items-center gap-2 pt-2 border-t border-border/50">
                    <button 
-                    onClick={() => router.push(`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/courses/${c.id}`)}
-                    className="w-full h-12 rounded-2xl border border-slate-200 bg-white font-bold text-[11px] uppercase tracking-widest text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-3 transition-all shadow-sm group-hover:border-blue-200"
+                    onClick={(e) => { e.stopPropagation(); router.push(`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/courses/${c.id}`); }}
+                    className="flex-1 h-8 rounded-lg border border-border text-[10px] font-bold uppercase tracking-widest hover:bg-secondary transition-all flex items-center justify-center gap-2"
                    >
-                     <Settings2 className="w-4 h-4 text-slate-400" /> MANAGE MODULES
+                     <Settings2 className="w-3.5 h-3.5" /> Manage Modules
                    </button>
+                   <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors shadow-sm shrink-0">
+                       <Trash2 className="w-3.5 h-3.5" />
+                   </button>
+                </div>
 
-                   <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5 uppercase tracking-widest">
-                                <Clock className="w-3.5 h-3.5" /> {c.total_duration || 0}m
-                            </span>
-                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${
-                                c.difficulty === 'high' ? "bg-red-50 text-red-600" :
-                                c.difficulty === 'medium' ? "bg-blue-50 text-blue-600" :
-                                "bg-emerald-50 text-emerald-600"
-                            }`}>
-                                <div className={`w-1.5 h-1.5 rounded-full ${
-                                    c.difficulty === 'high' ? "bg-red-500" :
-                                    c.difficulty === 'medium' ? "bg-blue-500" :
-                                    "bg-emerald-500"
-                                }`} />
-                                {c.difficulty}
-                            </span>
-                        </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }} className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm shrink-0">
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                   </div>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
+                        <Clock className="w-3 h-3" /> {c.total_duration || 0}m
+                    </div>
+                    <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                        c.difficulty === 'high' ? "bg-purple-500/10 text-purple-700 border-purple-500/20" :
+                        c.difficulty === 'medium' ? "bg-blue-500/10 text-blue-700 border-blue-500/20" :
+                        "bg-green-500/10 text-green-700 border-green-500/20"
+                    }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${
+                            c.difficulty === 'high' ? "bg-purple-500" :
+                            c.difficulty === 'medium' ? "bg-blue-500" :
+                            "bg-green-500"
+                        }`} />
+                        {c.difficulty}
+                    </span>
                 </div>
               </div>
             ))
@@ -322,105 +330,103 @@ export default function SuperadminCompanyCourses() {
 
       {/* Creation Modal */}
       {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
-              <form onSubmit={handleCreate} className="bg-white w-full max-w-lg rounded-[3rem] p-10 border border-slate-100 shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
-                   <div className="flex items-center justify-between mb-8">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 border border-blue-100 shadow-sm shrink-0">
-                            <BookOpen className="w-7 h-7" />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+              <div className="relative w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                   <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                            <BookOpen className="w-4 h-4 text-blue-600" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-bold text-slate-900 leading-tight tracking-tight">Create New Course</h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Will be sent for superadmin approval</p>
+                            <h2 className="font-semibold text-sm">Create New Course</h2>
+                            <p className="text-xs text-muted-foreground mt-0.5">Will be sent for superadmin approval</p>
                         </div>
                       </div>
-                      <button type="button" onClick={() => setIsModalOpen(false)} className="p-3 hover:bg-slate-50 rounded-2xl transition-all">
-                          <X className="w-6 h-6 text-slate-400 opacity-60" />
+                      <button type="button" onClick={() => setIsModalOpen(false)} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+                          <X className="w-4 h-4 text-muted-foreground" />
                       </button>
                   </div>
 
                   {planInfo && (
-                    <div className="mb-10 p-5 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between shadow-inner">
-                        <div className="flex items-center gap-3">
-                            <Info className="w-4 h-4 text-slate-400" />
-                            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">
-                                <span className="text-slate-900 border-b border-slate-900 pb-0.5">{planInfo.plan}</span> plan — {planInfo.course_count} of {planInfo.course_limit} course slots used
-                            </span>
-                        </div>
-                        <div className="flex gap-1">
+                    <div className="px-6 py-3 bg-secondary/40 border-b border-border flex items-center gap-3">
+                        <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <p className="text-xs text-muted-foreground">
+                            <span className="font-semibold text-foreground capitalize">{planInfo.plan}</span> plan —{" "}
+                            <span className="text-foreground font-medium">{planInfo.course_count} of {planInfo.course_limit}</span> course slots used
+                        </p>
+                        <div className="ml-auto flex gap-1">
                             {Array.from({ length: planInfo.course_limit }).map((_, i) => (
-                                <div key={i} className={`w-6 h-1.5 rounded-full ${i < planInfo.course_count ? "bg-blue-600" : "bg-slate-200"}`} />
+                                <div key={i} className={`w-6 h-1.5 rounded-full ${i < planInfo.course_count ? "bg-blue-500" : "bg-border"}`} />
                             ))}
                         </div>
                     </div>
                   )}
 
-                  <div className="space-y-8">
-                      <div className="space-y-4">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Course Title <span className="text-red-500">*</span></label>
+                  <form onSubmit={handleCreate} className="p-6 space-y-4">
+                      <div>
+                          <label className="block text-xs font-medium mb-1.5">Course Title <span className="text-red-500">*</span></label>
                           <input 
                               required
                               value={formData.title}
                               onChange={e => setFormData({...formData, title: e.target.value})}
                               placeholder="e.g. Phishing Awareness 101"
-                              className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-6 text-sm font-bold placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                              className="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-blue-500/60 transition-colors placeholder:text-muted-foreground"
                           />
                       </div>
 
-                      <div className="space-y-4">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Description</label>
+                      <div>
+                          <label className="block text-xs font-medium mb-1.5">Description</label>
                           <textarea 
                               value={formData.description}
                               onChange={e => setFormData({...formData, description: e.target.value})}
                               placeholder="Brief overview of what employees will learn..."
-                              className="w-full h-32 bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-bold placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none resize-none"
+                              rows={3}
+                              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:border-blue-500/60 transition-colors placeholder:text-muted-foreground resize-none"
                           />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-6">
-                          <div className="space-y-4">
-                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Total Duration (Minutes)</label>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                             <label className="block text-xs font-medium mb-1.5">Total Duration (Minutes)</label>
                              <div className="relative">
+                                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                                 <input 
                                     type="number"
                                     value={formData.total_duration}
                                     onChange={e => setFormData({...formData, total_duration: e.target.value})}
-                                    className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-14 text-sm font-bold focus:ring-4 focus:ring-blue-500/10 transition-all outline-none shadow-inner"
+                                    className="w-full h-9 pl-9 pr-12 rounded-lg border border-input bg-background text-sm outline-none focus:border-blue-500/60 transition-colors"
                                 />
-                                <Clock className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                                <span className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mins</span>
+                                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mins</span>
                              </div>
                           </div>
 
-                          <div className="space-y-4">
-                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Difficulty Level</label>
-                             <div className="relative">
-                                <select 
-                                    value={formData.difficulty}
-                                    onChange={e => setFormData({...formData, difficulty: e.target.value as any})}
-                                    className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-6 appearance-none text-sm font-bold focus:ring-4 focus:ring-blue-500/10 transition-all outline-none shadow-inner cursor-pointer"
-                                >
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                                <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
-                             </div>
+                          <div>
+                             <label className="block text-xs font-medium mb-1.5">Difficulty Level</label>
+                             <select 
+                                value={formData.difficulty}
+                                onChange={e => setFormData({...formData, difficulty: e.target.value as any})}
+                                className="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-blue-500/60 transition-colors"
+                             >
+                                <option value="low">🟢 Low</option>
+                                <option value="medium">🔵 Medium</option>
+                                <option value="high">🟣 High</option>
+                             </select>
                           </div>
                       </div>
 
-                      <div className="flex gap-4 pt-4">
-                          <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 h-14 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">Cancel</button>
+                      <div className="flex gap-3 pt-1">
+                          <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 h-9 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors">Cancel</button>
                           <button 
                             type="submit" 
                             disabled={isSubmitting}
-                            className="flex-1 h-14 bg-blue-600 text-white rounded-2xl text-sm font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/20 flex items-center justify-center gap-3 disabled:opacity-50"
+                            className="flex-1 h-9 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-500 transition-colors flex items-center justify-center gap-2 disabled:opacity-60 shadow-md shadow-blue-500/20"
                           >
-                             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Submit for Approval"}
+                             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Submit for Approval"}
                           </button>
                       </div>
-                  </div>
-              </form>
+                  </form>
+              </div>
           </div>
       )}
     </div>

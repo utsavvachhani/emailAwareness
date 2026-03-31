@@ -6,7 +6,7 @@ import {
   Shield, List, ArrowLeft, Loader2, 
   Video, FileText, CheckCircle2, Clock, 
   ShieldCheck, RefreshCcw, ChevronRight, Zap, Info, XCircle, AlertTriangle, X, PlayCircle,
-  Plus, Search, Filter, Trash2, MoreVertical
+  Plus, Search, Filter, Trash2, MoreVertical, LayoutList, Eye, EyeOff
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -17,7 +17,10 @@ import {
   superadminApproveCourse,
   superadminRejectCourse,
   superadminCreateModule,
-  superadminDeleteModule
+  superadminUpdateModule,
+  superadminDeleteModule,
+  superadminGetCompanyPlanInfo,
+  adminUploadMedia
 } from "@/api";
 
 type Module = {
@@ -25,6 +28,10 @@ type Module = {
   course_id: number;
   title: string;
   type: "docs" | "video";
+  content?: string;
+  contentextra?: string;
+  video_url?: string;
+  image_url?: string;
   duration: string | null;
   status: "draft" | "published";
   created_at: string;
@@ -47,28 +54,42 @@ export default function SuperadminCourseModulesOversight() {
   const [rejectionModal, setRejectionModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  // Module Modal State
-  const [isModuleModalOpen, setIsModuleModalOpen] = useState(false);
-  const [moduleSubmitting, setModuleSubmitting] = useState(false);
-  const [moduleFormData, setModuleFormData] = useState({
+  // Module Inline Form State
+  const [showForm, setShowForm] = useState(false);
+  const [editModule, setEditModule] = useState<Module | null>(null);
+  const [form, setForm] = useState({
       title: "",
       type: "docs" as "docs" | "video",
-      duration: "10 mins",
+      content: "",
+      contentextra: "",
+      video_url: "",
+      image_url: "",
+      duration: "",
       status: "published" as "published" | "draft"
   });
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [planInfo, setPlanInfo] = useState<any>(null);
+
+  const videoModules = modules.filter(m => m.type === 'video');
+  const docModules = modules.filter(m => m.type === 'docs');
+  const courseTitle = course?.title;
+  const courseStatus = course?.status;
 
   const fetchData = useCallback(async () => {
     if (!courseId || !token) return;
     setIsLoading(true);
     try {
-      const [courseRes, modRes] = await Promise.all([
+      const [courseRes, modRes, planRes] = await Promise.all([
         superadminGetCourseDetails(courseId),
-        superadminGetCourseModules(courseId)
+        superadminGetCourseModules(courseId),
+        superadminGetCompanyPlanInfo(companyId)
       ]);
 
       if (courseRes.data.success && modRes.data.success) {
         setCourse(courseRes.data.course);
         setModules(modRes.data.modules ?? []);
+        if (planRes.data.success) setPlanInfo(planRes.data);
       }
     } catch {
       toast.error("Failed to load curriculum oversight data");
@@ -116,24 +137,66 @@ export default function SuperadminCourseModulesOversight() {
       }
   };
 
-  const handleModuleCreate = async (e: React.FormEvent) => {
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await adminUploadMedia(formData);
+      if (res.data.success) {
+        setForm(f => ({ 
+          ...f, 
+          video_url: res.data.url,
+          duration: res.data.duration ? `${Math.ceil(res.data.duration / 60)} mins` : f.duration
+        }));
+        toast.success("Media asset processed successfully");
+      }
+    } catch {
+      toast.error("Media processing failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!moduleFormData.title.trim()) return toast.error("Module title is mandatory");
+      if (!form.title.trim()) return toast.error("Module title is mandatory");
+      if (form.type === 'video' && !form.video_url) return toast.error("Please upload a video first");
       
-      setModuleSubmitting(true);
+      setSaving(true);
       try {
-          const res = await superadminCreateModule(courseId, moduleFormData);
+          const res = editModule 
+            ? await superadminUpdateModule(String(editModule.id), form)
+            : await superadminCreateModule(courseId, form);
+
           if (res.data.success) {
-              toast.success("New instructional node added");
-              setIsModuleModalOpen(false);
-              setModuleFormData({ title: "", type: "docs", duration: "10 mins", status: "published" });
+              toast.success(editModule ? "Instructional node updated" : "New instructional node added");
+              setShowForm(false);
+              setEditModule(null);
               fetchData();
           }
       } catch (err: any) {
-          toast.error(err.response?.data?.message || "Failed to add module");
+          toast.error(err.response?.data?.message || "Failed to save module");
       } finally {
-          setModuleSubmitting(false);
+          setSaving(false);
       }
+  };
+
+  const toggleStatus = async (m: Module) => {
+    const newStatus = m.status === 'published' ? 'draft' : 'published';
+    try {
+      const res = await superadminUpdateModule(String(m.id), { status: newStatus });
+      if (res.data.success) {
+        toast.success(`Module set to ${newStatus}`);
+        fetchData();
+      }
+    } catch {
+      toast.error("Status update failed");
+    }
   };
 
   const handleDeleteModule = async (id: number) => {
@@ -149,76 +212,101 @@ export default function SuperadminCourseModulesOversight() {
       }
   };
 
-  if (isLoading && modules.length === 0) {
-    return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Auditing Curriculum Modules...</p>
-        </div>
-    );
-  }
-
   return (
-    <div className="max-w-[1400px] mx-auto p-4 space-y-8 bg-white min-h-screen font-sans">
-      {/* Superadmin Module Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-slate-100">
-        <div className="flex items-start gap-4">
-          <button 
-            onClick={() => router.push(`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/courses`)}
-            className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-200 hover:bg-slate-100 transition-all shrink-0 group shadow-sm"
-          >
-            <ArrowLeft className="w-5 h-5 text-slate-400 group-hover:-translate-x-1 transition-transform" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 mb-1">
-                <Zap className="w-3.5 h-3.5 text-blue-500 fill-blue-500" /> Module Verification Pipeline
-            </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{course?.title || "Curriculum Registry"}</h1>
-            <p className="text-sm text-slate-500 font-medium tracking-tight mt-0.5 opacity-60 italic leading-relaxed">
-                Analyzing individual nodes for organizational training compliance
-            </p>
-          </div>
-        </div>
+    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+      {/* Header */}
+      <div className="flex flex-col gap-4">
+        <button 
+          onClick={() => router.push(`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/courses`)}
+          className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors w-fit"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Curriculum Registry
+        </button>
 
-        <div className="flex items-center gap-3">
-             <button onClick={fetchData} className="h-11 px-5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-all flex items-center gap-2 text-sm font-semibold text-slate-700 shadow-sm">
-                <RefreshCcw className={`w-4 h-4 ${isLoading && "animate-spin"}`} /> Refresh
-             </button>
-             <button 
-                onClick={() => setIsModuleModalOpen(true)}
-                className="h-11 px-6 rounded-2xl bg-slate-900 text-white text-sm font-bold hover:bg-slate-800 transition-all shadow-xl flex items-center gap-2"
-             >
-                <Plus className="w-4 h-4" /> Add Module
-             </button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-sm">
+              <LayoutList className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">{courseTitle || "Curriculum Builder"}</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {courseStatus === 'pending' ? "⏳ Verification Required: Audit instructional nodes before authorization." : "Analyze individual nodes for organizational training compliance"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                if (planInfo && modules.length >= planInfo.module_limit) {
+                   return toast.error(`Total limit reached: max ${planInfo.module_limit} modules allowed.`);
+                }
+                setEditModule(null);
+                setForm({ title: "", type: "docs", content: "", contentextra: "", video_url: "", image_url: "", duration: "", status: "published" });
+                setShowForm(true);
+              }}
+              className="flex items-center gap-2 px-6 h-11 rounded-xl bg-orange-500 text-white text-sm font-bold transition-all shadow-lg hover:bg-orange-400 shadow-orange-500/20"
+            >
+              <FileText className="w-4 h-4" /> Add Document
+            </button>
+            <button
+              onClick={() => {
+                if (planInfo) {
+                  if (modules.length >= planInfo.module_limit) {
+                    return toast.error(`Total limit reached: max ${planInfo.module_limit} modules allowed.`);
+                  }
+                  if (videoModules.length >= planInfo.video_limit) {
+                    return toast.error(`Video limit reached: max ${planInfo.video_limit} videos allowed.`);
+                  }
+                }
+                setEditModule(null);
+                setForm({ title: "", type: "video", content: "", contentextra: "", video_url: "", image_url: "", duration: "", status: "published" });
+                setShowForm(true);
+              }}
+              className="flex items-center gap-2 px-6 h-11 rounded-xl bg-blue-600 text-white text-sm font-bold transition-all shadow-lg hover:bg-blue-500 shadow-blue-500/20"
+            >
+              <Video className="w-4 h-4" /> Add Video
+            </button>
+
+            {showForm && (
+              <button
+                onClick={() => setShowForm(false)}
+                className="flex items-center gap-2 px-3 h-11 rounded-xl bg-secondary text-foreground text-sm font-bold hover:bg-border transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Oversight Action Bar */}
-      {course?.status === 'pending' && (
-        <div className="p-8 bg-blue-50 border border-blue-500/10 rounded-[2.5rem] flex flex-col sm:flex-row sm:items-center justify-between gap-8 shadow-inner shadow-blue-500/5">
-           <div className="flex items-center gap-5">
-              <div className="w-14 h-14 rounded-2xl bg-white border border-blue-100 flex items-center justify-center shadow-sm shrink-0">
-                 <Info className="w-7 h-7 text-blue-600" />
+      {courseStatus === 'pending' && (
+        <div className="p-6 bg-blue-50 border border-blue-500/10 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-6 shadow-sm">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-white border border-blue-100 flex items-center justify-center shadow-sm shrink-0">
+                 <ShieldCheck className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-slate-900 leading-tight">Verification Required</h4>
-                <p className="text-sm text-slate-500 font-medium leading-relaxed mt-1 opacity-70 italic max-w-xl">This course protocol is currently pending authorization. Inspect all instructional modules below before committing to the global registry.</p>
+                <h4 className="text-sm font-bold text-slate-900 leading-tight">Verification Required</h4>
+                <p className="text-xs text-slate-500 font-medium leading-relaxed mt-0.5 opacity-70 italic max-w-xl">Inspect all nodes before authorizing this protocol for organizational deployment.</p>
               </div>
            </div>
-           <div className="flex items-center gap-3 shrink-0">
+           <div className="flex items-center gap-2 shrink-0">
               <button 
                 onClick={handleApprove}
                 disabled={processingId === course.id}
-                className="h-12 px-8 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
+                className="h-10 px-6 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-500/20 flex items-center gap-2 disabled:opacity-50"
               >
-                {processingId === course.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {processingId === course.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                 Authorize Protocol
               </button>
               <button 
                 onClick={() => setRejectionModal(true)}
-                className="h-12 px-8 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition-all shadow-xl shadow-red-500/20 flex items-center gap-2"
+                className="h-10 px-6 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-all shadow-md shadow-red-500/20 flex items-center gap-2"
               >
-                <XCircle className="w-4 h-4" />
+                <XCircle className="w-3.5 h-3.5" />
                 Revoke
               </button>
            </div>
@@ -226,100 +314,361 @@ export default function SuperadminCourseModulesOversight() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
-              <p className="text-4xl font-bold text-slate-900 mb-2">{modules.length}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Nodes</p>
+      {!showForm && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-600">
+                <List className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Lessons</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <span className="text-2xl font-bold">{modules.length}</span>
+              {planInfo && (
+                <span className="text-[10px] font-bold text-muted-foreground">
+                  Limit: {planInfo.module_limit}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+               <div className="h-full bg-blue-600 transition-all" style={{ width: planInfo ? `${(modules.length / planInfo.module_limit) * 100}%` : '0%' }} />
+            </div>
           </div>
-          <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
-              <p className="text-4xl font-bold text-slate-900 mb-2">{modules.filter(m => m.status === 'published').length}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Published State</p>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-3xl p-8 text-center shadow-sm">
-              <p className="text-4xl font-bold text-slate-900 mb-2">{modules.filter(m => m.status === 'draft').length}</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">In Draft</p>
-          </div>
-      </div>
 
-      {/* Modules Audit Grid */}
-      <div className="grid grid-cols-1 gap-6 pb-12">
-          {modules.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-32 text-center bg-slate-50 border-2 border-dashed border-slate-200 rounded-[3rem] space-y-6">
-              <div className="w-24 h-24 rounded-3xl bg-white border border-slate-100 flex items-center justify-center p-6 shadow-sm">
-                <FileText className="w-12 h-12 text-slate-200" />
+          <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600">
+                <Video className="w-4 h-4" />
               </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Video Modules</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <span className="text-2xl font-bold">{videoModules.length}</span>
+              {planInfo && (
+                <span className="text-[10px] font-bold text-muted-foreground">
+                   Limit: {planInfo.video_limit}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+               <div className="h-full bg-emerald-500 transition-all" style={{ width: planInfo ? `${(videoModules.length / planInfo.video_limit) * 100}%` : '0%' }} />
+            </div>
+          </div>
+
+          <div className="p-4 rounded-2xl border border-border bg-card shadow-sm">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-600">
+                <FileText className="w-4 h-4" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Document Lessons</span>
+            </div>
+            <div className="flex items-end justify-between">
+              <span className="text-2xl font-bold">{docModules.length}</span>
+              <span className="text-[10px] font-bold text-muted-foreground capitalize">{planInfo?.plan ?? '...'} Plan</span>
+            </div>
+            <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+               <div className="h-full bg-orange-500 transition-all" style={{ width: '100%' }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showForm ? (
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-top-4">
+          <div className="px-6 py-5 border-b border-border bg-secondary/10 flex items-center justify-between">
+            <h3 className="font-bold text-sm">{editModule ? "Edit Lesson Details" : "New Lesson Creation"}</h3>
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-background border border-border shadow-sm">
+               <div className={`w-2 h-2 rounded-full ${form.type === 'video' ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.4)]' : 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]'}`} />
+               <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{form.type} Module</span>
+            </div>
+          </div>
+          
+          <form onSubmit={handleSave} className="p-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2 space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Module Name</label>
+                <input
+                  placeholder="e.g. Security Principles Part 1"
+                  value={form.title}
+                  onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                  className="w-full h-12 px-4 rounded-xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm font-semibold"
+                />
+              </div>
+
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-slate-900 uppercase tracking-tight">Protocol Asset Void</h3>
-                <p className="text-sm text-slate-500 max-w-sm mt-3 font-medium opacity-60 italic">This course currently contains no instructional assets for review.</p>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Estimated Duration (Mins) {form.type === 'video' && <span className="text-blue-500 ml-1">(Auto-detected)</span>}
+                </label>
+                <div className="relative">
+                  <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="15"
+                    readOnly={form.type === 'video'}
+                    value={form.duration.replace(/\D/g, '')}
+                    onChange={e => setForm(f => ({ ...f, duration: e.target.value ? `${e.target.value} mins` : "" }))}
+                    className={`w-full h-12 pl-12 pr-12 rounded-xl border border-input outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm font-medium ${
+                      form.type === 'video' ? 'bg-secondary/40 text-muted-foreground cursor-not-allowed border-dashed' : 'bg-background'
+                    }`}
+                  />
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground uppercase opacity-50">MINS</span>
+                </div>
               </div>
-              <button 
-                onClick={() => setIsModuleModalOpen(true)}
-                className="h-12 px-8 rounded-2xl bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest shadow-xl shadow-blue-500/20"
+
+              {form.type === 'video' ? (
+                <>
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Video Description</label>
+                    <textarea
+                      placeholder="Brief overview of the video training..."
+                      value={form.content}
+                      onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                      rows={3}
+                      className="w-full p-4 rounded-xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm resize-none"
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Video Training URL (Cloudinary / External)</label>
+                    <div className="flex flex-col gap-3">
+                      <div className="relative">
+                        <Video className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <input
+                          placeholder="Upload a video below to generate URL..."
+                          value={form.video_url}
+                          readOnly
+                          className={`w-full h-12 pl-12 pr-4 rounded-xl border border-input outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-xs font-medium italic ${
+                            form.video_url ? 'bg-secondary/40 text-blue-600 border-dashed cursor-default' : 'bg-secondary/20 text-muted-foreground cursor-not-allowed'
+                          }`}
+                        />
+                        {form.video_url && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[8px] font-bold text-blue-600 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 uppercase tracking-widest">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Cloudinary Verified
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="group relative">
+                        <input 
+                          type="file" 
+                          accept="video/*" 
+                          onChange={handleMediaUpload}
+                          disabled={uploading}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                        />
+                        <div className={`w-full py-4 px-4 rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-all ${
+                          uploading ? "bg-secondary/50 border-blue-500/50" : "border-border hover:border-blue-500/40 hover:bg-secondary/20"
+                        }`}>
+                          {uploading ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                              <span className="text-[10px] font-bold text-blue-600">Processing video...</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                <Plus className="w-4 h-4 text-blue-600" />
+                              </div>
+                              <span className="text-[10px] font-bold text-muted-foreground group-hover:text-blue-600">
+                                {form.video_url ? "Replace Current Video" : "Upload Video to Cloudinary"}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="md:col-span-2 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Short Description (Optional)</label>
+                    <textarea
+                      placeholder="Brief overview of what this material covers..."
+                      value={form.content}
+                      onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                      rows={3}
+                      className="w-full p-4 rounded-xl border border-input bg-background outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all text-sm resize-none leading-relaxed"
+                    />
+                  </div>
+                  <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-3">
+                     <div className="p-2 rounded-lg bg-white text-blue-600 shadow-sm shrink-0">
+                       <FileText className="w-4 h-4" />
+                     </div>
+                     <div>
+                       <p className="text-xs font-bold text-blue-900">Configuring an instructional node...</p>
+                       <p className="text-[10px] text-blue-700/80 font-medium mt-1 leading-relaxed">
+                          After creation, click on the node in the list below to audit or modify the document content and structure.
+                       </p>
+                     </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2 md:col-span-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Visibility Status</label>
+                <div className="flex gap-2 p-1 bg-secondary/30 rounded-xl w-fit">
+                  {(["draft", "published"] as const).map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, status: s }))}
+                      className={`px-6 h-10 rounded-lg text-xs font-bold capitalize transition-all flex items-center gap-2 ${
+                        form.status === s 
+                          ? "bg-foreground text-background shadow-md" 
+                          : "text-muted-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {s === "published" ? <CheckCircle2 className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setEditModule(null); }}
+                className="flex-1 h-12 rounded-xl border border-border font-bold text-xs hover:bg-secondary transition-all"
               >
-                PROVISION FIRST NODE
+                Cancel Changes
+              </button>
+              <button
+                type="submit"
+                disabled={saving || uploading || (form.type === 'video' && !form.video_url)}
+                className="flex-[2] h-12 rounded-xl bg-blue-600 text-white font-bold text-xs hover:bg-blue-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                {uploading ? "Waiting for upload..." : editModule ? "Update Existing Lesson" : "Create & Add to Course"}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-4 bg-card border border-border rounded-2xl border-dashed">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+              <p className="text-sm font-medium text-muted-foreground">Auditing curriculum modules...</p>
+            </div>
+          ) : modules.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 text-center bg-card border border-border rounded-2xl border-dashed">
+              <div className="w-20 h-20 rounded-3xl bg-secondary flex items-center justify-center mb-6 border border-border">
+                <FileText className="w-10 h-10 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-bold">Protocol currently empty</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-8 leading-relaxed">
+                Add instructional nodes to build a structured training protocol. Each node can be audited for compliance.
+              </p>
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex items-center gap-2 px-8 h-12 rounded-xl bg-foreground text-background text-xs font-bold hover:opacity-90 transition-all shadow-xl shadow-foreground/10"
+              >
+                <Plus className="w-4 h-4" /> Provision First Node
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-4">
               {modules.map((m, idx) => (
                 <div 
                   key={m.id} 
-                  className="bg-white border border-slate-100 rounded-[2.5rem] p-8 space-y-8 hover:shadow-2xl hover:shadow-slate-200/50 transition-all group flex flex-col relative overflow-hidden"
+                  className="group relative flex flex-col md:flex-row items-center gap-6 p-6 rounded-2xl border border-border bg-card hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/5 transition-all duration-300 cursor-pointer"
+                  onClick={() => router.push(`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/courses/${courseId}/modules/${m.id}`)}
                 >
-                  <div className="flex items-start justify-between relative z-10">
-                    <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center p-3 border border-slate-100 shrink-0">
-                      {m.type === 'video' ? <Video className="w-7 h-7 text-slate-400" /> : <FileText className="w-7 h-7 text-slate-400" />}
-                    </div>
-                    <div className="flex items-center gap-2">
-                         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-tight border shadow-sm ${
-                            m.status === "published" 
-                            ? "bg-emerald-50 text-emerald-600 border-emerald-100" 
-                            : "bg-amber-50 text-amber-600 border-amber-100"
-                        }`}>
-                            <div className={`w-1.5 h-1.5 rounded-full ${m.status === "published" ? "bg-emerald-600" : "bg-amber-600"}`} />
-                            {m.status}
-                        </div>
-                        <button onClick={() => handleDeleteModule(m.id)} className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
-                            <Trash2 className="w-4 h-4" />
-                        </button>
-                    </div>
+                  <div className="w-12 h-12 rounded-xl bg-secondary border border-border flex items-center justify-center font-bold text-sm text-muted-foreground shrink-0 shadow-inner">
+                    {idx + 1}
                   </div>
                   
-                  <div className="space-y-3 flex-1 relative z-10">
-                    <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-bold text-slate-300 font-mono italic">Node {String(idx + 1).padStart(2, '0')}</span>
-                        <h3 className="font-bold text-lg tracking-tight text-slate-900 leading-tight uppercase truncate">{m.title}</h3>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="font-bold text-sm uppercase tracking-tight truncate">{m.title}</h3>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); toggleStatus(m); }}
+                        className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors ${
+                          m.status === "published" 
+                            ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20" 
+                            : "bg-amber-500/10 text-amber-600 border-amber-100 hover:bg-amber-500/20"
+                        }`}
+                      >
+                        {m.status === "published" ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                        {m.status}
+                      </button>
                     </div>
-                    <div className="flex items-center gap-4">
-                         {m.type === 'video' ? (
-                            <span className="text-[10px] font-bold text-blue-600/60 uppercase tracking-widest flex items-center gap-1.5">
-                                <PlayCircle className="w-3.5 h-3.5" /> Video Stream
-                            </span>
-                         ) : (
-                             <span className="text-[10px] font-bold text-orange-600/60 uppercase tracking-widest flex items-center gap-1.5">
-                                <FileText className="w-3.5 h-3.5" /> Text Material
-                            </span>
-                         )}
-                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5" /> {m.duration || "Self-Paced"}
-                         </span>
+                    {m.content && (
+                      <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed opacity-80 mb-2">
+                        Node details pending further inspection...
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-3 mt-3">
+                      {m.type === 'video' ? (
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-600 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20 shadow-sm shadow-blue-500/10">
+                          <Video className="w-3.5 h-3.5" /> Video Lesson
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-600 bg-orange-500/10 px-2.5 py-1 rounded-lg border border-orange-500/20 shadow-sm shadow-orange-500/10">
+                          <FileText className="w-3.5 h-3.5" /> Docs Material
+                        </div>
+                      )}
+
+                      {m.duration && (
+                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600 bg-slate-500/10 px-2.5 py-1 rounded-lg border border-slate-500/20 shadow-sm shadow-slate-500/10">
+                          <Clock className="w-3.5 h-3.5" /> {m.duration}
+                        </div>
+                      )}
+
+                      <div className="text-[10px] font-medium text-muted-foreground ml-auto hidden md:block">
+                        Modified {new Date(m.created_at).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
 
-                  <button 
-                    onClick={() => router.push(`/superadmin/dashboard/admins/${adminId}/companies/${companyId}/courses/${courseId}/modules/${m.id}`)}
-                    className="h-12 w-full rounded-2xl border border-slate-200 bg-white font-bold text-[11px] uppercase tracking-widest text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-3 transition-all shadow-sm group-hover:border-blue-200 relative z-10"
-                  >
-                    INSPECT CONTENT <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 transition-transform" />
-                  </button>
+                  <div className="flex items-center gap-2 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditModule(m);
+                        setForm({
+                          title: m.title,
+                          type: m.type,
+                          content: m.content ?? "",
+                          contentextra: m.contentextra ?? "",
+                          video_url: m.video_url ?? "",
+                          image_url: m.image_url ?? "",
+                          duration: m.duration ?? "",
+                          status: m.status
+                        });
+                        setShowForm(true);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="p-3 rounded-xl bg-secondary hover:bg-foreground hover:text-background transition-all"
+                      title="Edit Lesson"
+                    >
+                      <Plus className="w-4 h-4 rotate-45" />
+                    </button>
+                    <button
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        handleDeleteModule(m.id); 
+                      }}
+                      className="p-3 rounded-xl bg-secondary hover:bg-red-500 hover:text-white text-red-500 transition-all"
+                      title="Delete Lesson"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-      </div>
+        </div>
+      )}
 
-       {/* Rejection Modal */}
-       {rejectionModal && (
+      {/* Rejection Modal */}
+      {rejectionModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300 no-print">
               <form onSubmit={handleReject} className="bg-white w-full max-w-md rounded-[3rem] p-10 border border-slate-100 shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
                   <div className="flex items-center justify-between mb-8">
@@ -351,82 +700,6 @@ export default function SuperadminCourseModulesOversight() {
                           <button type="button" onClick={() => setRejectionModal(false)} className="flex-1 h-14 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50">Abort</button>
                           <button type="submit" className="flex-[2] h-14 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-600/20 flex items-center justify-center gap-2">
                              Commit Rejection
-                          </button>
-                      </div>
-                  </div>
-              </form>
-          </div>
-      )}
-
-      {/* Add Module Modal */}
-      {isModuleModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
-              <form onSubmit={handleModuleCreate} className="bg-white w-full max-w-lg rounded-[3rem] p-10 border border-slate-100 shadow-2xl animate-in zoom-in-95 duration-300 relative overflow-hidden">
-                   <div className="flex items-center justify-between mb-10">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500 border border-blue-100 shadow-sm shrink-0">
-                            <Plus className="w-7 h-7" />
-                        </div>
-                        <div>
-                            <h2 className="text-2xl font-bold text-slate-900 leading-tight tracking-tight uppercase italic">Provision Node</h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Add instruction segment to protocol</p>
-                        </div>
-                      </div>
-                      <button type="button" onClick={() => setIsModuleModalOpen(false)} className="p-3 hover:bg-slate-50 rounded-2xl transition-all">
-                          <X className="w-6 h-6 text-slate-400 opacity-60" />
-                      </button>
-                  </div>
-
-                  <div className="space-y-8">
-                      <div className="space-y-4">
-                          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Node Title <span className="text-red-500">*</span></label>
-                          <input 
-                              required
-                              value={moduleFormData.title}
-                              onChange={e => setModuleFormData({...moduleFormData, title: e.target.value})}
-                              placeholder="e.g. Identifying Spear-Phishing Attacks"
-                              className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-6 text-sm font-bold placeholder:text-slate-300 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none italic"
-                          />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-6">
-                           <div className="space-y-4">
-                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Instruction Type</label>
-                             <div className="relative">
-                                <select 
-                                    value={moduleFormData.type}
-                                    onChange={e => setModuleFormData({...moduleFormData, type: e.target.value as any})}
-                                    className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-6 appearance-none text-sm font-bold focus:ring-4 focus:ring-blue-500/10 transition-all outline-none shadow-inner cursor-pointer"
-                                >
-                                    <option value="docs">Document / Text</option>
-                                    <option value="video">Video Stream</option>
-                                </select>
-                                <ChevronRight className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
-                             </div>
-                          </div>
-
-                          <div className="space-y-4">
-                             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Est. Duration</label>
-                             <div className="relative">
-                                <input 
-                                    value={moduleFormData.duration}
-                                    onChange={e => setModuleFormData({...moduleFormData, duration: e.target.value})}
-                                    placeholder="e.g. 15 mins"
-                                    className="w-full h-14 bg-slate-50 border border-slate-100 rounded-2xl px-6 text-sm font-bold focus:ring-4 focus:ring-blue-500/10 transition-all outline-none shadow-inner"
-                                />
-                                <Clock className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                             </div>
-                          </div>
-                      </div>
-
-                      <div className="flex gap-4 pt-6">
-                          <button type="button" onClick={() => setIsModuleModalOpen(false)} className="flex-1 h-14 rounded-2xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">Abort</button>
-                          <button 
-                            type="submit" 
-                            disabled={moduleSubmitting}
-                            className="flex-1 h-14 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 flex items-center justify-center gap-3 disabled:opacity-50"
-                          >
-                             {moduleSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Commit Node"}
                           </button>
                       </div>
                   </div>

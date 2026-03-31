@@ -433,10 +433,23 @@ export const getCourseModulesSuperadmin = async (req, res) => {
   const { courseId } = req.params;
   try {
     const result = await pool.query(
-      "SELECT * FROM course_modules WHERE course_id = $1 ORDER BY order_index ASC",
+      `SELECT m.*, 
+              d.contentextra as doc_content, d.image_url,
+              v.video_url
+       FROM course_modules m
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
+       LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
+       WHERE m.course_id = $1 
+       ORDER BY m.order_index ASC, m.created_at ASC`,
       [courseId]
     );
-    return res.status(200).json({ success: true, modules: result.rows });
+
+    const modules = result.rows.map(m => ({
+      ...m,
+      contentextra: m.doc_content,
+    }));
+
+    return res.status(200).json({ success: true, modules });
   } catch (err) {
     console.error("getCourseModulesSuperadmin:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
@@ -465,10 +478,27 @@ export const getCourseDetailsSuperadmin = async (req, res) => {
 export const getModuleDetailsSuperadmin = async (req, res) => {
   const { moduleId } = req.params;
   try {
-    const result = await pool.query("SELECT * FROM course_modules WHERE id = $1", [moduleId]);
+    const result = await pool.query(
+      `SELECT m.*,
+              d.contentextra as doc_contentextra, d.image_url,
+              v.video_url
+       FROM course_modules m
+       LEFT JOIN course_modules_docs d ON m.id = d.course_module_id AND m.type = 'docs'
+       LEFT JOIN course_modules_video v ON m.id = v.course_module_id AND m.type = 'video'
+       WHERE m.id = $1`,
+      [moduleId]
+    );
+
     if (result.rows.length === 0)
       return res.status(404).json({ success: false, message: "Module not found" });
-    return res.status(200).json({ success: true, module: result.rows[0] });
+
+    const row = result.rows[0];
+    const module = {
+      ...row,
+      contentextra: row.doc_contentextra,
+    };
+
+    return res.status(200).json({ success: true, module });
   } catch (err) {
     console.error("getModuleDetailsSuperadmin:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
