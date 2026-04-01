@@ -221,6 +221,51 @@ export const deleteAdmin = async (req, res) => {
 };
 
 
+// ─── Superadmin: Dashboard Stats ───────────────────────────────────────────────
+export const getGlobalStats = async (req, res) => {
+  try {
+    const companiesRes = await pool.query("SELECT COUNT(*)::int FROM companies");
+    const adminsRes = await pool.query("SELECT COUNT(*)::int FROM admins WHERE role = 'admin'");
+    const usersRes = await pool.query("SELECT COUNT(*)::int FROM users");
+    const coursesRes = await pool.query("SELECT COUNT(*)::int FROM courses");
+    const modulesRes = await pool.query("SELECT COUNT(*)::int FROM course_modules");
+
+    // Get Company Distribution by Plan
+    const planDistRes = await pool.query("SELECT plan, COUNT(*)::int FROM companies GROUP BY plan");
+    const plans = planDistRes.rows;
+
+    // Get 7-day Growth (Companies created in last 7 days)
+    const recentCompaniesRes = await pool.query("SELECT COUNT(*)::int FROM companies WHERE created_at >= NOW() - INTERVAL '7 days'");
+    
+    // Revenue Estimation (Based on active paid companies)
+    const revenueRes = await pool.query(`
+      SELECT SUM(CASE 
+        WHEN plan = 'premium' THEN 4999 
+        WHEN plan = 'standard' THEN 2499 
+        ELSE 999 
+      END)::int as total_revenue
+      FROM companies WHERE is_paid = true
+    `);
+
+    return res.status(200).json({
+      success: true,
+      stats: {
+        totalCompanies: companiesRes.rows[0].count,
+        totalAdmins: adminsRes.rows[0].count,
+        totalUsers: usersRes.rows[0].count,
+        totalCourses: coursesRes.rows[0].count,
+        totalModules: modulesRes.rows[0].count,
+        recentCompanies: recentCompaniesRes.rows[0].count,
+        totalRevenue: revenueRes.rows[0].total_revenue || 0,
+        plans
+      }
+    });
+  } catch (error) {
+    console.error("Superadmin getGlobalStats error:", error);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+
 // ─── Management: Login Audit ────────────────────────────────────────────────────
 export const getLoginAudit = async (req, res) => {
   try {

@@ -408,13 +408,20 @@ export const getAdminGlobalStats = async (req, res) => {
       [req.user.id]
     );
 
+    const coursesRes = await pool.query(
+      "SELECT count(*)::int FROM courses WHERE admin_id = $1",
+      [req.user.id]
+    );
+
     const totalEmployees = parseInt(employeesRes.rows[0].count);
+    const totalCourses = parseInt(coursesRes.rows[0].count);
 
     return res.status(200).json({
       success: true,
       stats: {
         totalCompanies,
         totalEmployees,
+        totalCourses,
         plans,
       }
     });

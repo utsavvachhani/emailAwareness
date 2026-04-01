@@ -24,9 +24,10 @@ import {
   getCompanyEmployeesSuperadmin,
   getCompanyCoursesSuperadmin,
   updateCompanyBillingSuperadmin,
-  getModuleDetailsSuperadmin,
   getCourseModulesSuperadmin,
   getCourseDetailsSuperadmin,
+  getModuleDetailsSuperadmin,
+  getGlobalStats,
 } from "../controllers/superadmin.controller.js";
 import { uploadMedia } from "../controllers/upload.controller.js";
 import multer from "multer";
@@ -48,6 +49,7 @@ import {
   updateEmployee,
   getEmployeeProgressDetail,
 } from "../controllers/employees.controller.js";
+import { assignCourseToEmployees } from "../controllers/assignment.controller.js";
 import {
   getAllCourses,
   approveCourse,
@@ -81,6 +83,13 @@ router.put(
   authMiddleware,
   requireRole("superadmin"),
   updateProfile,
+);
+
+router.get(
+  "/stats",
+  authMiddleware,
+  requireRole("superadmin"),
+  getGlobalStats,
 );
 
 router.get(
@@ -210,6 +219,13 @@ router.get(
   authMiddleware,
   requireRole("superadmin"),
   getCourseDetailsSuperadmin,
+);
+
+router.post(
+  "/courses/:courseId/assign",
+  authMiddleware,
+  requireRole("superadmin"),
+  assignCourseToEmployees,
 );
 
 router.get(

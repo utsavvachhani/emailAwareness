@@ -119,6 +119,7 @@ export const superadminRefreshToken = () => API.post('/superadmin/refresh-token'
 
 // Superadmin Managing Admins
 export const superadminGetPendingAdmins = () => API.get('/superadmin/admins/pending');
+export const superadminGetStats = () => API.get('/superadmin/stats');
 export const superadminGetAllAdmins = () => API.get('/superadmin/admins/all');
 export const superadminApproveAdmin = (id: string) => API.patch(`/superadmin/admins/${id}/approve`);
 export const superadminRejectAdmin = (id: string, data: { reason: string }) => API.patch(`/superadmin/admins/${id}/reject`, data);
@@ -126,6 +127,7 @@ export const superadminRejectAdmin = (id: string, data: { reason: string }) => A
 // Superadmin General Lookups
 export const superadminGetAllUsers = () => API.get('/superadmin/users/all');
 export const superadminGetAudit = () => API.get('/superadmin/audit');
+export const superadminGetAllCompanies = () => API.get('/superadmin/companies');
 
 // ─── ADMIN COURSE APIs ────────────────────────────────────────────────────────
 export const adminGetCoursesByCompany = (companyId: string) => API.get(`/admin/companies/${companyId}/courses-list`);
@@ -177,6 +179,7 @@ export const superadminUpdateCompanyBilling = (companyId: string | number, data:
 export const superadminGetModuleDetails = (moduleId: string | number) => API.get(`/superadmin/modules/${moduleId}`);
 export const superadminGetCourseModules = (courseId: string | number) => API.get(`/superadmin/courses/${courseId}/modules`);
 export const superadminGetCourseDetails = (courseId: string | number) => API.get(`/superadmin/courses/${courseId}`);
+export const superadminAssignCourseToEmployees = (courseId: string | number, employeeIds: number[]) => API.post(`/superadmin/courses/${courseId}/assign`, { employeeIds });
 export const superadminDeleteCourse = (id: string | number) => API.delete(`/superadmin/courses/${id}`);
 export const superadminCreateCourse = (companyId: string, data: any) => API.post(`/superadmin/companies/${companyId}/courses`, data);
 export const superadminGetCompanyPlanInfo = (companyId: string) => API.get(`/superadmin/companies/${companyId}/plan-info`);

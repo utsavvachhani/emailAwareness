@@ -108,7 +108,8 @@ export const getAdminCoursesByCompany = async (req, res) => {
     await cleanupRejectedCourses(req.user.id);
 
     const result = await pool.query(
-      `SELECT c.*, comp.plan AS "companyPlan"
+      `SELECT c.*, comp.plan AS "companyPlan",
+              (SELECT COUNT(*)::int FROM course_modules WHERE course_id = c.id) AS "moduleCount"
        FROM courses c
        JOIN companies comp ON c.company_id = comp.id
        WHERE c.company_id = $1

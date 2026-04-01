@@ -6,8 +6,8 @@ import { logout } from "@/lib/redux/authSlice";
 import { useRouter, usePathname } from "next/navigation";
 import {
     LayoutDashboard, Building2, Users, CreditCard,
-    Video, BookOpen, User, LogOut, Mail, Bell,
-    Settings, Home, ChevronRight, Shield,
+    BookOpen, User, LogOut, Bell,
+    Home, ChevronRight
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -52,7 +52,6 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         { label: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },
         { label: "Companies", href: "/admin/dashboard/companies", icon: Building2 },
         { label: "My Profile", href: "/admin/dashboard/profile", icon: User },
-        { label: "Settings", href: "/admin/dashboard/settings", icon: Settings },
     ];
 
     const navItemsOnID = [

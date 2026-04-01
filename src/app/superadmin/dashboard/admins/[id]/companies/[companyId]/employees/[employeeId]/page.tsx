@@ -210,9 +210,10 @@ export default function SuperadminEmployeeDetailPage() {
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b border-border pb-1">Trainee Profile</p>
             <div className="text-xl font-black">{employee.first_name} {employee.last_name}</div>
             <div className="space-y-1">
-              <p className="text-xs font-bold flex items-center gap-2 italic"><Briefcase className="w-3 h-3"/> {employee.designation}</p>
-              <p className="text-xs font-bold flex items-center gap-2"><Mail className="w-3 h-3"/> {employee.email}</p>
-              <p className="text-xs font-bold flex items-center gap-2"><LayoutGrid className="w-3 h-3"/> Co. ID: {employee.company_id}</p>
+               <p className="text-xs font-bold flex items-center gap-2 italic text-purple-600 font-black">Employee ID: #{employee.id.toString().padStart(5, '0')}</p>
+               <p className="text-xs font-bold flex items-center gap-2 italic"><Briefcase className="w-3 h-3"/> {employee.designation}</p>
+               <p className="text-xs font-bold flex items-center gap-2"><Mail className="w-3 h-3"/> {employee.email}</p>
+               <p className="text-xs font-bold flex items-center gap-2 font-black uppercase text-blue-600"><LayoutGrid className="w-3 h-3"/> Org Node: {employee.company_id}</p>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-4">

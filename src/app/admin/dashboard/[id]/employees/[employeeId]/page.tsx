@@ -211,6 +211,7 @@ export default function EmployeeDetailPage() {
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b border-border pb-1">Trainee Profile</p>
             <div className="text-xl font-black">{employee.first_name} {employee.last_name}</div>
             <div className="space-y-1">
+              <p className="text-xs font-bold flex items-center gap-2 italic text-blue-600">Employee ID: #{employee.id.toString().padStart(5, '0')}</p>
               <p className="text-xs font-bold flex items-center gap-2 italic"><Briefcase className="w-3 h-3"/> {employee.designation}</p>
               <p className="text-xs font-bold flex items-center gap-2"><Mail className="w-3 h-3"/> {employee.email}</p>
             </div>
