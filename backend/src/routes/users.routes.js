@@ -19,7 +19,9 @@ import {
   getAssignedCourses,
   getUserCourseProgress,
   markModuleComplete,
-  unmarkModuleComplete
+  unmarkModuleComplete,
+  generateCertificate,
+  emailCertificate
 } from "../controllers/assignment.controller.js";
 import { userGetCourseModules } from "../controllers/modules.controller.js";
 
@@ -54,5 +56,7 @@ router.get("/courses/:course_id/modules", authMiddleware, requireRole('user'), u
 router.get("/progress", authMiddleware, requireRole('user'), getUserCourseProgress);
 router.patch("/modules/:moduleId/complete", authMiddleware, requireRole('user'), markModuleComplete);
 router.delete("/modules/:moduleId/uncomplete", authMiddleware, requireRole('user'), unmarkModuleComplete);
+router.get("/courses/:course_id/certificate", authMiddleware, requireRole('user'), generateCertificate);
+router.post("/courses/:course_id/certificate/email", authMiddleware, requireRole('user'), emailCertificate);
 
 export default router;

@@ -161,6 +161,8 @@ export const userGetAssignedCourses = () => API.get('/users/assigned-courses');
 export const userGetCourseModules = (courseId: string | number) => API.get(`/users/courses/${courseId}/modules`);
 export const userGetProgress = () => API.get('/users/progress');
 export const userMarkModuleComplete = (moduleId: string | number, quizData?: { score: number; responses: any }) => API.patch(`/users/modules/${moduleId}/complete`, quizData);
+export const userDownloadCertificate = (courseId: string) => API.get(`/users/courses/${courseId}/certificate`, { responseType: 'blob' });
+export const userEmailCertificate = (courseId: string) => API.post(`/users/courses/${courseId}/certificate/email`);
 export const userUnmarkModuleComplete = (moduleId: string | number) => API.delete(`/users/modules/${moduleId}/uncomplete`);
 
 // ─── SUPERADMIN COURSE APIs ───────────────────────────────────────────────────

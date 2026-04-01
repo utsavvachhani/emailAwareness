@@ -1,6 +1,7 @@
 import pool from "../config/database.js";
 import { hashPassword } from "../utils/auth.js";
-import { sendCourseAssignmentEmail } from "../utils/email.js";
+import { sendCourseAssignmentEmail, sendCertificateEmail } from "../utils/email.js";
+import { generateCertificatePDF } from "../utils/certificate.js";
 
 // ─── INTERNAL: Schema Enforcement ─────────────────────────────────────────────
 const ensureSchema = async (clientOrPool) => {
@@ -151,6 +152,9 @@ export const markModuleComplete = async (req, res) => {
       [userId, courseId, moduleId, score !== undefined ? score : null, responses ? JSON.stringify(responses) : null]
     );
 
+    // FIRE AND FORGET: Trigger certificate check asynchronously
+    checkCourseCompletionAndSendCertificate(userId, courseId).catch(console.error);
+
     return res.status(200).json({ success: true, message: "Module marked as completed" });
   } catch (err) {
     console.error("markModuleComplete error:", err);
@@ -234,7 +238,156 @@ export const getAssignedCourses = async (req, res) => {
 
     return res.status(200).json({ success: true, courses: result.rows });
   } catch (err) {
-    console.error("getAssignedCourses error:", err);
     return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+// ─── INTERNAL: Check Completion & Send Email ──────────────────────────────────
+async function checkCourseCompletionAndSendCertificate(userId, courseId) {
+  try {
+    // 1. Get total module count vs completed count
+    const totalModulesRes = await pool.query("SELECT COUNT(*) FROM course_modules WHERE course_id = $1 AND status = 'published'", [courseId]);
+    const completedModulesRes = await pool.query("SELECT COUNT(*) FROM employee_progress WHERE user_id = $1 AND course_id = $2 AND status = 'completed'", [userId, courseId]);
+
+    const totalCount = parseInt(totalModulesRes.rows[0].count);
+    const completedCount = parseInt(completedModulesRes.rows[0].count);
+
+    if (totalCount > 0 && totalCount === completedCount) {
+      // 1.5. NEW: Check if all quizzes meet the minimum score threshold (>= 3)
+      const quizThresholdRes = await pool.query(
+        `SELECT COUNT(*) FROM employee_progress p
+         JOIN course_modules m ON p.module_id = m.id
+         WHERE p.user_id = $1 AND p.course_id = $2 AND m.type = 'quiz' AND p.quiz_score < 3`,
+        [userId, courseId]
+      );
+      
+      const failingQuizzes = parseInt(quizThresholdRes.rows[0].count);
+      if (failingQuizzes > 0) {
+        console.log(`⚠️ Certification deferred for USER ${userId}: ${failingQuizzes} assessments below threshold.`);
+        return; 
+      }
+
+      // 2. Fetch details for certificate
+      const userRes = await pool.query("SELECT first_name, last_name, email FROM users WHERE id = $1", [userId]);
+      const courseRes = await pool.query("SELECT title FROM courses WHERE id = $1", [courseId]);
+
+      if (userRes.rows.length > 0 && courseRes.rows.length > 0) {
+        const user = userRes.rows[0];
+        const course = courseRes.rows[0];
+        const fullName = `${user.first_name} ${user.last_name}`;
+        const issueDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        // 3. Generate high-fidelity PDF
+        const pdfBuffer = await generateCertificatePDF(fullName, course.title, issueDate);
+
+        // 4. Dispatch security-hardened email
+        await sendCertificateEmail(user.email, fullName, course.title, pdfBuffer);
+        console.log(`🏆 Certificate dispatched for: ${fullName} on course: ${course.title}`);
+      }
+    }
+  } catch (err) {
+    console.error("checkCourseCompletion error:", err);
+  }
+}
+
+// ─── USER: Download Certificate ────────────────────────────────────────────────
+export const generateCertificate = async (req, res) => {
+  const { course_id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    // 1. Verification of completion
+    const totalModulesRes = await pool.query("SELECT COUNT(*) FROM course_modules WHERE course_id = $1 AND status = 'published'", [course_id]);
+    const completedModulesRes = await pool.query("SELECT COUNT(*) FROM employee_progress WHERE user_id = $1 AND course_id = $2 AND status = 'completed'", [userId, course_id]);
+
+    const totalCount = parseInt(totalModulesRes.rows[0].count);
+    const completedCount = parseInt(completedModulesRes.rows[0].count);
+
+    if (totalCount === 0 || totalCount !== completedCount) {
+      return res.status(403).json({ success: false, message: "Curriculum requirements not met for certification" });
+    }
+
+    // 1.5. Mastery Verification
+    const quizThresholdRes = await pool.query(
+      `SELECT COUNT(*) FROM employee_progress p
+       JOIN course_modules m ON p.module_id = m.id
+       WHERE p.user_id = $1 AND p.course_id = $2 AND m.type = 'quiz' AND p.quiz_score < 3`,
+      [userId, course_id]
+    );
+    
+    if (parseInt(quizThresholdRes.rows[0].count) > 0) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "Instructional competency threshold not met. All assessments must achieve a minimum score of 3/5." 
+      });
+    }
+
+    // 2. Data Retrieval
+    const userRes = await pool.query("SELECT first_name, last_name FROM users WHERE id = $1", [userId]);
+    const courseRes = await pool.query("SELECT title FROM courses WHERE id = $1", [course_id]);
+
+    const fullName = `${userRes.rows[0].first_name} ${userRes.rows[0].last_name}`;
+    const issueDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    // 3. Synthesis
+    const pdfBuffer = await generateCertificatePDF(fullName, courseRes.rows[0].title, issueDate);
+
+    // 4. Response Header Configuration
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=Certificate_${course_id}.pdf`);
+    
+    return res.end(pdfBuffer);
+  } catch (err) {
+    console.error("generateCertificate error:", err);
+    return res.status(500).json({ success: false, message: "Synthesis error during certificate generation" });
+  }
+};
+
+// ─── USER: Email Certificate to Self ───────────────────────────────────────────
+export const emailCertificate = async (req, res) => {
+  const { course_id } = req.params;
+  const userId = req.user.id;
+
+  try {
+    // 1. Completion verification
+    const totalModulesRes = await pool.query("SELECT COUNT(*) FROM course_modules WHERE course_id = $1 AND status = 'published'", [course_id]);
+    const completedModulesRes = await pool.query("SELECT COUNT(*) FROM employee_progress WHERE user_id = $1 AND course_id = $2 AND status = 'completed'", [userId, course_id]);
+
+    const totalCount = parseInt(totalModulesRes.rows[0].count);
+    const completedCount = parseInt(completedModulesRes.rows[0].count);
+
+    if (totalCount === 0 || totalCount !== completedCount) {
+      return res.status(403).json({ success: false, message: "Curriculum requirements not met for certification" });
+    }
+
+    // 1.5. Mastery Verification
+    const quizThresholdRes = await pool.query(
+      `SELECT COUNT(*) FROM employee_progress p
+       JOIN course_modules m ON p.module_id = m.id
+       WHERE p.user_id = $1 AND p.course_id = $2 AND m.type = 'quiz' AND p.quiz_score < 3`,
+      [userId, course_id]
+    );
+    if (parseInt(quizThresholdRes.rows[0].count) > 0) {
+      return res.status(403).json({ success: false, message: "Competency threshold not met." });
+    }
+
+    // 2. Data Retrieval
+    const userRes = await pool.query("SELECT first_name, last_name, email FROM users WHERE id = $1", [userId]);
+    const courseRes = await pool.query("SELECT title FROM courses WHERE id = $1", [course_id]);
+
+    const user = userRes.rows[0];
+    const fullName = `${user.first_name} ${user.last_name}`;
+    const issueDate = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    // 3. Generate PDF
+    const pdfBuffer = await generateCertificatePDF(fullName, courseRes.rows[0].title, issueDate);
+
+    // 4. Email it
+    await sendCertificateEmail(user.email, fullName, courseRes.rows[0].title, pdfBuffer);
+
+    return res.status(200).json({ success: true, message: `Certificate emailed to ${user.email}` });
+  } catch (err) {
+    console.error("emailCertificate error:", err);
+    return res.status(500).json({ success: false, message: "Failed to email certificate" });
   }
 };

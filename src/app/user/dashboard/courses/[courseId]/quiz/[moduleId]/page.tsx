@@ -3,12 +3,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   ArrowLeft, Target, ChevronRight, CheckCircle2, 
-  X, Loader2, Trophy, Award, Shield, AlertTriangle
+  X, Loader2, Trophy, Award, Shield, AlertTriangle, Download
 } from "lucide-react";
 import { 
   userGetCourseModules, 
   userMarkModuleComplete,
-  userGetProgress
+  userGetProgress,
+  userDownloadCertificate,
+  userEmailCertificate
 } from "@/api";
 import { toast } from "sonner";
 
@@ -24,6 +26,10 @@ export default function UserQuizDedicatedPage() {
   const [quizAnswers, setQuizAnswers] = useState<number[]>([]);
   const [finished, setFinished] = useState(false);
   const [score, setScore] = useState(0);
+  const [isCourseComplete, setIsCourseComplete] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [emailing, setEmailing] = useState(false);
+  const [showCredentialPanel, setShowCredentialPanel] = useState(false);
 
   const fetchModule = useCallback(async () => {
     if (!courseId || !moduleId) return;
@@ -42,6 +48,22 @@ export default function UserQuizDedicatedPage() {
           if (prog) {
             setFinished(true);
             setScore(prog.quiz_score || 0);
+          }
+
+          // Check overall course completion with competency gate (>= 3 for quizzes)
+          const publishedModules = res.data.modules.filter((m: any) => m.status === 'published');
+          const completedModules = pRes.data.progress.filter((p: any) => p.status === 'completed');
+          
+          const meetsRequirements = publishedModules.every((mod: any) => {
+            const prog = completedModules.find((p: any) => p.module_id === mod.id);
+            if (!prog) return false;
+            // If it's a quiz, score must be >= 3
+            if (mod.type === 'quiz' && (prog.quiz_score || 0) < 3) return false;
+            return true;
+          });
+          
+          if (publishedModules.length > 0 && meetsRequirements) {
+            setIsCourseComplete(true);
           }
         }
       }
@@ -75,11 +97,68 @@ export default function UserQuizDedicatedPage() {
         setScore(finalScore);
         setFinished(true);
         toast.success("Assessment submitted successfully!");
+        
+        // Refresh progress to check course completion with competency gate
+        const [modRes, progRes] = await Promise.all([
+          userGetCourseModules(courseId),
+          userGetProgress()
+        ]);
+        const publishedModules = modRes.data.modules.filter((m: any) => m.status === 'published');
+        const completedModules = progRes.data.progress.filter((p: any) => p.status === 'completed');
+        
+        const meetsRequirements = publishedModules.every((mod: any) => {
+          const prog = completedModules.find((p: any) => p.module_id === mod.id);
+          if (!prog) return false;
+          if (mod.type === 'quiz' && (prog.quiz_score || 0) < 3) return false;
+          return true;
+        });
+
+        if (publishedModules.length > 0 && meetsRequirements) {
+          setIsCourseComplete(true);
+          toast.success("🏆 Excellence Recognized: Course fully completed! Certificate unlocked.");
+        } else if (publishedModules.length > 0 && publishedModules.length === completedModules.filter((cp: any) => publishedModules.some((pm: any) => pm.id === cp.module_id)).length) {
+          toast.info("ℹ️ All modules finished, but competency threshold (3/5) not met on all assessments.");
+        }
       }
     } catch {
       toast.error("An error occurred during submission.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const res = await userDownloadCertificate(courseId);
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `CyberShield_Certificate_${courseId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      toast.success("Certificate downloaded successfully");
+    } catch {
+      toast.error("Failed to generate certificate download");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const handleEmailSelf = async () => {
+    setEmailing(true);
+    try {
+      const res = await userEmailCertificate(courseId);
+      if (res.data.success) {
+        toast.success(`✉️ Certificate sent! Check your inbox.`);
+        setShowCredentialPanel(false);
+      }
+    } catch {
+      toast.error("Failed to email certificate. Please try again.");
+    } finally {
+      setEmailing(false);
     }
   };
 
@@ -148,6 +227,93 @@ export default function UserQuizDedicatedPage() {
                   </p>
                </div>
             </div>
+
+            {isCourseComplete && (
+               <>
+                 <button 
+                   onClick={() => setShowCredentialPanel(true)}
+                   className="w-full h-20 mb-6 rounded-[32px] bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-black text-lg flex items-center justify-center gap-4 hover:shadow-2xl hover:shadow-emerald-500/20 transition-all border border-emerald-400/20 group relative overflow-hidden"
+                 >
+                   <div className="absolute inset-0 bg-white/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                   <Award className="w-8 h-8" />
+                   <div className="text-left">
+                     <p className="text-[10px] font-black uppercase tracking-widest text-emerald-100 opacity-80">Credential Unlocked</p>
+                     <p className="text-lg">Get Performance Certificate</p>
+                   </div>
+                   <ChevronRight className="w-6 h-6 ml-auto" />
+                 </button>
+
+                 {/* Credential Action Panel Overlay */}
+                 {showCredentialPanel && (
+                   <div 
+                     className="fixed inset-0 z-50 flex items-end justify-center"
+                     onClick={() => setShowCredentialPanel(false)}
+                   >
+                     {/* Backdrop */}
+                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" />
+                     
+                     {/* Panel */}
+                     <div 
+                       className="relative w-full max-w-lg bg-card border border-border rounded-t-[40px] p-8 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-400"
+                       onClick={e => e.stopPropagation()}
+                     >
+                       {/* Handle */}
+                       <div className="w-10 h-1 bg-border rounded-full mx-auto mb-8" />
+
+                       <div className="flex items-center gap-4 mb-8">
+                         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center">
+                           <Award className="w-6 h-6 text-emerald-600" />
+                         </div>
+                         <div>
+                           <h3 className="text-xl font-black tracking-tight">Performance Certificate</h3>
+                           <p className="text-xs text-muted-foreground font-medium">Choose how to receive your credential</p>
+                         </div>
+                         <button 
+                           onClick={() => setShowCredentialPanel(false)}
+                           className="ml-auto p-2 rounded-xl hover:bg-secondary transition-colors"
+                         >
+                           <X className="w-5 h-5 text-muted-foreground" />
+                         </button>
+                       </div>
+
+                       <div className="space-y-3">
+                         {/* Direct Download */}
+                         <button
+                           onClick={handleDownload}
+                           disabled={downloading}
+                           className="w-full p-5 rounded-[24px] border border-border bg-secondary/50 hover:bg-emerald-500/5 hover:border-emerald-500/30 transition-all flex items-center gap-5 group"
+                         >
+                           <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/20 transition-colors">
+                             {downloading ? <Loader2 className="w-6 h-6 text-emerald-600 animate-spin" /> : <Download className="w-6 h-6 text-emerald-600" />}
+                           </div>
+                           <div className="text-left">
+                             <p className="font-black text-base tracking-tight">Download Directly</p>
+                             <p className="text-xs text-muted-foreground mt-0.5">Save PDF instantly to your device</p>
+                           </div>
+                           <ChevronRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
+                         </button>
+
+                         {/* Email to Self */}
+                         <button
+                           onClick={handleEmailSelf}
+                           disabled={emailing}
+                           className="w-full p-5 rounded-[24px] border border-border bg-secondary/50 hover:bg-blue-500/5 hover:border-blue-500/30 transition-all flex items-center gap-5 group"
+                         >
+                           <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
+                             {emailing ? <Loader2 className="w-6 h-6 text-blue-600 animate-spin" /> : <Shield className="w-6 h-6 text-blue-600" />}
+                           </div>
+                           <div className="text-left">
+                             <p className="font-black text-base tracking-tight">Email to Yourself</p>
+                             <p className="text-xs text-muted-foreground mt-0.5">Certificate sent to your registered email</p>
+                           </div>
+                           <ChevronRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
+                         </button>
+                       </div>
+                     </div>
+                   </div>
+                 )}
+               </>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-4">
                <button 

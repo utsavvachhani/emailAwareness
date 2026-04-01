@@ -296,3 +296,47 @@ export const sendCourseAssignmentEmail = async (
     `,
   });
 };
+
+// ─── Certificate Completion Notification ──────────────────────────────────────
+export const sendCertificateEmail = async (
+  email,
+  name,
+  courseTitle,
+  pdfBuffer,
+) => {
+  return send({
+    from: FROM,
+    to: email,
+    subject: `🏆 Achievement Unlocked: Certificate for "${courseTitle}" — CyberShield Guard`,
+    attachments: [
+      {
+        filename: `Certificate_${courseTitle.replace(/\s+/g, '_')}.pdf`,
+        content: pdfBuffer,
+      },
+    ],
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;border:2px solid #10b981;border-radius:12px;background:#fff;">
+        <div style="text-align:center;margin-bottom:20px;">
+          <h2 style="margin:0;color:#10b981;font-size:24px;">🏆 Congratulations!</h2>
+          <p style="color:#6b7280;font-size:14px;margin-top:4px;">Enterprise Security Achievement</p>
+        </div>
+        <p>Dear <strong>${name}</strong>,</p>
+        <p>Outstanding work! You have successfully completed and mastered the <strong>"${courseTitle}"</strong> cybersecurity curriculum.</p>
+        
+        <div style="background:#ecfdf5;border:1px solid #a7f3d0;padding:24px;border-radius:12px;text-align:center;margin:24px 0;">
+          <div style="font-size:40px;margin-bottom:12px;">📄</div>
+          <h3 style="margin:0;color:#065f46;font-size:18px;">Your Performance Certificate</h3>
+          <p style="margin:8px 0;font-size:13px;color:#047857;line-height:1.5;">We've attached your official high-fidelity credential to this email for your records.</p>
+        </div>
+        
+        <p style="color:#4b5563;font-size:14px;line-height:1.6;">This accomplishment demonstrates your commitment to organizational security and digital resilience. Keep up the great work!</p>
+        
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:32px 0;">
+        <p style="font-size:11px;color:#9ca3af;text-align:center;">
+          CyberShield Guard Enterprise Compliance Hub © 2025<br/>
+          Verified Security Training Credentials
+        </p>
+      </div>
+    `,
+  });
+};
