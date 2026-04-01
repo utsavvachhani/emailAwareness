@@ -119,7 +119,6 @@ export const superadminRefreshToken = () => API.post('/superadmin/refresh-token'
 
 // Superadmin Managing Admins
 export const superadminGetPendingAdmins = () => API.get('/superadmin/admins/pending');
-export const superadminGetStats = () => API.get('/superadmin/stats');
 export const superadminGetAllAdmins = () => API.get('/superadmin/admins/all');
 export const superadminApproveAdmin = (id: string) => API.patch(`/superadmin/admins/${id}/approve`);
 export const superadminRejectAdmin = (id: string, data: { reason: string }) => API.patch(`/superadmin/admins/${id}/reject`, data);
@@ -143,6 +142,7 @@ export const adminGetGlobalStats = () => API.get('/admin/stats');
 
 // Module APIs
 export const adminGetCourseModules = (courseId: string) => API.get(`/admin/courses/${courseId}/modules`);
+export const adminReorderModules = (courseId: string, orders: { id: number, order_index: number }[]) => API.post(`/admin/courses/${courseId}/reorder-modules`, { orders });
 export const adminGetModuleDetails = (id: string) => API.get(`/admin/modules/${id}`);
 export const adminCreateModule = (courseId: string, data: any) => API.post(`/admin/courses/${courseId}/modules`, data);
 
@@ -165,6 +165,7 @@ export const userUnmarkModuleComplete = (moduleId: string | number) => API.delet
 
 // ─── SUPERADMIN COURSE APIs ───────────────────────────────────────────────────
 export const superadminGetAllCourses = (status?: string) => API.get('/superadmin/courses', { params: status ? { status } : {} });
+export const superadminGetGlobalStats = () => API.get('/superadmin/stats');
 export const superadminApproveCourse = (id: string) => API.patch(`/superadmin/courses/${id}/approve`);
 export const superadminRejectCourse = (id: string, data: { reason: string }) => API.patch(`/superadmin/courses/${id}/reject`, data);
 export const superadminResetCourse = (id: string) => API.patch(`/superadmin/courses/${id}/reset`);
@@ -184,6 +185,7 @@ export const superadminDeleteCourse = (id: string | number) => API.delete(`/supe
 export const superadminCreateCourse = (companyId: string, data: any) => API.post(`/superadmin/companies/${companyId}/courses`, data);
 export const superadminGetCompanyPlanInfo = (companyId: string) => API.get(`/superadmin/companies/${companyId}/plan-info`);
 export const superadminCreateModule = (courseId: string, data: any) => API.post(`/superadmin/courses/${courseId}/modules`, data);
+export const superadminReorderModules = (courseId: string, orders: { id: number, order_index: number }[]) => API.post(`/superadmin/courses/${courseId}/reorder-modules`, { orders });
 export const superadminUpdateModule = (id: string, data: any) => API.put(`/superadmin/modules/${id}`, data);
 export const superadminDeleteModule = (id: string) => API.delete(`/superadmin/modules/${id}`);
 export const superadminUploadMedia = (formData: FormData) => API.post('/superadmin/upload-media', formData, {

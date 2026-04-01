@@ -4,7 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   BookOpen, Plus, List, Trash2, ArrowLeft, Loader2, 
   Video, FileText, CheckCircle2, XCircle, Clock, Target,
-  Eye, EyeOff, LayoutList, X, Image as ImageIcon
+  Eye, EyeOff, LayoutList, X, Image as ImageIcon,
+  ChevronUp, ChevronDown
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -16,6 +17,7 @@ import {
   adminGetCompanyPlanInfo,
   adminUploadMedia,
   adminGetCourseDetails,
+  adminReorderModules,
 } from "@/api";
 
 
@@ -165,6 +167,31 @@ export default function CourseModulesPage() {
       }
     } catch {
       toast.error("Failed to delete module");
+    }
+  };
+
+  const moveModule = async (index: number, direction: 'up' | 'down') => {
+    if (courseStatus !== 'approved') return toast.error("Course is locked.");
+    
+    const newItems = [...modules];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    
+    if (targetIdx < 0 || targetIdx >= newItems.length) return;
+
+    // Swap
+    [newItems[index], newItems[targetIdx]] = [newItems[targetIdx], newItems[index]];
+
+    // Recalculate indices
+    const updatedOrders = newItems.map((m, i) => ({ id: m.id, order_index: i }));
+    
+    try {
+      const res = await adminReorderModules(courseId, updatedOrders);
+      if (res.data.success) {
+        setModules(newItems.map((m, i) => ({ ...m, order_index: i })));
+        toast.success("Sequence updated");
+      }
+    } catch {
+      toast.error("Failed to reorder modules");
     }
   };
 
@@ -681,6 +708,24 @@ export default function CourseModulesPage() {
                   </div>
 
                   <div className="flex items-center gap-2 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6">
+                    {/* Reorder Buttons */}
+                    <div className="flex flex-col gap-1 mr-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); moveModule(idx, 'up'); }}
+                          disabled={idx === 0 || courseStatus !== 'approved'}
+                          className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground disabled:opacity-30"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); moveModule(idx, 'down'); }}
+                          disabled={idx === modules.length - 1 || courseStatus !== 'approved'}
+                          className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground disabled:opacity-30"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                    </div>
+
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

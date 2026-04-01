@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { 
-    superadminGetStats, 
+    superadminGetGlobalStats, 
     superadminGetAllCompanies, 
     superadminGetPendingAdmins 
 } from "@/api";
@@ -38,7 +38,7 @@ export default function SuperadminDashboardPage() {
         const fetchAllData = async () => {
             try {
                 const [statsRes, companiesRes, pendingRes] = await Promise.all([
-                    superadminGetStats(),
+                    superadminGetGlobalStats(),
                     superadminGetAllCompanies(),
                     superadminGetPendingAdmins()
                 ]);

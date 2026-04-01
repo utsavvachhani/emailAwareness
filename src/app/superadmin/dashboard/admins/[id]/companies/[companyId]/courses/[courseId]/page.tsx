@@ -6,7 +6,8 @@ import {
   Shield, List, ArrowLeft, Loader2, 
   Video, FileText, CheckCircle2, Clock, 
   ShieldCheck, RefreshCcw, ChevronRight, Zap, Info, XCircle, AlertTriangle, X, PlayCircle,
-  Plus, Search, Filter, Trash2, MoreVertical, LayoutList, Eye, EyeOff, Target
+  Plus, Search, Filter, Trash2, MoreVertical, LayoutList, Eye, EyeOff, Target,
+  ChevronUp, ChevronDown
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -20,7 +21,8 @@ import {
   superadminUpdateModule,
   superadminDeleteModule,
   superadminGetCompanyPlanInfo,
-  superadminUploadMedia
+  superadminUploadMedia,
+  superadminReorderModules,
 } from "@/api";
 
 type Module = {
@@ -189,6 +191,31 @@ export default function SuperadminCourseModulesOversight() {
       } finally {
           setSaving(false);
       }
+  };
+
+  const moveModule = async (index: number, direction: 'up' | 'down') => {
+    if (courseStatus !== 'approved' && courseStatus !== 'pending') return toast.error("Course sequence is locked.");
+    
+    const newItems = [...modules];
+    const targetIdx = direction === 'up' ? index - 1 : index + 1;
+    
+    if (targetIdx < 0 || targetIdx >= newItems.length) return;
+
+    // Swap
+    [newItems[index], newItems[targetIdx]] = [newItems[targetIdx], newItems[index]];
+
+    // Recalculate indices
+    const updatedOrders = newItems.map((m, i) => ({ id: m.id, order_index: i }));
+    
+    try {
+      const res = await superadminReorderModules(courseId, updatedOrders);
+      if (res.data.success) {
+        setModules(newItems.map((m, i) => ({ ...m, order_index: i })));
+        toast.success("Instructional flow updated");
+      }
+    } catch {
+      toast.error("Failed to reorder instructional nodes");
+    }
   };
 
   const toggleStatus = async (m: Module) => {
@@ -714,9 +741,25 @@ export default function SuperadminCourseModulesOversight() {
                         Modified {new Date(m.created_at).toLocaleDateString()}
                       </div>
                     </div>
-                  </div>
+                  </div>                   <div className="flex items-center gap-2 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6">
+                    {/* Reorder Buttons */}
+                    <div className="flex flex-col gap-1 mr-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); moveModule(idx, 'up'); }}
+                          disabled={idx === 0 || (courseStatus !== 'approved' && courseStatus !== 'pending')}
+                          className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground disabled:opacity-30"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); moveModule(idx, 'down'); }}
+                          disabled={idx === modules.length - 1 || (courseStatus !== 'approved' && courseStatus !== 'pending')}
+                          className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground disabled:opacity-30"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                    </div>
 
-                  <div className="flex items-center gap-2 border-t md:border-t-0 md:border-l border-border pt-4 md:pt-0 md:pl-6">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

@@ -285,3 +285,48 @@ export const userGetCourseModules = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message || "Internal server error" });
   }
 };
+
+// ─── ADMIN: Reorder modules ──────────────────────────────────────────────────
+export const reorderModules = async (req, res) => {
+  const { course_id } = req.params;
+  const { orders } = req.body; // Array of { id, order_index }
+
+  if (!Array.isArray(orders)) {
+    return res.status(400).json({ success: false, message: "Invalid orders data" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    // 1. Verify ownership (admin or superadmin)
+    const courseRes = await client.query(
+      `SELECT c.id FROM courses c 
+       JOIN companies comp ON c.company_id = comp.id
+       WHERE c.id = $1 AND (comp.admin_id = $2 OR $3 = 'superadmin')`,
+      [course_id, req.user.id, req.user.role]
+    );
+
+    if (courseRes.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ success: false, message: "Unauthorized or course not found" });
+    }
+
+    // 2. Perform updates
+    for (const item of orders) {
+      await client.query(
+        `UPDATE course_modules SET order_index = $1 WHERE id = $2 AND course_id = $3`,
+        [item.order_index, item.id, course_id]
+      );
+    }
+
+    await client.query("COMMIT");
+    return res.status(200).json({ success: true, message: "Modules reordered successfully" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("reorderModules error:", err);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  } finally {
+    client.release();
+  }
+};

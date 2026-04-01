@@ -63,6 +63,7 @@ import {
   createModule as createModuleSuperadmin,
   updateModule as updateModuleSuperadmin,
   deleteModule as deleteModuleSuperadmin,
+  reorderModules as reorderModulesSuperadmin,
 } from "../controllers/modules.controller.js";
 
 import { authMiddleware, requireRole } from "../middleware/auth.middleware.js";
@@ -201,6 +202,12 @@ router.post(
   authMiddleware,
   requireRole("superadmin"),
   createModuleSuperadmin,
+);
+router.post(
+  "/courses/:course_id/reorder-modules",
+  authMiddleware,
+  requireRole("superadmin"),
+  reorderModulesSuperadmin,
 );
 router.put(
   "/modules/:id",

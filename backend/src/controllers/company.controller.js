@@ -170,6 +170,7 @@ export const getAllCompanies = async (req, res) => {
     const result = await pool.query(
       `SELECT c.*,
               (SELECT COUNT(*)::int FROM employees WHERE company_id = c.id) AS num_employees,
+              (SELECT COUNT(*)::int FROM company_courses WHERE company_id = c.id) AS num_courses,
               a.first_name AS "adminFirstName", a.last_name AS "adminLastName",
               a.email AS "adminEmail", a.id AS "adminId"
        FROM companies c

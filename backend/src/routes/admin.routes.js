@@ -45,6 +45,7 @@ import {
   updateModule,
   deleteModule,
   getModuleDetails,
+  reorderModules,
 } from "../controllers/modules.controller.js";
 import { assignCourseToEmployees } from "../controllers/assignment.controller.js";
 
@@ -301,6 +302,13 @@ router.post(
   requireRole("admin"),
   requireApproved,
   createModule,
+);
+router.post(
+  "/courses/:course_id/reorder-modules",
+  authMiddleware,
+  requireRole("admin"),
+  requireApproved,
+  reorderModules,
 );
 router.get(
   "/modules/:id",

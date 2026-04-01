@@ -38,32 +38,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: "Companies", href: "/superadmin/dashboard/companies", icon: Building2 },
         { name: "Courses", href: "/superadmin/dashboard/courses", icon: BookOpen },
         { name: "Employees", href: "/superadmin/dashboard/employees", icon: Users },
-        { name: "Content", href: "/superadmin/dashboard/content", icon: FileText },
-        { name: "Email Delivery", href: "/superadmin/dashboard/email-delivery", icon: Mail },
         { name: "Reports", href: "/superadmin/dashboard/reports", icon: BarChart3 },
-        { name: "Phishing Sim", href: "/superadmin/dashboard/phishing", icon: Fish },
         { name: "Billing", href: "/superadmin/dashboard/billing", icon: CreditCard },
-        { name: "Access Control", href: "/superadmin/dashboard/access", icon: Lock },
         { name: "Settings", href: "/superadmin/dashboard/settings", icon: Settings },
         { name: "Profile", href: "/superadmin/dashboard/profile", icon: User },
     ];
 
     const adminNav = [
         { name: "Global Dashboard", href: "/superadmin/dashboard", icon: Globe },
-        { name: "Admin Overview",   href: `/superadmin/dashboard/admins/${adminId}`, icon: LayoutDashboard },
+        { name: "Admin Overviewk", href: `/superadmin/dashboard/admins/${adminId}`, icon: LayoutDashboard },
         { name: "Companies", href: `/superadmin/dashboard/admins/${adminId}/companies`, icon: Building2 },
-        { name: "Back to Admins",   href: "/superadmin/dashboard/admins", icon: ArrowRight },
+        { name: "Back to Admins", href: "/superadmin/dashboard/admins", icon: ArrowRight },
     ];
 
     const companyNav = [
-        { name: "Admin Context",    href: `/superadmin/dashboard/admins/${adminId}`, icon: ArrowLeft },
-        { name: "Company Dashboard",  href: `/superadmin/dashboard/admins/${adminId}/companies/${companyId}`, icon: LayoutDashboard },
-        { name: "Employees",        href: `/superadmin/dashboard/admins/${adminId}/companies/${companyId}/employees`, icon: Users },
+        { name: "Admin Context", href: `/superadmin/dashboard/admins/${adminId}`, icon: ArrowLeft },
+        { name: "Company Dashboard", href: `/superadmin/dashboard/admins/${adminId}/companies/${companyId}`, icon: LayoutDashboard },
+        { name: "Employees", href: `/superadmin/dashboard/admins/${adminId}/companies/${companyId}/employees`, icon: Users },
         { name: "Courses", href: `/superadmin/dashboard/admins/${adminId}/companies/${companyId}/courses`, icon: BookOpen },
         { name: "Billing", href: `/superadmin/dashboard/admins/${adminId}/companies/${companyId}/billing`, icon: CreditCard },
-        { name: "Switch Entity",    href: `/superadmin/dashboard/admins/${adminId}/companies`, icon: Building2 },
+        { name: "Switch Entity", href: `/superadmin/dashboard/admins/${adminId}/companies`, icon: Building2 },
     ];
-    
+
     const currentNav = companyId ? companyNav : (adminId ? adminNav : baseNav);
     const initials = `${userInfo?.firstName?.[0] ?? ""}${userInfo?.lastName?.[0] ?? ""}`.toUpperCase() || "SA";
 
@@ -96,8 +92,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                             <Link
                                                 href={item.href}
                                                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${isActive
-                                                        ? "bg-white text-black font-bold shadow-lg shadow-white/5"
-                                                        : "text-white/50 hover:text-white hover:bg-white/5 font-medium"
+                                                    ? "bg-white text-black font-bold shadow-lg shadow-white/5"
+                                                    : "text-white/50 hover:text-white hover:bg-white/5 font-medium"
                                                     }`}
                                             >
                                                 <item.icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-black" : "text-white/40"}`} />
