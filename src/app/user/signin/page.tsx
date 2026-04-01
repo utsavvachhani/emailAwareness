@@ -65,8 +65,8 @@ const UserSignInPage = () => {
                     <div className="hidden lg:block space-y-8 text-white px-8">
                         <div>
                             <div className="flex items-center gap-3 mb-8">
-                                <div className="w-16 h-16 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center">
-                                    <UserCircle className="w-8 h-8 text-emerald-400" />
+                                <div className="w-16 h-16 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center overflow-hidden p-2.5">
+                                    <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
                                     <h1 className="text-3xl font-bold">CyberShield Guard</h1>

@@ -9,6 +9,9 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
     title: "CyberShield Guard - Enterprise Security Platform",
     description: "Protect your organization with Email Awareness Micro Training and advanced security monitoring.",
+    icons: {
+        icon: '/logo.svg',
+    },
 };
 
 export default function RootLayout({

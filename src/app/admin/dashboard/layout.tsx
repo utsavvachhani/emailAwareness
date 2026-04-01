@@ -92,8 +92,8 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                         {/* Logo */}
                         <div className="flex h-20 items-center border-b border-white/10 px-6">
                             <Link href="/admin/dashboard" className="flex items-center gap-3 group">
-                                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform">
-                                    <Shield className="h-5 w-5 text-white" />
+                                <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform overflow-hidden p-2">
+                                    <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
                                     <span className="text-base font-bold text-white tracking-tight">CyberShield</span>

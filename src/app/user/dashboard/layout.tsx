@@ -41,8 +41,8 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
                             Home
                         </Link>
                         <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 bg-emerald-500/10 border border-emerald-500/20 rounded-md flex items-center justify-center">
-                                <Mail className="w-3.5 h-3.5 text-emerald-500" />
+                            <div className="w-7 h-7 bg-emerald-500/10 border border-emerald-500/20 rounded-md flex items-center justify-center overflow-hidden p-1">
+                                <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain invert" />
                             </div>
                             <span className="font-semibold text-sm text-foreground">CyberShield Guard</span>
                             <span className="text-xs font-medium bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full">

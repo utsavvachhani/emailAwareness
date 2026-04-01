@@ -51,8 +51,8 @@ export function Sidebar() {
                 {/* Logo */}
                 <div className="flex h-16 items-center border-b border-sidebar-border px-4">
                     <Link href="/" className="flex items-center gap-2 group">
-                        <div className="h-8 w-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-colors">
-                            <Mail className="h-4 w-4 text-white" />
+                        <div className="h-8 w-8 bg-white/10 rounded-md flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-colors overflow-hidden p-1.5">
+                            <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain" />
                         </div>
                         <div>
                             <span className="text-sm font-semibold text-white">CyberShield</span>

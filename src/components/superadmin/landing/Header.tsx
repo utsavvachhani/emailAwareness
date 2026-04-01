@@ -51,8 +51,8 @@ const Header = () => {
         <div className="flex items-center justify-between h-16 px-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-9 h-9 rounded-md border border-white/30 bg-white/5">
-              <Mail className="w-4 h-4 text-white" strokeWidth={1.5} />
+            <div className="flex items-center justify-center w-9 h-9 rounded-md border border-white/30 bg-white/5 overflow-hidden p-1.5">
+              <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain" />
             </div>
             <span className="text-lg font-semibold text-white">CyberShield Guard</span>
           </Link>

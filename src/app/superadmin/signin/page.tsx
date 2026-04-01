@@ -90,8 +90,8 @@ const SignInPage = () => {
                     <div className="hidden lg:block space-y-8 text-white px-8">
                         <div className="space-y-4">
                             <div className="flex items-center gap-3 mb-8">
-                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/20">
-                                    <Shield className="w-8 h-8 text-white" strokeWidth={2} />
+                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/20 overflow-hidden p-2.5">
+                                    <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
                                     <h1 className="text-3xl font-bold text-white">
@@ -139,8 +139,8 @@ const SignInPage = () => {
 
                             {/* Mobile Logo */}
                             <div className="lg:hidden flex items-center justify-center gap-2 mb-6">
-                                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 border border-white/20">
-                                    <Shield className="w-6 h-6 text-white" />
+                                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 border border-white/20 overflow-hidden p-2">
+                                    <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <span className="text-2xl font-bold text-white">CyberShield</span>
                             </div>

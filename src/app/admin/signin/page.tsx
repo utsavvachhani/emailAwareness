@@ -72,8 +72,8 @@ const AdminSignInPage = () => {
                     <div className="hidden lg:block space-y-8 text-white px-8">
                         <div className="space-y-4">
                             <div className="flex items-center gap-3 mb-8">
-                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/30">
-                                    <Shield className="w-8 h-8 text-blue-400" strokeWidth={2} />
+                                <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/30 overflow-hidden p-2.5">
+                                    <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <div>
                                     <h1 className="text-3xl font-bold text-white">CyberShield Guard</h1>
@@ -104,8 +104,8 @@ const AdminSignInPage = () => {
                         <div className="relative bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl border border-blue-500/20 p-8 lg:p-10">
 
                             <div className="lg:hidden flex items-center justify-center gap-2 mb-6">
-                                <div className="w-12 h-12 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center">
-                                    <Shield className="w-6 h-6 text-blue-400" />
+                                <div className="w-12 h-12 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center overflow-hidden p-2">
+                                    <img src="/logo.svg" alt="CyberShield Logo" className="w-full h-full object-contain" />
                                 </div>
                                 <span className="text-2xl font-bold text-white">Admin Portal</span>
                             </div>
