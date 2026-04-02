@@ -1,313 +1,151 @@
-# 🛡️ CyberShield Guard — Email Awareness Training Platform
+# 🛡️ CyberShield Guard — Enterprise Awareness Suite
 
-A full-stack multi-role cybersecurity email awareness training platform built with **Next.js** (frontend) and **Node.js / Express / PostgreSQL** (backend).
+A high-fidelity, industrial-grade cybersecurity email awareness & compliance platform. Designed for multi-tenant entity management, this suite enables security leaders to deploy training, track risk scores, and manage enterprise certifications across global departments.
 
 ---
 
-## 🏗️ Architecture Overview
+## ⚡ Core Concept: Resilience at Scale
+**CyberShield Guard** isn't just a training portal; it's a security lifecycle management tool. 
+- **Superadmins** orchestrate the entire platform, approving business entities and auditing system integrity.
+- **Admins** manage their own company portfolio, assigning specialized curricula to their workforces.
+- **Employees/Users** engage in interactive security modules, earn certifications, and contribute to their organization's overall **Awareness Readiness Score**.
 
-```
+---
+
+## 🏗️ Project Architecture & File Structure
+
+```text
 emailAwareness/
-├── backend/                  # Node.js + Express API (Port 5000)
-│   ├── database/
-│   │   └── schema.sql        # PostgreSQL schema + migrations
+├── backend/                           # API Enterprise Core (Port 5000)
 │   ├── src/
-│   │   ├── config/
-│   │   │   ├── database.js   # PostgreSQL connection pool
-│   │   │   └── initDb.js     # DB init + superadmin seeding
-│   │   ├── controllers/
-│   │   │   ├── auth.controller.js        # Login / signup / OTP
-│   │   │   └── superadmin.controller.js  # Admin approvals / audit
-│   │   ├── middleware/
-│   │   │   └── auth.middleware.js  # JWT auth + role guards
-│   │   ├── routes/
-│   │   │   ├── auth.routes.js        # /api/auth/*
-│   │   │   └── superadmin.routes.js  # /api/superadmin/*
-│   │   ├── utils/
-│   │   │   ├── auth.js    # JWT + bcrypt helpers
-│   │   │   └── email.js   # Nodemailer templates
-│   │   └── server.js      # Express app entry point
-│   ├── .env               # Backend environment variables
+│   │   ├── controllers/               # Business Logic (Companies, Employees, Exams)
+│   │   ├── routes/                    # API Routing (Admin Registry, Auth, Payments)
+│   │   ├── utils/                     # Services (Nodemailer, Cloudinary, Certificate PDF)
+│   │   ├── middleware/                # Security Gates (JWT, RBAC - Role Based Access)
+│   │   └── server.js                  # Entrypoint
+│   ├── database/                      # SQL Schema & Migrations
+│   ├── .env.example                   # Template for backend secrets
 │   └── package.json
 │
-├── src/                      # Next.js frontend (Port 3000)
-│   ├── app/
-│   │   ├── superadmin/
-│   │   │   ├── signin/page.tsx        # Superadmin login
-│   │   │   └── dashboard/
-│   │   │       ├── page.tsx           # Superadmin dashboard
-│   │   │       ├── admins/page.tsx    # ✅ Admin approval panel
-│   │   │       └── ... (other pages)
-│   │   ├── admin/
-│   │   │   ├── signin/page.tsx        # Admin login
-│   │   │   ├── signup/page.tsx        # Admin registration
-│   │   │   ├── otp/page.tsx           # Email OTP verification
-│   │   │   └── dashboard/page.tsx     # Admin dashboard
-│   │   └── user/
-│   │       ├── signin/page.tsx        # User login
-│   │       ├── signup/page.tsx        # User registration
-│   │       ├── otp/page.tsx           # Email OTP verification
-│   │       └── dashboard/page.tsx     # User dashboard
-│   ├── components/layout/Sidebar.tsx  # Superadmin sidebar nav
-│   └── lib/redux/                     # State management
+├── src/                               # Frontend Command Center (Port 3000)
+│   ├── app/                           # Next.js 15 App Router
+│   │   ├── admin/                     # Admin Portfolio Management
+│   │   │   └── dashboard/[id]/        # Entity Drill-down (Bills, Employees, Courses)
+│   │   ├── superadmin/                # Global Command Center
+│   │   └── user/                      # Employee Learning Portal
+│   ├── components/                    # Modular UI components (Sidebar, Charts, Receipt)
+│   ├── lib/redux/                     # Global State Synchronization
+│   └── public/                        # Static Assets (Logos, Icons)
 │
-├── .env.local            # Frontend environment variables
-└── README.md             # This file
+├── .env.local                         # Frontend Environment Config
+├── setup-database.ps1                 # Automated PostgreSQL Provisioning
+└── package.json
 ```
 
 ---
 
-## 👥 Roles & Access Flow
+## 🛰️ Quick-Start Deployment
 
-### 🔴 Superadmin
-| Feature | Detail |
-|---------|--------|
-| **Created** | Pre-seeded in database — **no UI signup** |
-| **Login** | `/superadmin/signin` → direct access to dashboard |
-| **OTP** | Not required |
-| **Email Alert** | 🔔 Every login sends an alert email to monitoring addresses |
-| **Capabilities** | Approve/reject admin accounts, view all users, login audit log |
-
-**Credentials (pre-seeded):**
-```
-Email:    superadmin@cybershieldguard.com
-Password: SuperAdmin@123
-```
-
----
-
-### 🟡 Admin
-| Feature | Detail |
-|---------|--------|
-| **Created** | Self-registration via `/admin/signup` |
-| **Verification** | Email OTP verification required |
-| **Approval** | **Must be approved by superadmin** before login works |
-| **Login** | `/admin/signin` → direct to dashboard (after approval) |
-| **Email** | Gets notified when approved or rejected |
-
-**Flow:**
-```
-Signup → Email OTP Verify → Pending Approval → Superadmin Approves → Login OK
-```
-
----
-
-### 🟢 User
-| Feature | Detail |
-|---------|--------|
-| **Created** | Self-registration via `/user/signup` |
-| **Verification** | Email OTP verification required |
-| **Login** | `/user/signin` → direct to dashboard (immediately after OTP verify) |
-| **Capabilities** | Training modules, quizzes, security score |
-
-**Flow:**
-```
-Signup → Email OTP Verify → Automatically Logged In → Dashboard
-```
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+
-- PostgreSQL 14+
-- Gmail account (for email sending)
-
-### 1. Database Setup
-
+### 1. Provision the Database
+Run the provided script to initialize the PostgreSQL schema and seed the initial Superadmin credentials.
 ```powershell
-# Option A: Use the automated setup script
 .\setup-database.ps1
-
-# Option B: Manual
-psql -U postgres -c "CREATE DATABASE emailawareness;"
 ```
 
-### 2. Backend Setup
+### 2. Configure Environment Secrets
+Create a `.env` file in the `backend/` directory and a `.env.local` in the root.
 
-```bash
-cd backend
-npm install
-# Copy and configure environment variables
-cp .env.example .env
-# Edit .env with your values, then:
-npm run dev
-```
-
-The server will:
-1. Connect to PostgreSQL
-2. Run the schema (migrate existing tables safely)
-3. Seed/sync the superadmin account
-4. Start on port 5000
-
-### 3. Frontend Setup
-
-```bash
-# In the root directory
-npm install
-npm run dev
-```
-
-Frontend starts on **http://localhost:3000**
-
----
-
-## ⚙️ Environment Variables
-
-### `backend/.env`
+#### **Backend Secrets (`backend/.env`)**
 ```env
-# Database
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/emailawareness
+# Database Connectivity
+DATABASE_URL=postgresql://user:password@localhost:5432/emailawareness
 
-# JWT Secrets (use strong random values in production)
-JWT_ACCESS_SECRET=your-access-secret-here
-JWT_REFRESH_SECRET=your-refresh-secret-here
+# Cryptography & Security
+JWT_ACCESS_SECRET=your_high_entropy_secret
+JWT_REFRESH_SECRET=another_high_entropy_secret
 
-# Email (Gmail with App Password)
+# Managed Communication (Gmail SMTP)
 EMAIL_USER=your-email@gmail.com
-EMAIL_PASS=your-app-password
+EMAIL_PASS=your-gmail-app-password
 
-# Server
+# Media Operations (Cloudinary)
+CLOUD_NAME=your_cloud_name
+CLOUD_API_KEY=your_api_key
+CLOUD_API_SECRET=your_api_secret
+
+# Global Configuration
 PORT=5000
-NODE_ENV=development
 FRONTEND_URL=http://localhost:3000
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=200
 ```
 
-### `.env.local` (frontend root)
+#### **Frontend Config (`.env.local`)**
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
 
----
+### 3. Launch the Stack
+```bash
+# Start Backend
+cd backend && npm install && npm run dev
 
-## 📡 API Endpoints
-
-### Authentication — `/api/auth`
-
-| Method | Endpoint | Role | Description |
-|--------|----------|------|-------------|
-| `POST` | `/auth/superadmin/signin` | Superadmin | Login (sends alert email) |
-| `POST` | `/auth/admin/signup` | Admin | Register + sends OTP |
-| `POST` | `/auth/user/signup` | User | Register + sends OTP |
-| `POST` | `/auth/signin` | Admin/User | Login (checks approval for admin) |
-| `POST` | `/auth/verify-otp` | All | Verify email OTP |
-| `POST` | `/auth/resend-otp` | All | Resend verification OTP |
-| `POST` | `/auth/forgot-password` | All | Send password reset OTP |
-| `POST` | `/auth/reset-password` | All | Reset password with OTP |
-| `POST` | `/auth/logout` | Authenticated | Clear session |
-| `POST` | `/auth/refresh-token` | Authenticated | Rotate access token |
-| `GET` | `/auth/profile` | Authenticated | Get own profile |
-| `PUT` | `/auth/profile/update` | Authenticated | Update own profile |
-| `GET` | `/auth/me` | Authenticated | Get current user info |
-
-### Superadmin — `/api/superadmin` *(requires superadmin role)*
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/superadmin/admins/pending` | List pending admin requests |
-| `GET` | `/superadmin/admins` | List all admins (any status) |
-| `POST` | `/superadmin/admins/:id/approve` | Approve an admin |
-| `POST` | `/superadmin/admins/:id/reject` | Reject an admin |
-| `GET` | `/superadmin/users` | List all users |
-| `GET` | `/superadmin/audit` | View login audit log |
+# Start Frontend (in a new terminal)
+npm install && npm run dev
+```
 
 ---
 
-## 📧 Email Notifications
+## 💎 Key Capabilities
 
-| Trigger | Recipients | Description |
-|---------|-----------|-------------|
-| Superadmin login | `utsavvachhani.it22@scet.ac.in`, `uvachhani03@gmail.com` | Login alert with time + IP |
-| Admin registers | Same monitoring emails | New admin awaiting approval |
-| Admin approved | Admin's email | Account activated |
-| Admin rejected | Admin's email | Application declined |
-| Admin/User signup | User's own email | 6-digit OTP, valid 10 mins |
-| Password reset | User's own email | 6-digit OTP, valid 10 mins |
+### 🏢 Multi-Tenant Entity Hub
+Admins can manage multiple companies under a single account. Each company operates in its own sandbox with independent employee lists and course progress logs.
 
----
+### 🧾 Professional Billing & PDF Receipts
+Full-fidelity transaction management for plan upgrades.
+- **Dynamic Invoicing**: Generates premium, brand-consistent receipts with transaction watermarks.
+- **PDF Engine**: Client-side PDF generation using `jspdf` and `html2canvas`.
+- **Direct Mailing**: Automatic receipt delivery to corporate email addresses upon checkout.
 
-## 🔐 Security Features
+### 🎓 Curated Learning Curricula
+- **Tiered Plans**: Choose from Basic, Standard, or Premium tiers based on entity size.
+- **Mastery Gating**: Employees must meet strict competency thresholds to unlock official credentials.
+- **Automated Certification**: High-fidelity PDF certificates automatically dispatched upon course completion.
 
-- **JWT Access Tokens** — 15-minute lifespan stored in httpOnly cookie
-- **JWT Refresh Tokens** — 7-day lifespan, stored in DB + httpOnly cookie
-- **bcrypt Password Hashing** — 10 salt rounds
-- **OTP Expiry** — 10 minutes, single-use
-- **Rate Limiting** — 200 requests / 15 minutes per IP
-- **Role Guards** — `requireRole()` middleware blocks unauthorized access
-- **Approval Guard** — `requireApproved()` blocks pending/rejected admins
-- **Login Audit Trail** — All superadmin logins recorded with IP + user-agent
-- **CORS** — Locked to `FRONTEND_URL` only
+### 🔒 Enterprise Governance
+- **Role-Based Guards**: Strict redirection logic for Superadmins, Admins, and Users.
+- **Approval Workflow**: All admin registrations require Superadmin verification before system access.
+- **Audit Logging**: Every sensitive action is logged with IP, Date, and User-Agent metadata.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Technology Stack
 
-### Backend
-| Package | Use |
-|---------|-----|
-| `express` | HTTP server & routing |
-| `pg` | PostgreSQL client |
-| `bcryptjs` | Password hashing |
-| `jsonwebtoken` | JWT access & refresh tokens |
-| `nodemailer` | Email transporter |
-| `cookie-parser` | httpOnly cookie handling |
-| `helmet` | Security headers |
-| `morgan` | Request logging |
-| `express-rate-limit` | Rate limiting |
-| `dotenv` | Environment variables |
-
-### Frontend
-| Package | Use |
-|---------|-----|
-| `next` 15 | React framework + App Router |
-| `@reduxjs/toolkit` | State management |
-| `sonner` | Toast notifications |
-| `lucide-react` | Icons |
-| `tailwindcss` | Utility-first CSS |
+| Domain | Technology |
+|--------|------------|
+| **Frontend** | Next.js 15, React 19, Tailwind CSS |
+| **Backend** | Node.js, Express.js |
+| **Database** | PostgreSQL + SQL Serialization |
+| **State** | Redux Toolkit (RTK) |
+| **Auth** | Dual-Token JWT (Access/Refresh) |
+| **Email** | Nodemailer (Gmail Cluster) |
+| **Assets** | Cloudinary (Media Ops) |
 
 ---
 
-## 🗺️ Frontend Routes
+## 📜 Role Reference & Credentials
 
-| Route | Role | Description |
-|-------|------|-------------|
-| `/` | Public | Landing page |
-| `/superadmin/signin` | Public | Superadmin login |
-| `/superadmin/dashboard` | 🔴 Superadmin | Main dashboard |
-| `/superadmin/dashboard/admins` | 🔴 Superadmin | Admin approval panel |
-| `/admin/signup` | Public | Admin registration |
-| `/admin/otp` | Public | Admin email verification |
-| `/admin/signin` | Public | Admin login |
-| `/admin/dashboard` | 🟡 Admin | Admin dashboard |
-| `/user/signup` | Public | User registration |
-| `/user/otp` | Public | User email verification |
-| `/user/signin` | Public | User login |
-| `/user/dashboard` | 🟢 User | Training dashboard |
+### 🔴 Superadmin (Global Oversight)
+- **Pre-seeded**: Used for entity verification & system audits.
+- **Login**: `superadmin@cybershieldguard.com` / `SuperAdmin@123`
 
----
+### 🟡 Admin (Entity Management)
+- **Workflow**: Signup -> OTP -> Superadmin Approval -> Full Access.
+- **Capabilities**: Company creation, billing, progress tracking.
 
-## 🐛 Troubleshooting
-
-### `column "status" does not exist`
-The database was created before the new schema. The schema now runs `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` migrations automatically. Simply restart the backend server.
-
-### Email not sending
-1. Ensure `EMAIL_USER` and `EMAIL_PASS` are set in `backend/.env`
-2. Use a **Gmail App Password** (not your regular password): [Create App Password](https://myaccount.google.com/apppasswords)
-3. Enable 2-Factor Authentication on the Gmail account first
-
-### Cannot connect to database
-1. Ensure PostgreSQL is running: `pg_ctl status` or check Services
-2. Verify `DATABASE_URL` in `backend/.env` has correct host, port, user, password, and database name
-3. Check the database exists: `psql -U postgres -l`
+### 🟢 User (Employee/Learner)
+- **Workflow**: Signup -> OTP -> Access.
+- **Capabilities**: Training attendance, quiz participation, certificate collection.
 
 ---
 
 ## 📜 License
-
-MIT — Built for cybersecurity education purposes.
+MIT — Engineered for enterprise cybersecurity educational environments.
