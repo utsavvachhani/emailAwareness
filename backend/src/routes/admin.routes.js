@@ -24,6 +24,7 @@ import {
   getAdminEmployees,
   updateCompanyPlan,
   updateCompanyPaymentStatus,
+  sendCompanyReceipt,
 } from "../controllers/company.controller.js";
 import {
   getEmployeesByCompany,
@@ -148,6 +149,13 @@ router.put(
   requireRole("admin"),
   requireApproved,
   updateCompanyPaymentStatus,
+);
+router.post(
+  "/companies/:id/send-receipt",
+  authMiddleware,
+  requireRole("admin"),
+  requireApproved,
+  sendCompanyReceipt,
 );
 
 // Specific Company Management

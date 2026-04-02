@@ -59,6 +59,8 @@ export default function PaymentPage() {
         if (id && token) fetchCompany();
     }, [id, token]);
 
+    const [successData, setSuccessData] = useState<any>(null);
+
     const handlePayment = async () => {
         setProcessing(true);
         // Simulate gateway processing
@@ -75,9 +77,14 @@ export default function PaymentPage() {
             });
             const data = await res.json();
             if (data.success) {
+                setSuccessData({
+                    transactionId: `TXN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+                    date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
+                    companyName: company?.name || "N/A",
+                    plan: plan,
+                });
                 setSuccess(true);
-                toast.success("Payment Confirmed! Activating your dashboard...");
-                setTimeout(() => router.push(`/admin/dashboard/${id}`), 2800);
+                toast.success("Payment Confirmed! Receipt Generated.");
             } else {
                 toast.error(data.message || "Payment sync failed. Please try again.");
             }
@@ -88,24 +95,190 @@ export default function PaymentPage() {
         }
     };
 
+    const downloadPDF = async () => {
+        const html2canvas = (await import("html2canvas")).default;
+        const jsPDF = (await import("jspdf")).jsPDF;
+        const receipt = document.getElementById("receipt-content");
+        if (!receipt) return;
+
+        toast.info("Generating your high-fidelity receipt...");
+        const canvas = await html2canvas(receipt, { scale: 3, useCORS: true });
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF("p", "mm", "a4");
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`Receipt-${successData.transactionId}.pdf`);
+        toast.success("Receipt downloaded successfully!");
+    };
+
+    const emailReceipt = async () => {
+        toast.promise(
+            (async () => {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/send-receipt`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        transactionId: successData.transactionId,
+                        planName: plan.name,
+                        amount: plan.price
+                    }),
+                    credentials: "include",
+                });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.message);
+                return data;
+            })(),
+            {
+                loading: "Mailing receipt to company email...",
+                success: "Professional receipt sent successfully!",
+                error: (err) => err.message || "Failed to send receipt email."
+            }
+        );
+    };
+
     // ── Success screen ──────────────────────────────────────────────────────
-    if (success) {
+    if (success && successData) {
         return (
-            <div className="min-h-[80vh] flex items-center justify-center">
-                <div className="text-center space-y-6 animate-in fade-in zoom-in duration-700">
-                    <div className="w-24 h-24 rounded-[2.5rem] bg-emerald-500/10 flex items-center justify-center mx-auto border border-emerald-500/20 shadow-2xl shadow-emerald-500/10">
-                        <CheckCircle2 className="w-12 h-12 text-emerald-500" />
+            <div className="min-h-screen py-20 px-4 flex flex-col items-center justify-center bg-zinc-50/50">
+                <div className="max-w-2xl w-full space-y-10 animate-in fade-in slide-in-from-bottom-5 duration-1000">
+                    
+                    {/* Header Controls */}
+                    <div className="flex items-center justify-between w-full">
+                        <Link
+                            href={`/admin/dashboard/${id}`}
+                            className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground hover:text-blue-600 transition-colors"
+                        >
+                            <ChevronLeft className="w-4 h-4" /> Go to Dashboard
+                        </Link>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={emailReceipt}
+                                className="h-10 px-5 rounded-full bg-white border border-border/60 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-zinc-50 transition-all shadow-sm"
+                            >
+                                <Mail className="w-3.5 h-3.5" /> Email Copy
+                            </button>
+                            <button 
+                                onClick={downloadPDF}
+                                className="h-10 px-5 rounded-full bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+                            >
+                                <FileCheck className="w-3.5 h-3.5" /> Download PDF
+                            </button>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-4xl font-black italic tracking-tighter mb-3">Transaction Verified!</h1>
-                        <p className="text-muted-foreground font-medium">
-                            Your <span className="font-black text-foreground">{plan.name}</span> is now active.
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">Redirecting to your dashboard...</p>
-                    </div>
-                    <div className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-500/5 border border-emerald-500/10 px-6 py-3 rounded-full">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        Dashboard Activated
+
+                    {/* Receipt Body */}
+                    <div id="receipt-content" className="bg-white border border-black/[0.08] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.12)] rounded-[3rem] p-12 relative overflow-hidden text-zinc-900">
+                        {/* Decorative Patterns */}
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/5 rounded-full blur-[100px] -mr-32 -mt-32" />
+                        
+                        <div className="relative z-10 space-y-12">
+                            {/* Logo & Status */}
+                            <div className="flex justify-between items-start">
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <img src="/logo.svg" alt="Logo" className="w-12 h-12" />
+                                        <span className="text-2xl font-black italic tracking-tighter">CyberShield Guard</span>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Transaction ID</p>
+                                        <p className="text-sm font-mono font-bold tracking-tighter">{successData.transactionId}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right space-y-2">
+                                    <span className="inline-flex px-4 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 text-[10px] font-black uppercase tracking-widest">
+                                        Payment Successful
+                                    </span>
+                                    <p className="text-[11px] font-bold text-zinc-400 italic font-mono">{successData.date}</p>
+                                </div>
+                            </div>
+
+                            <div className="h-px bg-zinc-100 w-full" />
+
+                            {/* Entity Details */}
+                            <div className="grid grid-cols-2 gap-10">
+                                <div className="space-y-2">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Billed To</p>
+                                    <h3 className="text-lg font-black tracking-tight">{successData.companyName}</h3>
+                                    <p className="text-[11px] font-medium text-zinc-400 max-w-[200px] leading-relaxed uppercase tracking-tight">Enterprise Entity Registration • Verified Member Since {new Date().getFullYear()}</p>
+                                </div>
+                                <div className="space-y-2 text-right">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">Merchant Hub</p>
+                                    <h3 className="text-lg font-black tracking-tight">CyberShield Guard Pvt Ltd.</h3>
+                                    <p className="text-[11px] font-medium text-zinc-400 leading-relaxed uppercase tracking-tight">Digital Awareness & Compliance Security Ops</p>
+                                </div>
+                            </div>
+
+                            {/* Plan Description Table */}
+                            <div className="space-y-6">
+                                <p className="text-[11px] font-black uppercase tracking-[0.3em] text-zinc-900 border-b-2 border-black pb-2 inline-block">Service Allocation</p>
+                                <div className="bg-zinc-50/50 rounded-3xl border border-zinc-100 overflow-hidden">
+                                    <div className="p-8 space-y-6">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 bg-white border border-zinc-200 rounded-xl flex items-center justify-center">
+                                                    <Icon className="w-5 h-5 text-blue-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm font-black italic">{successData.plan.name}</p>
+                                                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-tight">Cyber Resilience & Training Suite</p>
+                                                </div>
+                                            </div>
+                                            <p className="font-black italic text-lg">{successData.plan.price}</p>
+                                        </div>
+                                        
+                                        <div className="grid grid-cols-2 gap-x-12 gap-y-3 pt-6 border-t border-zinc-100">
+                                            {successData.plan.features.slice(0, 4).map((f: string, i: number) => (
+                                                <div key={i} className="flex items-center gap-2.5 text-[10px] font-bold text-zinc-500 uppercase tracking-tight">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                                    {f}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Grand Total */}
+                            <div className="pt-6 border-t-2 border-dashed border-zinc-200 flex justify-between items-end">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                        <ShieldCheck className="w-4 h-4" />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Authenticated Transaction</span>
+                                    </div>
+                                    <p className="text-[9px] font-medium text-zinc-400 max-w-[200px] leading-tight italic">
+                                        This document serves as an official proof of purchase for auditing purposes.
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400 mb-1">Final Amount Paid</p>
+                                    <div className="text-5xl font-black italic tracking-tighter text-zinc-900 leading-none">
+                                        {successData.plan.price}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Receipt Footer */}
+                            <div className="flex flex-col items-center justify-center pt-10 text-center gap-4 border-t border-zinc-100">
+                                <div className="flex gap-4 opacity-50 grayscale scale-75">
+                                    <Lock className="w-5 h-5" />
+                                    <ShieldCheck className="w-5 h-5" />
+                                    <CreditCard className="w-5 h-5" />
+                                </div>
+                                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-300">
+                                    www.cybershield.guard.com • Support@cybershield.com
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Watermark */}
+                        <div className="absolute -bottom-10 -right-10 opacity-[0.03] rotate-12 scale-150 select-none pointer-events-none">
+                            <h1 className="text-9xl font-black italic tracking-tighter">VERIFIED</h1>
+                        </div>
                     </div>
                 </div>
             </div>

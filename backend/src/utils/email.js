@@ -340,3 +340,54 @@ export const sendCertificateEmail = async (
     `,
   });
 };
+// ─── Payment Receipt Notification ─────────────────────────────────────────────
+export const sendPaymentReceipt = async (
+  email,
+  name,
+  companyName,
+  transactionId,
+  planName,
+  amount,
+) => {
+  return send({
+    from: FROM,
+    to: email,
+    subject: `🧾 Payment Receipt: Transaction ${transactionId} — CyberShield Guard`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px;border:1px solid #e5e7eb;border-radius:24px;background:#fff;color:#1f2937;">
+        <div style="text-align:center;margin-bottom:32px;">
+          <h2 style="margin:0;color:#2563eb;font-size:24px;font-style:italic;font-weight:900;">🛡️ CyberShield Guard</h2>
+          <p style="color:#6b7280;font-size:12px;margin-top:4px;text-transform:uppercase;letter-spacing:2px;font-weight:bold;">Enterprise Hub • Payment Confirmation</p>
+        </div>
+        
+        <div style="border-top:4px solid #2563eb;padding-top:24px;margin-bottom:32px;">
+          <h3 style="margin:0;color:#111827;font-size:18px;">Payment Successful</h3>
+          <p style="color:#6b7280;font-size:14px;margin-top:4px;">Thank you for your business, ${name}. Your entity dashboard for <strong>${companyName}</strong> is now fully active.</p>
+        </div>
+
+        <div style="background:#f9fafb;border-radius:16px;padding:24px;margin-bottom:32px;">
+          <table style="width:100%;font-size:14px;border-collapse:collapse;">
+            <tr><td style="padding:8px 0;color:#6b7280;width:40%;">Transaction ID:</td><td style="color:#111827;font-weight:700;font-family:monospace;">${transactionId}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280;">Date:</td><td style="color:#111827;font-weight:600;">${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</td></tr>
+            <tr><td style="padding:8px 0;color:#6b7280;">Billed To:</td><td style="color:#111827;font-weight:600;">${companyName}</td></tr>
+            <tr><td style="padding:24px 0 8px 0;border-bottom:1px solid #e5e7eb;" colspan="2"></td></tr>
+            <tr><td style="padding:16px 0 8px 0;color:#111827;font-weight:700;font-size:16px;">${planName}</td><td style="padding:16px 0 8px 0;color:#111827;font-weight:900;font-size:18px;text-align:right;">${amount}</td></tr>
+            <tr><td style="color:#6b7280;font-size:12px;">Full Awareness Strategy & Training Suite</td><td></td></tr>
+          </table>
+        </div>
+
+        <div style="text-align:center;margin-bottom:32px;">
+          <a href="${process.env.FRONTEND_URL || "http://localhost:3000"}/admin/signin" 
+             style="background:#2563eb;color:#fff;padding:14px 28px;border-radius:12px;text-decoration:none;font-weight:bold;font-size:14px;display:inline-block;box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.4);">
+             Go to Dashboard
+          </a>
+        </div>
+        
+        <p style="font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
+          This is an electronically generated receipt and does not require a physical signature.<br/>
+          CyberShield Guard Enterprise Compliance Hub © 2025
+        </p>
+      </div>
+    `,
+  });
+};

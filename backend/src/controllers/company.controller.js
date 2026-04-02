@@ -1,5 +1,5 @@
 import pool from "../config/database.js";
-import { sendCompanyCreatedNotification, sendCompanyStatusUpdate } from "../utils/email.js";
+import { sendCompanyCreatedNotification, sendCompanyStatusUpdate, sendPaymentReceipt } from "../utils/email.js";
 
 // ─── Helper: generate a unique company ID ─────────────────────────────────────
 const genCompanyId = () => {
@@ -484,6 +484,40 @@ export const updateCompanyPaymentStatus = async (req, res) => {
     return res.status(200).json({ success: true, message: is_paid ? "Payment confirmed. Dashboard activated." : "Payment revoked.", company: result.rows[0] });
   } catch (err) {
     console.error("updateCompanyPaymentStatus:", err);
+    return res.status(500).json({ success: false, message: "Internal error" });
+  }
+};
+// ─── Send Payment Receipt Email ──────────────────────────────────────────────
+export const sendCompanyReceipt = async (req, res) => {
+  const { id } = req.params;
+  const { transactionId, planName, amount } = req.body;
+  try {
+    const companyRes = await pool.query(
+      `SELECT c.*, a.first_name, a.last_name, a.email as admin_email 
+       FROM companies c 
+       JOIN admins a ON c.admin_id = a.id 
+       WHERE c.company_id = $1 AND c.admin_id = $2`,
+      [id, req.user.id]
+    );
+
+    if (companyRes.rows.length === 0)
+      return res.status(404).json({ success: false, message: "Company not found" });
+
+    const company = companyRes.rows[0];
+    const emailTo = company.email; // Company email
+
+    await sendPaymentReceipt(
+      emailTo,
+      `${company.first_name} ${company.last_name}`,
+      company.name,
+      transactionId,
+      planName,
+      amount
+    );
+
+    return res.status(200).json({ success: true, message: "Receipt sent successfully" });
+  } catch (err) {
+    console.error("sendCompanyReceipt error:", err);
     return res.status(500).json({ success: false, message: "Internal error" });
   }
 };
