@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Bell, LogOut, Home, Mail } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { UserProfile } from "@/components/user/UserProfile";
 
 export default function UserDashboardLayout({ children }: { children: React.ReactNode }) {
     const dispatch = useAppDispatch();
@@ -24,7 +25,6 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
         router.push("/");
     };
 
-    const initials = `${userInfo?.firstName?.[0] ?? ""}${userInfo?.lastName?.[0] ?? ""}`.toUpperCase() || "U";
 
     return (
         <AuthGuard requiredRole="user">
@@ -57,16 +57,7 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
                         <button className="relative p-2 hover:bg-muted rounded-md transition-colors">
                             <Bell className="w-4 h-4" />
                         </button>
-                        {/* User avatar + name */}
-                        <div className="flex items-center gap-2 pl-3 border-l border-border">
-                            <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                                <span className="text-xs font-bold text-emerald-600">{initials}</span>
-                            </div>
-                            <div className="hidden sm:flex flex-col">
-                                <span className="text-xs font-semibold leading-none">{userInfo?.firstName} {userInfo?.lastName}</span>
-                                <span className="text-[10px] text-muted-foreground">{userInfo?.email}</span>
-                            </div>
-                        </div>
+                        <UserProfile />
                         {/* Logout */}
                         <button
                             onClick={handleLogout}

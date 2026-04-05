@@ -16,28 +16,37 @@ const CTASection = () => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button
+              asChild
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto border-background/30 text-black hover:bg-black hover:text-white hover:border-white"
+              className="w-full sm:w-auto border-background/10 bg-white/5 text-white hover:bg-white hover:text-black transition-all"
             >
-              <Calendar className="w-4 h-4 mr-2" />
-              Schedule Demo
+              <a href="#demo">
+                <Calendar className="w-4 h-4 mr-2" />
+                See Platform Demo
+              </a>
             </Button>
             <Button
+              asChild
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto border-background/30 text-black hover:bg-black hover:text-white hover:border-white"
+              className="w-full sm:w-auto border-background/10 bg-white/5 text-white hover:bg-white hover:text-black transition-all"
             >
-              <ArrowRight className="w-4 h-4 mr-2" />
-              Get Pricing
+              <a href="#pricing">
+                <ArrowRight className="w-4 h-4 mr-2" />
+                View Detailed Pricing
+              </a>
             </Button>
             <Button
+              asChild
               variant="outline"
               size="lg"
-              className="w-full sm:w-auto border-background/30 text-black hover:bg-black hover:text-white hover:border-white"
+              className="w-full sm:w-auto border-background/10 bg-white/5 text-white hover:bg-white hover:text-black transition-all"
             >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              WhatsApp Us
+              <a href="#contact">
+                <MessageCircle className="w-4 h-4 mr-2" />
+                Direct Inquiry
+              </a>
             </Button>
           </div>
         </AnimatedSection>

@@ -7,11 +7,13 @@ import Header from "@/components/superadmin/landing/Header";
 import HeroSection from "@/components/superadmin/landing/HeroSection";
 import ProblemSection from "@/components/superadmin/landing/ProblemSection";
 import SolutionSection from "@/components/superadmin/landing/SolutionSection";
+import DemoSection from "@/components/superadmin/landing/DemoSection";
 import HowItWorksSection from "@/components/superadmin/landing/HowItWorksSection";
 import WhatEmployeesLearnSection from "@/components/superadmin/landing/WhatEmployeesLearnSection";
 import BenefitsSection from "@/components/superadmin/landing/BenefitsSection";
 import PricingSection from "@/components/superadmin/landing/PricingSection";
 import WhyChooseUsSection from "@/components/superadmin/landing/WhyChooseUsSection";
+import ContactFormSection from "@/components/superadmin/landing/ContactFormSection";
 import CTASection from "@/components/superadmin/landing/CTASection";
 import Footer from "@/components/superadmin/landing/Footer";
 import { Loader2 } from "lucide-react";
@@ -53,11 +55,13 @@ export default function LandingPage() {
                 <HeroSection />
                 <ProblemSection />
                 <SolutionSection />
+                <DemoSection />
                 <HowItWorksSection />
                 <WhatEmployeesLearnSection />
                 <BenefitsSection />
                 <PricingSection />
                 <WhyChooseUsSection />
+                <ContactFormSection />
                 <CTASection />
             </main>
             <Footer />

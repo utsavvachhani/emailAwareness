@@ -77,9 +77,17 @@ const authSlice = createSlice({
           }
         }
       }
-    }
+    },
+    updateUserInfo: (state, action: PayloadAction<Partial<UserInfo>>) => {
+      if (state.userInfo) {
+        state.userInfo = { ...state.userInfo, ...action.payload };
+        if (typeof window !== "undefined") {
+          localStorage.setItem("userInfo", JSON.stringify(state.userInfo));
+        }
+      }
+    },
   },
 });
 
-export const { setCredentials, setToken, logout, hydrateAuth } = authSlice.actions;
+export const { setCredentials, setToken, logout, hydrateAuth, updateUserInfo } = authSlice.actions;
 export default authSlice.reducer;

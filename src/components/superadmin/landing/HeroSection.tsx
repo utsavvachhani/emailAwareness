@@ -35,13 +35,17 @@ const HeroSection = () => {
 
                     {/* Actions */}
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-16">
-                        <Button size="lg" className="w-full sm:w-auto h-14 px-8 bg-white text-black hover:bg-white/90 rounded-2xl text-base font-bold shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all hover:scale-105 active:scale-95">
-                            Start Free Trial
-                            <ArrowRight className="w-5 h-5 ml-2" />
+                        <Button size="lg" className="w-full sm:w-auto h-14 px-8 bg-white text-black hover:bg-white/90 rounded-2xl text-base font-bold shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all hover:scale-105 active:scale-95" asChild>
+                            <a href="#contact">
+                                Start Free Trial
+                                <ArrowRight className="w-5 h-5 ml-2" />
+                            </a>
                         </Button>
-                        <Button variant="outline" size="lg" className="w-full sm:w-auto h-14 px-8 border-white/10 bg-white/5 text-white hover:bg-white/10 rounded-2xl text-base font-bold backdrop-blur-sm transition-all hover:scale-105 active:scale-95">
-                            <MessageCircle className="w-5 h-5 mr-2" />
-                            WhatsApp Demo
+                        <Button variant="outline" size="lg" className="w-full sm:w-auto h-14 px-8 border-white/10 bg-white/5 text-white hover:bg-white/10 rounded-2xl text-base font-bold backdrop-blur-sm transition-all hover:scale-105 active:scale-95" asChild>
+                            <a href="#demo">
+                                <MessageCircle className="w-5 h-5 mr-2" />
+                                See Digital Demo
+                            </a>
                         </Button>
                     </div>
 

@@ -1,38 +1,44 @@
 "use client";
 
-import { UserPlus, Users, Mail, ClipboardCheck, FileText, ArrowRight } from "lucide-react";
+import { UserPlus, Building2, CreditCard, BookOpen, Users, Award, ArrowRight } from "lucide-react";
 import { AnimatedSection } from "@/hooks/useScrollAnimation";
 
 const steps = [
     {
         icon: UserPlus,
-        title: "Company Onboarding",
-        description: "Sign up your organization in minutes. No complex software installation or technical setup required.",
+        title: "Admin Registration",
+        description: "Initialize your master profile and gain access to the CyberShield Command Center in seconds.",
         color: "bg-blue-500",
     },
     {
-        icon: Users,
-        title: "Add Your Team",
-        description: "Upload employee email addresses safely. We handle the rest, ensuring everyone is enrolled smoothly.",
+        icon: Building2,
+        title: "Activate Entity",
+        description: "Register your company or organization into the global registry to begin centralized protection.",
         color: "bg-purple-500",
     },
     {
-        icon: Mail,
-        title: "Weekly Micro-Learning",
-        description: "A 2-minute lesson arrives in their inbox weekly. No logins needed, just pure actionable knowledge.",
+        icon: CreditCard,
+        title: "Plan Selection",
+        description: "Authorize your preferred protection tier and activate the billing cycle to unlock management tools.",
         color: "bg-emerald-500",
     },
     {
-        icon: ClipboardCheck,
-        title: "Knowledge Check",
-        description: "A quick 3-question quiz follows each lesson, reinforcing memory and ensuring participation.",
+        icon: BookOpen,
+        title: "Curriculum Design",
+        description: "Deploy our core modules or architect your own custom courses tailored to your unique security risks.",
         color: "bg-amber-500",
     },
     {
-        icon: FileText,
-        title: "Impact Reports",
-        description: "Receive monthly analytics showing your company's risk reduction and employee progress.",
+        icon: Users,
+        title: "Employee Sync",
+        description: "Batch import your workforce. Our system automatically distributes training seats across your team.",
         color: "bg-red-500",
+    },
+    {
+        icon: Award,
+        title: "Graduation Hub",
+        description: "Employees complete assessments and receive automated, verified certificates of curriculum mastery.",
+        color: "bg-blue-600",
     },
 ];
 
@@ -43,21 +49,21 @@ const HowItWorksSection = () => {
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
             
             <div className="section-container relative z-10">
-                <AnimatedSection className="text-center mb-20">
-                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 tracking-tight">
-                        Perfectly simple <span className="text-white/60">workflow</span>
+                <AnimatedSection className="text-center mb-20 px-4">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-widest text-white/50 mb-6">
+                        Operational Lifecycle
+                    </div>
+                    <h2 className="text-4xl md:text-5xl lg:text-7xl font-black text-white mb-8 tracking-tighter italic uppercase">
+                        From Setup to <span className="text-white/40">Certfication</span>
                     </h2>
-                    <p className="text-lg text-white/40 max-w-2xl mx-auto">
+                    <p className="text-lg text-white/40 max-w-2xl mx-auto font-medium">
                         Protecting your organization shouldn't be a full-time job. 
-                        Our automated flow makes security awareness effortless.
+                        Our high-fidelity workflow makes security awareness effortless for both admins and employees.
                     </p>
                 </AnimatedSection>
 
                 <div className="relative">
-                    {/* Connecting Line (Desktop) */}
-                    <div className="hidden lg:block absolute top-[45px] left-[5%] right-[5%] h-[2px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-8 relative">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16 relative">
                         {steps.map((step, index) => (
                             <AnimatedSection 
                                 key={index} 

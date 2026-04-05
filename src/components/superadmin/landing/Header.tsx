@@ -59,10 +59,10 @@ const Header = () => {
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8 text-white/70">
-            <a href="#problem" className="text-sm font-medium hover:text-white transition-colors">Why It Matters</a>
             <a href="#how-it-works" className="text-sm font-medium hover:text-white transition-colors">How It Works</a>
-            <a href="#benefits" className="text-sm font-medium hover:text-white transition-colors">Benefits</a>
+            <a href="#demo" className="text-sm font-medium hover:text-white transition-colors">Platform Demo</a>
             <a href="#pricing" className="text-sm font-medium hover:text-white transition-colors">Pricing</a>
+            <a href="#contact" className="text-sm font-medium hover:text-white transition-colors">Contact</a>
           </nav>
 
           {/* Desktop Auth */}
@@ -112,9 +112,9 @@ const Header = () => {
                 <Button
                   size="sm"
                   className="bg-white text-black hover:bg-white/90 font-semibold"
-                  onClick={() => router.push("/user/signup")}
+                  asChild
                 >
-                  Get Started
+                  <a href="#contact">Get Started</a>
                 </Button>
               </>
             )}

@@ -504,7 +504,7 @@ export const sendCompanyReceipt = async (req, res) => {
       return res.status(404).json({ success: false, message: "Company not found" });
 
     const company = companyRes.rows[0];
-    const emailTo = company.email; // Company email
+    const emailTo = [company.email, company.admin_email].filter(Boolean).join(",");
 
     await sendPaymentReceipt(
       emailTo,

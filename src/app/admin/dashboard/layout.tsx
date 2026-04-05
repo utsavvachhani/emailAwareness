@@ -21,6 +21,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
     const params = useParams();
     const id = params?.id as string;
     const { userInfo, token } = useAppSelector(s => s.auth);
+    const [companyDetails, setCompanyDetails] = useState<any>(null);
     const [companyName, setCompanyName] = useState<string>("");
 
     useEffect(() => {
@@ -32,8 +33,24 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
                 const data = await res.json();
                 if (data.success && data.company) {
                     setCompanyName(data.company.name);
+                    setCompanyDetails(data.company);
+
+                    // Restricted Access Logic:
+                    // If we are on a company-specific page (id exists)
+                    // and it's NOT a billing/payment page
+                    // and the plan is NOT paid or no plan selected
+                    const isBillingPage = pathname.includes("/bills") || pathname.includes("/payment");
+                    const isUnpaid = !data.company.is_paid || data.company.plan === "none";
+                    
+                    if (id && !isBillingPage && isUnpaid) {
+                        toast.error("Activate Your Entity", {
+                            description: "Your dashboard is locked. Please select a plan and complete payment."
+                        });
+                        router.push(`/admin/dashboard/${id}/bills`);
+                    }
                 } else {
                     setCompanyName("");
+                    setCompanyDetails(null);
                 }
             } catch (err) {
                 console.error("Layout fetch error:", err);
@@ -46,7 +63,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
         } else {
             setCompanyName("");
         }
-    }, [id, token]);
+    }, [id, token, pathname, router]);
 
     const navItems = [
         { label: "Overview", href: "/admin/dashboard", icon: LayoutDashboard },

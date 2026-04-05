@@ -53,11 +53,25 @@ export default function PaymentPage() {
                     credentials: "include",
                 });
                 const data = await res.json();
-                if (data.success) setCompany(data.company);
+                if (data.success) {
+                    setCompany(data.company);
+                    
+                    // Handle 'View Receipt' mode from Bills history
+                    const view = searchParams.get("view");
+                    if (view === "receipt" && data.company.is_paid) {
+                        setSuccessData({
+                            transactionId: `TXN-REISSUE-${id.substring(0, 5).toUpperCase()}`,
+                            date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
+                            companyName: data.company.name || "N/A",
+                            plan: PLAN_DETAILS[data.company.plan?.toLowerCase() || "standard"] || PLAN_DETAILS.standard,
+                        });
+                        setSuccess(true);
+                    }
+                }
             } catch (err) { console.error(err); }
         };
         if (id && token) fetchCompany();
-    }, [id, token]);
+    }, [id, token, searchParams]);
 
     const [successData, setSuccessData] = useState<any>(null);
 
@@ -77,14 +91,18 @@ export default function PaymentPage() {
             });
             const data = await res.json();
             if (data.success) {
-                setSuccessData({
+                const txnData = {
                     transactionId: `TXN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
                     date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
                     companyName: company?.name || "N/A",
                     plan: plan,
-                });
+                };
+                setSuccessData(txnData);
                 setSuccess(true);
                 toast.success("Payment Confirmed! Receipt Generated.");
+                
+                // Automatically share receipt with admin
+                autoEmailReceipt(txnData);
             } else {
                 toast.error(data.message || "Payment sync failed. Please try again.");
             }
@@ -114,31 +132,31 @@ export default function PaymentPage() {
     };
 
     const emailReceipt = async () => {
-        toast.promise(
-            (async () => {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/send-receipt`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        transactionId: successData.transactionId,
-                        planName: plan.name,
-                        amount: plan.price
-                    }),
-                    credentials: "include",
-                });
-                const data = await res.json();
-                if (!data.success) throw new Error(data.message);
-                return data;
-            })(),
-            {
-                loading: "Mailing receipt to company email...",
-                success: "Professional receipt sent successfully!",
-                error: (err) => err.message || "Failed to send receipt email."
-            }
-        );
+        toast.promise(autoEmailReceipt(successData), {
+            loading: "Mailing receipt to company email...",
+            success: "Professional receipt sent successfully!",
+            error: (err) => err.message || "Failed to send receipt email."
+        });
+    };
+
+    const autoEmailReceipt = async (data: any) => {
+        if (!data) return;
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/send-receipt`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                transactionId: data.transactionId,
+                planName: data.plan.name,
+                amount: data.plan.price
+            }),
+            credentials: "include",
+        });
+        const resData = await res.json();
+        if (!resData.success) throw new Error(resData.message);
+        return resData;
     };
 
     // ── Success screen ──────────────────────────────────────────────────────

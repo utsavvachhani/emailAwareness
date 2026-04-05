@@ -217,6 +217,99 @@ export default function AdminBillsPage() {
                     );
                 })}
             </div>
+
+            {/* Billing History Section */}
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500 delay-150">
+                <div className="flex items-center justify-between border-b border-border pb-4">
+                    <h2 className="text-xl font-black italic tracking-tighter uppercase">Billing History & Invoices</h2>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-muted rounded-lg text-[10px] font-bold text-muted-foreground uppercase tracking-widest border border-border/50">
+                        Total Records: {isActive ? invoices.length + 1 : invoices.length}
+                    </div>
+                </div>
+
+                <div className="bg-white border border-border/40 rounded-[2.5rem] shadow-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-muted/30 border-b border-border/40">
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Invoice ID</th>
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Period</th>
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Amount</th>
+                                <th className="px-8 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Status</th>
+                                <th className="px-8 py-5 text-right text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                            {/* Dynamically show current receipt if active */}
+                            {isActive && (
+                                <tr className="group bg-blue-50/20">
+                                    <td className="px-8 py-5">
+                                        <p className="text-sm font-black font-mono">TXN-LATEST</p>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <p className="text-sm font-semibold">{new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <p className="text-sm font-black italic">{PLAN_PRICE[currentPlan!]}</p>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <span className="inline-flex px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-widest border border-emerald-200">
+                                            Active
+                                        </span>
+                                    </td>
+                                    <td className="px-8 py-5 text-right">
+                                        <Link 
+                                            href={`/admin/dashboard/${id}/bills/payment?plan=${currentPlan}&view=receipt`}
+                                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
+                                        >
+                                            View Receipt
+                                        </Link>
+                                    </td>
+                                </tr>
+                            )}
+                            
+                            {invoices.map((inv) => (
+                                <tr key={inv.id} className="hover:bg-muted/10 transition-colors">
+                                    <td className="px-8 py-5">
+                                        <p className="text-sm font-bold font-mono text-muted-foreground group-hover:text-foreground">{inv.id}</p>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <p className="text-sm font-semibold text-muted-foreground">{inv.date}</p>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <p className="text-sm font-bold text-muted-foreground">{inv.amount}</p>
+                                    </td>
+                                    <td className="px-8 py-5">
+                                        <span className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                                            inv.status === "Paid" 
+                                            ? "bg-muted text-muted-foreground border-border" 
+                                            : "bg-red-50 text-red-600 border-red-100"
+                                        }`}>
+                                            {inv.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-8 py-5 text-right">
+                                        <button className="text-muted-foreground hover:text-blue-600 font-black text-[9px] uppercase tracking-widest transition-colors">
+                                            Download PDF
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="p-6 rounded-[2rem] bg-slate-950 text-white flex items-center justify-between relative overflow-hidden group shadow-2xl">
+                    <div className="relative z-10">
+                        <h3 className="text-lg font-black italic tracking-tighter">Need a custom enterprise quote?</h3>
+                        <p className="text-xs text-white/50 font-medium mt-1 uppercase tracking-wider">For teams larger than 500+ employees or specific security compliance needs.</p>
+                    </div>
+                    <button className="relative z-10 px-8 py-3 bg-white text-black text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 transition-all">
+                        Contact Support
+                    </button>
+                    {/* Decorative patterns */}
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-[100px] -mr-32 -mt-32 group-hover:bg-blue-600/20 transition-all duration-700" />
+                </div>
+            </div>
         </div>
     );
 }
