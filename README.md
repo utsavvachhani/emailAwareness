@@ -1,3 +1,6 @@
+C:\Stripe\stripe.exe listen --forward-to localhost:5001/api/webhook
+
+
 # 🛡️ CyberShield Guard — Enterprise Awareness Suite
 
 A high-fidelity, industrial-grade cybersecurity email awareness & compliance platform. Designed for multi-tenant entity management, this suite enables security leaders to deploy training, track risk scores, and manage enterprise certifications across global departments.

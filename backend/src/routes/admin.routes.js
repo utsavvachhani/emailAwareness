@@ -51,6 +51,7 @@ import {
 import { assignCourseToEmployees } from "../controllers/assignment.controller.js";
 
 import { uploadMedia } from "../controllers/upload.controller.js";
+import { createCheckoutSession } from "../controllers/payment.controller.js";
 
 import {
   authMiddleware,
@@ -156,6 +157,13 @@ router.post(
   requireRole("admin"),
   requireApproved,
   sendCompanyReceipt,
+);
+router.post(
+  "/companies/:id/create-checkout-session",
+  authMiddleware,
+  requireRole("admin"),
+  requireApproved,
+  createCheckoutSession,
 );
 
 // Specific Company Management

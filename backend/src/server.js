@@ -9,6 +9,7 @@ import rateLimit from "express-rate-limit";
 import superadminRoutes from "./routes/superadmin.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import usersRoutes from "./routes/users.routes.js";
+import { stripeWebhook } from "./controllers/payment.controller.js";
 import { initializeDatabase } from "./config/initDb.js";
 
 const app = express();
@@ -26,6 +27,9 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+
+// ─── Stripe Webhook MUST be before express.json() ─────────────────────────────
+app.post("/api/webhook", express.raw({ type: "application/json" }), stripeWebhook);
 
 // ─── Body / Cookie ────────────────────────────────────────────────────────────
 app.use(express.json());

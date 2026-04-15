@@ -139,6 +139,7 @@ export const adminGetCompanyStats = (companyId: string) => API.get(`/admin/compa
 export const adminGetCompanyDetails = (companyId: string) => API.get(`/admin/companies/${companyId}`);
 export const adminGetCompanies = () => API.get('/admin/companies');
 export const adminGetGlobalStats = () => API.get('/admin/stats');
+export const adminCreateCheckoutSession = (companyId: string) => API.post(`/admin/companies/${companyId}/create-checkout-session`);
 
 // Module APIs
 export const adminGetCourseModules = (courseId: string) => API.get(`/admin/courses/${courseId}/modules`);

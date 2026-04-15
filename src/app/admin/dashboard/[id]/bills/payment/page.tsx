@@ -67,47 +67,57 @@ export default function PaymentPage() {
                         });
                         setSuccess(true);
                     }
+
+                    // Handle Stripe Success Callback
+                    if (searchParams.get("success") === "true") {
+                        const txnData = {
+                            transactionId: `TXN-STRIPE-${(searchParams.get("session_id") || "SUCCESS").substring(0, 9).toUpperCase()}`,
+                            date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
+                            companyName: data.company.name || "N/A",
+                            plan: PLAN_DETAILS[data.company.plan?.toLowerCase() || "standard"] || PLAN_DETAILS.standard,
+                        };
+                        setSuccessData(txnData);
+                        setSuccess(true);
+                        toast.success("Payment Confirmed! Receipt Generated.");
+                        
+                        // Let's assume stripe webhook marks is_paid, but we can also auto share receipt based on callback
+                        autoEmailReceipt(txnData);
+                        // Clean up URL to hide session_id visually
+                        router.replace(`/admin/dashboard/${id}/bills/payment`, { scroll: false });
+                    }
+
+                    if (searchParams.get("canceled") === "true") {
+                        toast.error("Payment was canceled. You can try again.");
+                    }
                 }
             } catch (err) { console.error(err); }
         };
         if (id && token) fetchCompany();
-    }, [id, token, searchParams]);
+    }, [id, token, searchParams, router]);
 
     const [successData, setSuccessData] = useState<any>(null);
 
     const handlePayment = async () => {
         setProcessing(true);
-        // Simulate gateway processing
-        await new Promise(r => setTimeout(r, 2200));
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/payment`, {
-                method: "PUT",
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/create-checkout-session`, {
+                method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ is_paid: true }),
                 credentials: "include",
             });
             const data = await res.json();
-            if (data.success) {
-                const txnData = {
-                    transactionId: `TXN-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-                    date: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }),
-                    companyName: company?.name || "N/A",
-                    plan: plan,
-                };
-                setSuccessData(txnData);
-                setSuccess(true);
-                toast.success("Payment Confirmed! Receipt Generated.");
-                
-                // Automatically share receipt with admin
-                autoEmailReceipt(txnData);
+            if (data.success && data.url) {
+                // Navigate directly to the Stripe-hosted Checkout Page URL
+                window.location.href = data.url;
             } else {
-                toast.error(data.message || "Payment sync failed. Please try again.");
+                toast.error(data.message || "Failed to initialize payment gateway.");
             }
-        } catch {
-            toast.error("Network error during payment. Please try again.");
+        } catch (err: any) {
+            console.error("Payment Gateway Error:", err);
+            toast.error(err.message || "Network error during checkout initialization. Please try again.");
         } finally {
             setProcessing(false);
         }
@@ -135,11 +145,11 @@ export default function PaymentPage() {
         toast.promise(autoEmailReceipt(successData), {
             loading: "Mailing receipt to company email...",
             success: "Professional receipt sent successfully!",
-            error: (err) => err.message || "Failed to send receipt email."
+            error: (err: any) => err.message || "Failed to send receipt email."
         });
     };
 
-    const autoEmailReceipt = async (data: any) => {
+    async function autoEmailReceipt(data: any) {
         if (!data) return;
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/companies/${id}/send-receipt`, {
             method: "POST",
@@ -157,7 +167,7 @@ export default function PaymentPage() {
         const resData = await res.json();
         if (!resData.success) throw new Error(resData.message);
         return resData;
-    };
+    }
 
     // ── Success screen ──────────────────────────────────────────────────────
     if (success && successData) {
